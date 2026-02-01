@@ -1,151 +1,147 @@
-// Core data types for Sali AI
+// Core data types for Zchut.AI - Zoning Compliance Analyzer
 
-export interface Product {
+export interface ZoningPlan {
   id: string;
-  name: string;
-  nameHe: string;
-  barcode: string;
-  category: ProductCategory;
-  image?: string;
-  brand: string;
-  unit: string;
-  unitAmount: number;
-}
-
-export type ProductCategory =
-  | 'dairy'
-  | 'bread'
-  | 'meat'
-  | 'produce'
-  | 'dry_goods'
-  | 'beverages'
-  | 'frozen'
-  | 'snacks'
-  | 'cleaning'
-  | 'personal_care';
-
-export const categoryLabels: Record<ProductCategory, string> = {
-  dairy: 'מוצרי חלב',
-  bread: 'לחם ומאפים',
-  meat: 'בשר ודגים',
-  produce: 'פירות וירקות',
-  dry_goods: 'מזון יבש',
-  beverages: 'משקאות',
-  frozen: 'קפואים',
-  snacks: 'חטיפים',
-  cleaning: 'ניקיון',
-  personal_care: 'טיפוח אישי',
-};
-
-export interface Store {
-  id: string;
-  name: string;
-  nameHe: string;
-  logo: string;
-  color: string;
-  deliveryFee: number;
-  minOrderForFreeDelivery: number;
-  estimatedDeliveryMinutes: number;
-  branches: StoreBranch[];
-}
-
-export interface StoreBranch {
-  id: string;
-  storeId: string;
+  planNumber: string; // e.g., "רע/3000"
   name: string;
   city: string;
+  neighborhood: string;
+  approvalDate: string;
+  status: 'active' | 'pending' | 'expired';
+  zoningType: ZoningType;
+  buildingRights: BuildingRights;
+  restrictions: BuildingRestrictions;
+  tmaRights?: TmaRights; // תמ"א 38 rights
+}
+
+export type ZoningType =
+  | 'residential_a' // מגורים א'
+  | 'residential_b' // מגורים ב'
+  | 'residential_c' // מגורים ג'
+  | 'commercial' // מסחרי
+  | 'mixed_use' // שימוש מעורב
+  | 'industrial' // תעשייה
+  | 'public' // ציבורי
+  | 'agricultural'; // חקלאי
+
+export const zoningTypeLabels: Record<ZoningType, string> = {
+  residential_a: "מגורים א'",
+  residential_b: "מגורים ב'",
+  residential_c: "מגורים ג'",
+  commercial: 'מסחרי',
+  mixed_use: 'שימוש מעורב',
+  industrial: 'תעשייה',
+  public: 'ציבורי',
+  agricultural: 'חקלאי',
+};
+
+export interface BuildingRights {
+  mainBuildingPercent: number; // אחוזי בנייה עיקריים
+  serviceBuildingPercent: number; // אחוזי שטחי שירות
+  totalBuildingPercent: number; // סה"כ אחוזי בנייה
+  maxFloors: number; // מקסימום קומות
+  maxHeight: number; // גובה מקסימלי במטרים
+  maxUnits: number; // מספר יחידות דיור מקסימלי
+  basementAllowed: boolean;
+  basementPercent: number; // אחוזי מרתף
+  rooftopPercent: number; // אחוזי גג (חדר יציאה לגג)
+  floorAllocations: FloorAllocation[];
+}
+
+export interface FloorAllocation {
+  floor: FloorType;
+  label: string;
+  mainAreaPercent: number; // שטח עיקרי (%)
+  serviceAreaPercent: number; // שטח שירות (%)
+  notes: string;
+}
+
+export type FloorType =
+  | 'basement'
+  | 'ground'
+  | 'typical'
+  | 'top'
+  | 'rooftop';
+
+export const floorTypeLabels: Record<FloorType, string> = {
+  basement: 'מרתף',
+  ground: 'קומת קרקע',
+  typical: 'קומה טיפוסית',
+  top: 'קומה עליונה',
+  rooftop: 'יציאה לגג',
+};
+
+export interface BuildingRestrictions {
+  frontSetback: number; // נסיגה קדמית (מטרים)
+  rearSetback: number; // נסיגה אחורית
+  sideSetback: number; // נסיגה צדדית
+  minParkingSpaces: number; // חניות נדרשות
+  minGreenAreaPercent: number; // אחוז שטח ירוק
+  maxLandCoverage: number; // אחוז כיסוי קרקע
+}
+
+export interface TmaRights {
+  eligible: boolean;
+  additionalFloors: number;
+  additionalBuildingPercent: number;
+  seismicUpgradeRequired: boolean;
+  notes: string;
+}
+
+export interface PropertySearch {
   address: string;
+  city: string;
+  block: string; // גוש
+  parcel: string; // חלקה
+  plotSize: number; // גודל מגרש במ"ר
+  currentBuiltArea: number; // שטח בנוי קיים במ"ר
+  currentFloors: number;
 }
 
-export interface StorePrice {
-  productId: string;
-  storeId: string;
-  branchId?: string;
-  price: number;
-  salePrice?: number;
-  updateDate: Date;
-  priceHistory: PricePoint[];
+export interface AnalysisResult {
+  property: PropertySearch;
+  zoningPlan: ZoningPlan;
+  calculations: BuildingCalculations;
+  financial: FinancialEstimate;
+  timestamp: Date;
 }
 
-export interface PricePoint {
-  date: Date;
-  price: number;
+export interface BuildingCalculations {
+  maxBuildableArea: number; // סה"כ שטח בנייה מותר
+  currentBuiltArea: number; // שטח בנוי קיים
+  additionalBuildableArea: number; // פוטנציאל בנייה נוסף
+  mainAreaTotal: number; // סה"כ שטח עיקרי
+  serviceAreaTotal: number; // סה"כ שטחי שירות
+  basementArea: number; // שטח מרתף
+  rooftopArea: number; // שטח גג
+  floorBreakdown: FloorBreakdownItem[];
+  landCoverageArea: number; // שטח כיסוי קרקע
+  greenArea: number; // שטח ירוק נדרש
+  parkingSpaces: number; // חניות נדרשות
 }
 
-export interface BasketItem {
-  product: Product;
-  quantity: number;
+export interface FloorBreakdownItem {
+  floor: string;
+  label: string;
+  mainArea: number; // מ"ר עיקרי
+  serviceArea: number; // מ"ר שירות
+  totalArea: number; // סה"כ מ"ר
 }
 
-export interface BasketAnalysis {
-  storeId: string;
-  storeName: string;
-  storeColor: string;
-  items: BasketItemPrice[];
-  subtotal: number;
-  deliveryFee: number;
-  total: number;
-  savings: number;
-  hasMissingItems: boolean;
-  missingItems: string[];
+export interface FinancialEstimate {
+  pricePerSqm: number; // מחיר למ"ר באזור
+  additionalValueEstimate: number; // הערכת שווי תוספת
+  constructionCostPerSqm: number; // עלות בנייה למ"ר
+  estimatedConstructionCost: number; // עלות בנייה משוערת
+  estimatedProfit: number; // רווח משוער
+  neighborhoodAvgPrice: number; // מחיר ממוצע בשכונה
 }
 
-export interface BasketItemPrice {
-  productId: string;
-  productName: string;
-  quantity: number;
-  unitPrice: number;
-  totalPrice: number;
-  isOnSale: boolean;
-  originalPrice?: number;
-}
-
-export interface SplitStrategy {
-  stores: SplitStoreOrder[];
-  totalCost: number;
-  totalDeliveryFees: number;
-  totalSavings: number;
-  savingsVsSingleStore: number;
-  recommendation: string;
-}
-
-export interface SplitStoreOrder {
-  storeId: string;
-  storeName: string;
-  storeColor: string;
-  items: BasketItemPrice[];
-  subtotal: number;
-  deliveryFee: number;
-  total: number;
-  deepLink: string;
-}
-
-export interface OptimizationResult {
-  cheapestSingleStore: BasketAnalysis;
-  smartSplit: SplitStrategy;
-  fastestDelivery: BasketAnalysis;
-  allStores: BasketAnalysis[];
-}
-
-export interface PriceAnomaly {
+export interface AnalysisLogEntry {
   id: string;
-  productId: string;
-  productName: string;
-  storeId: string;
-  storeName: string;
-  branchId?: string;
-  branchName?: string;
-  previousPrice: number;
-  currentPrice: number;
-  percentageChange: number;
-  detectedAt: Date;
-  type: 'drop' | 'spike';
+  message: string;
+  type: 'info' | 'search' | 'extract' | 'calculate' | 'complete' | 'warning';
+  timestamp: number;
 }
 
-export interface UserStats {
-  totalSavings: number;
-  basketsOptimized: number;
-  favoriteStore: string;
-  lastOptimization: Date;
-  monthlySavings: { month: string; savings: number }[];
-}
+export type AppScreen = 'search' | 'analyzing' | 'results';

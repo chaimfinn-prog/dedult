@@ -1,17 +1,25 @@
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import { ThemeProvider } from '@/context/ThemeContext';
-import { BasketProvider } from '@/context/BasketContext';
+import { ZoningProvider } from '@/context/ZoningContext';
 
 export const metadata: Metadata = {
-  title: 'סלי AI | השוואת מחירים חכמה',
-  description: 'מנוע חכם להשוואת מחירים ואופטימיזציית סל קניות בישראל',
-  keywords: ['השוואת מחירים', 'סופרמרקט', 'קניות', 'ישראל', 'חיסכון'],
-  authors: [{ name: 'Sali AI' }],
-  manifest: '/manifest.json',
+  title: 'Zchut.AI | מנוע זכויות בנייה חכם',
+  description:
+    'מנוע AI שהופך קבצי תב"ע מורכבים לדו"ח היתכנות כלכלי-תכנוני פשוט. גלה מה אפשר לבנות על המגרש שלך בשניות.',
+  keywords: [
+    'זכויות בנייה',
+    'תב"ע',
+    'תכנית בניין עיר',
+    'שמאות',
+    'אדריכלות',
+    'רעננה',
+    'נדל"ן',
+    'בנייה',
+  ],
+  authors: [{ name: 'Zchut.AI' }],
   icons: {
     icon: '/favicon.ico',
-    apple: '/apple-touch-icon.png',
   },
 };
 
@@ -35,12 +43,12 @@ export default function RootLayout({
     <html lang="he" dir="rtl" suppressHydrationWarning>
       <body className="font-sans antialiased">
         <ThemeProvider>
-          <BasketProvider>
+          <ZoningProvider>
             <div className="gradient-bg" />
             <main className="min-h-screen safe-area-top safe-area-bottom">
               {children}
             </main>
-          </BasketProvider>
+          </ZoningProvider>
         </ThemeProvider>
       </body>
     </html>

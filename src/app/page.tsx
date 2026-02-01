@@ -1,171 +1,193 @@
 'use client';
 
-import { useState } from 'react';
-import { motion } from 'framer-motion';
-import { Header } from '@/components/layout/Header';
-import { SearchBar } from '@/components/features/SearchBar';
-import { BasketList } from '@/components/features/BasketList';
-import { CompareButton } from '@/components/features/CompareButton';
-import { OptimizationModal } from '@/components/features/OptimizationModal';
-import { QuickCategories } from '@/components/features/QuickCategories';
-import { Dashboard } from '@/components/features/Dashboard';
-import { WarRoom } from '@/components/features/WarRoom';
-import { Sparkles, ShieldCheck, Zap, TrendingDown } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import {
+  Building2,
+  Sun,
+  Moon,
+  FileSearch,
+  Calculator,
+  Banknote,
+} from 'lucide-react';
+import { useZoning } from '@/context/ZoningContext';
+import { useTheme } from '@/context/ThemeContext';
+import { AddressSearch } from '@/components/features/AddressSearch';
+import { AnalysisProgress } from '@/components/features/AnalysisProgress';
+import { ResultsDashboard } from '@/components/features/ResultsDashboard';
 
 export default function Home() {
-  const [showOptimizationModal, setShowOptimizationModal] = useState(false);
+  const { screen } = useZoning();
+  const { theme, toggleTheme } = useTheme();
 
   return (
     <div className="container-app pb-8">
-      <Header />
-
-      {/* Hero Section */}
-      <motion.section
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="py-8 text-center"
-      >
-        <motion.div
-          initial={{ scale: 0 }}
-          animate={{ scale: 1 }}
-          transition={{ type: 'spring', stiffness: 200, damping: 15 }}
-          className="w-20 h-20 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-accent to-accent-dark flex items-center justify-center"
+      {/* Header */}
+      <header className="flex items-center justify-between py-4 mb-2">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-accent to-accent-dark flex items-center justify-center">
+            <Building2 className="w-5 h-5 text-white" />
+          </div>
+          <div>
+            <h1 className="font-bold text-lg leading-tight">
+              <span className="bg-gradient-to-l from-accent to-accent-light bg-clip-text text-transparent">
+                Zchut.AI
+              </span>
+            </h1>
+            <p className="text-xs text-foreground-secondary">
+              מנוע זכויות בנייה חכם
+            </p>
+          </div>
+        </div>
+        <button
+          onClick={toggleTheme}
+          className="glass-button p-2.5 rounded-xl"
+          aria-label="Toggle theme"
         >
-          <Sparkles className="w-10 h-10 text-white" />
-        </motion.div>
-        <h1 className="text-3xl md:text-4xl font-bold mb-2">
-          <span className="bg-gradient-to-l from-accent to-accent-light bg-clip-text text-transparent">
-            סלי AI
-          </span>
-        </h1>
-        <p className="text-foreground-secondary text-lg mb-6">
-          השוואת מחירים חכמה בין 5 רשתות מזון בישראל
-        </p>
+          {theme === 'dark' ? (
+            <Sun className="w-5 h-5" />
+          ) : (
+            <Moon className="w-5 h-5" />
+          )}
+        </button>
+      </header>
 
-        {/* Value Props */}
-        <div className="flex flex-wrap justify-center gap-4 mb-8">
-          <ValueProp icon={<TrendingDown className="w-4 h-4" />} text="חיסכון ממוצע ₪85" />
-          <ValueProp icon={<Zap className="w-4 h-4" />} text="תוצאות בשניות" />
-          <ValueProp icon={<ShieldCheck className="w-4 h-4" />} text="מחירים אמיתיים" />
-        </div>
-      </motion.section>
+      {/* Content based on screen */}
+      <AnimatePresence mode="wait">
+        {screen === 'search' && (
+          <motion.div
+            key="search"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0, y: -20 }}
+          >
+            {/* Hero */}
+            <motion.section
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="py-8 text-center"
+            >
+              <motion.div
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{
+                  type: 'spring',
+                  stiffness: 200,
+                  damping: 15,
+                }}
+                className="w-20 h-20 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-accent to-accent-dark flex items-center justify-center"
+              >
+                <Building2 className="w-10 h-10 text-white" />
+              </motion.div>
+              <h2 className="text-3xl md:text-4xl font-bold mb-2">
+                <span className="bg-gradient-to-l from-accent to-accent-light bg-clip-text text-transparent">
+                  Zchut.AI
+                </span>
+              </h2>
+              <p className="text-foreground-secondary text-lg mb-2">
+                גלה את זכויות הבנייה שלך בשניות
+              </p>
+              <p className="text-foreground-secondary/60 text-sm max-w-lg mx-auto">
+                מנוע AI שהופך קבצי תב&quot;ע מורכבים לדו&quot;ח היתכנות
+                כלכלי-תכנוני פשוט. במקום לשלם אלפי שקלים לאדריכל - קבל
+                תשובה מיידית.
+              </p>
+            </motion.section>
 
-      {/* Main Content */}
-      <div className="grid md:grid-cols-2 gap-6">
-        {/* Left Column - Search & Categories */}
-        <div className="space-y-6">
-          <SearchBar />
-          <QuickCategories />
-        </div>
+            {/* Search */}
+            <AddressSearch />
 
-        {/* Right Column - Basket */}
-        <div className="space-y-4">
-          <BasketList />
-          <CompareButton onOptimize={() => setShowOptimizationModal(true)} />
-        </div>
-      </div>
+            {/* How it works */}
+            <motion.section
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              className="py-12"
+            >
+              <h3 className="text-xl font-bold text-center mb-8">
+                איך זה עובד?
+              </h3>
+              <div className="grid md:grid-cols-3 gap-4">
+                <FeatureCard
+                  step={1}
+                  title="הכנס כתובת"
+                  description={'הזן כתובת או גוש/חלקה וגודל המגרש - המערכת מאתרת את התב"ע הרלוונטית'}
+                  icon={<FileSearch className="w-8 h-8 text-accent" />}
+                />
+                <FeatureCard
+                  step={2}
+                  title="ניתוח AI"
+                  description={'מנוע ה-AI מחלץ אחוזי בנייה, שטחי שירות, קומות ונסיגות מתוך התקנון'}
+                  icon={<Calculator className="w-8 h-8 text-accent" />}
+                />
+                <FeatureCard
+                  step={3}
+                  title={'דו"ח מיידי'}
+                  description="קבל פירוט מלא של זכויות הבנייה כולל הערכה כלכלית - בשניות"
+                  icon={<Banknote className="w-8 h-8 text-accent" />}
+                />
+              </div>
+            </motion.section>
 
-      {/* Store Logos */}
-      <motion.section
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 0.5 }}
-        className="py-8"
-      >
-        <p className="text-center text-sm text-foreground-secondary mb-4">
-          משווים מחירים ב-5 הרשתות המובילות
-        </p>
-        <div className="flex justify-center items-center gap-6 flex-wrap opacity-60">
-          <StoreLogo name="שופרסל" color="#e31e24" />
-          <StoreLogo name="רמי לוי" color="#0066cc" />
-          <StoreLogo name="ויקטורי" color="#ff6600" />
-          <StoreLogo name="קרפור" color="#004e9f" />
-          <StoreLogo name="יוחננוף" color="#00a651" />
-        </div>
-      </motion.section>
+            {/* Stats */}
+            <motion.section
+              initial={{ opacity: 0 }}
+              whileInView={{ opacity: 1 }}
+              viewport={{ once: true }}
+              className="py-8"
+            >
+              <div className="glass-card p-8">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
+                  <StatItem value="5" label='תכניות תב"ע' />
+                  <StatItem value="10" label="כתובות לדוגמה" />
+                  <StatItem value="רעננה" label="עיר MVP" />
+                  <StatItem value="< 10 שניות" label="זמן ניתוח" />
+                </div>
+              </div>
+            </motion.section>
 
-      {/* Features Section */}
-      <motion.section
-        initial={{ opacity: 0, y: 20 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true }}
-        className="py-8"
-      >
-        <h2 className="text-xl font-bold text-center mb-6">איך זה עובד?</h2>
-        <div className="grid md:grid-cols-3 gap-4">
-          <FeatureCard
-            step={1}
-            title="בנה את הסל"
-            description="חפש והוסף מוצרים לרשימת הקניות שלך"
-            icon="🛒"
-          />
-          <FeatureCard
-            step={2}
-            title="השווה מחירים"
-            description="ה-AI שלנו משווה את המחירים ב-5 רשתות שונות"
-            icon="🔍"
-          />
-          <FeatureCard
-            step={3}
-            title="חסוך כסף"
-            description="קבל המלצה חכמה לאיפה לקנות ותחסוך עשרות שקלים"
-            icon="💰"
-          />
-        </div>
-      </motion.section>
+            {/* Footer */}
+            <motion.footer
+              initial={{ opacity: 0 }}
+              whileInView={{ opacity: 1 }}
+              viewport={{ once: true }}
+              className="py-8 text-center text-sm text-foreground-secondary"
+            >
+              <p>Zchut.AI - מנוע זכויות בנייה חכם</p>
+              <p className="mt-1">
+                MVP - עיר רעננה | נתוני דמו לצורך הדגמה
+              </p>
+              <p className="mt-2 text-xs opacity-70">
+                &copy; {new Date().getFullYear()} Zchut.AI. כל הזכויות שמורות.
+              </p>
+            </motion.footer>
+          </motion.div>
+        )}
 
-      {/* Dashboard Section */}
-      <Dashboard />
+        {screen === 'analyzing' && (
+          <motion.div
+            key="analyzing"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="py-8"
+          >
+            <AnalysisProgress />
+          </motion.div>
+        )}
 
-      {/* War Room Section */}
-      <WarRoom />
-
-      {/* Footer */}
-      <motion.footer
-        initial={{ opacity: 0 }}
-        whileInView={{ opacity: 1 }}
-        viewport={{ once: true }}
-        className="py-8 text-center text-sm text-foreground-secondary"
-      >
-        <p>סלי AI - השוואת מחירים חכמה</p>
-        <p className="mt-1">
-          המחירים מתעדכנים מקבצי השקיפות של משרד הכלכלה
-        </p>
-        <p className="mt-2 text-xs opacity-70">
-          © {new Date().getFullYear()} Sali AI. כל הזכויות שמורות.
-        </p>
-      </motion.footer>
-
-      {/* Optimization Modal */}
-      <OptimizationModal
-        isOpen={showOptimizationModal}
-        onClose={() => setShowOptimizationModal(false)}
-      />
+        {screen === 'results' && (
+          <motion.div
+            key="results"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="py-4"
+          >
+            <ResultsDashboard />
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
-  );
-}
-
-function ValueProp({ icon, text }: { icon: React.ReactNode; text: string }) {
-  return (
-    <motion.div
-      className="flex items-center gap-2 px-4 py-2 rounded-full bg-accent/10 text-accent text-sm"
-      whileHover={{ scale: 1.05 }}
-    >
-      {icon}
-      <span>{text}</span>
-    </motion.div>
-  );
-}
-
-function StoreLogo({ name, color }: { name: string; color: string }) {
-  return (
-    <motion.div
-      className="w-12 h-12 rounded-xl flex items-center justify-center text-white font-bold"
-      style={{ backgroundColor: color }}
-      whileHover={{ scale: 1.1, opacity: 1 }}
-    >
-      {name.charAt(0)}
-    </motion.div>
   );
 }
 
@@ -178,7 +200,7 @@ function FeatureCard({
   step: number;
   title: string;
   description: string;
-  icon: string;
+  icon: React.ReactNode;
 }) {
   return (
     <motion.div
@@ -187,13 +209,22 @@ function FeatureCard({
       transition={{ type: 'spring', stiffness: 400, damping: 25 }}
     >
       <div className="relative inline-block mb-4">
-        <span className="text-4xl">{icon}</span>
+        {icon}
         <span className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-accent text-white text-sm font-bold flex items-center justify-center">
           {step}
         </span>
       </div>
-      <h3 className="font-semibold mb-2">{title}</h3>
+      <h4 className="font-semibold mb-2">{title}</h4>
       <p className="text-sm text-foreground-secondary">{description}</p>
     </motion.div>
+  );
+}
+
+function StatItem({ value, label }: { value: string; label: string }) {
+  return (
+    <div>
+      <div className="text-2xl font-bold text-accent">{value}</div>
+      <div className="text-sm text-foreground-secondary">{label}</div>
+    </div>
   );
 }
