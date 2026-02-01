@@ -19,7 +19,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     setMounted(true);
     // Check for saved theme preference or system preference
-    const savedTheme = localStorage.getItem('sali-theme') as Theme | null;
+    const savedTheme = localStorage.getItem('zchut-theme') as Theme | null;
     if (savedTheme) {
       setThemeState(savedTheme);
     } else if (window.matchMedia('(prefers-color-scheme: light)').matches) {
@@ -31,7 +31,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     if (mounted) {
       document.documentElement.classList.remove('light', 'dark');
       document.documentElement.classList.add(theme);
-      localStorage.setItem('sali-theme', theme);
+      localStorage.setItem('zchut-theme', theme);
     }
   }, [theme, mounted]);
 
