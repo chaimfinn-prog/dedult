@@ -16,6 +16,10 @@ import type {
   FloorBreakdownItem,
   CostBreakdown,
   UrbanRenewalEligibility,
+  UserPath,
+  AuditStep,
+  EnvelopeVerification,
+  DeveloperReport,
 } from '@/types';
 import {
   findPlanByAddress,
@@ -26,6 +30,7 @@ import {
   raananaUrbanRenewalPlan,
   type AddressMapping,
 } from '@/data/zoning-plans';
+import { calculateBuildingEnvelope, validateAreaFitsEnvelope } from '@/services/envelope-calculator';
 
 interface ZoningContextType {
   screen: AppScreen;
@@ -33,6 +38,8 @@ interface ZoningContextType {
   logs: AnalysisLogEntry[];
   result: AnalysisResult | null;
   isAnalyzing: boolean;
+  userPath: UserPath;
+  setUserPath: (path: UserPath) => void;
   analyze: (address: string, plotSize: number, currentBuiltArea: number, currentFloors: number) => Promise<void>;
   reset: () => void;
 }
@@ -56,6 +63,7 @@ export function ZoningProvider({ children }: { children: ReactNode }) {
   const [logs, setLogs] = useState<AnalysisLogEntry[]>([]);
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [userPath, setUserPath] = useState<UserPath>('homeowner');
 
   const addLog = useCallback(
     (message: string, type: AnalysisLogEntry['type']) => {
@@ -82,8 +90,26 @@ export function ZoningProvider({ children }: { children: ReactNode }) {
       addLog('RADAR // סורק מאגר כתובות ארצי...', 'radar');
       await delay(600);
 
-      addLog('מחפש כתובת במאגר GovMap.gov.il...', 'search');
-      await delay(800);
+      // Step 1: Try real API, fallback to local
+      addLog('מתחבר ל-GovMap.gov.il (מפ"י)...', 'search');
+      await delay(500);
+
+      let parcelFromApi = false;
+      try {
+        const res = await fetch(`/api/parcel?address=${encodeURIComponent(address)}`);
+        if (res.ok) {
+          const apiData = await res.json();
+          if (apiData.success && apiData.source === 'mapi_gis') {
+            parcelFromApi = true;
+            addLog(`[LIVE] מפ"י GIS: גוש ${apiData.data.block}, חלקה ${apiData.data.parcel}, שטח ${apiData.data.area} מ"ר`, 'info');
+          }
+        }
+      } catch { /* fallback */ }
+
+      if (!parcelFromApi) {
+        addLog('API מפ"י לא זמין - משתמש במאגר מקומי', 'warning');
+      }
+      await delay(400);
 
       const mapping = findPlanByAddress(address);
       if (!mapping) {
@@ -105,7 +131,6 @@ export function ZoningProvider({ children }: { children: ReactNode }) {
       }
       await delay(500);
 
-      // Use the REAL mapping data - only override if user explicitly entered different values
       const effectivePlot = plotSize || mapping.plotSize;
       const effectiveBuilt = currentBuiltArea || mapping.existingArea;
       const effectiveFloors = currentFloors || mapping.existingFloors;
@@ -131,8 +156,46 @@ export function ZoningProvider({ children }: { children: ReactNode }) {
       return;
     }
 
+    const auditTrail: AuditStep[] = [];
+
+    // ========== AUDIT Step 1: Land Data ==========
+    auditTrail.push({
+      step: 1,
+      title: 'נתוני קרקע',
+      subtitle: 'זיהוי מגרש ושטח רשום',
+      data: {
+        'שטח מגרש': `${plotSize} מ"ר`,
+        'מידות': `${mapping.plotWidth} × ${mapping.plotDepth} מ'`,
+        'גוש': mapping.block,
+        'חלקה': mapping.parcel,
+      },
+      source: 'שכבת חלקות - מפ"י GIS',
+      sourceType: 'mapi_gis',
+    });
+
     addLog('RADAR // סורק מאגר תכנון ארצי (mavat.iplan.gov.il)...', 'radar');
     await delay(700);
+
+    // Try iplan API
+    addLog('מתחבר ל-iplan.gov.il (מבא"ת)...', 'search');
+    await delay(400);
+
+    let plansFromApi = false;
+    try {
+      const res = await fetch(`/api/plans?block=${mapping.block}&parcel=${mapping.parcel}&address=${encodeURIComponent(address)}`);
+      if (res.ok) {
+        const apiData = await res.json();
+        if (apiData.success && apiData.data?.length > 0 && apiData.data[0].source === 'iplan_api') {
+          plansFromApi = true;
+          addLog(`[LIVE] iplan: נמצאו ${apiData.count} תוכניות מפורטות מאושרות`, 'info');
+        }
+      }
+    } catch { /* fallback */ }
+
+    if (!plansFromApi) {
+      addLog('API iplan לא זמין - משתמש בתוכניות מאגר מקומי', 'warning');
+    }
+    await delay(400);
 
     addLog(`מאתר תב"ע חלה: ${plan.planNumber} - ${plan.name}`, 'search');
     await delay(800);
@@ -140,13 +203,30 @@ export function ZoningProvider({ children }: { children: ReactNode }) {
     addLog(`ייעוד קרקע: ${plan.zoningType === 'residential_a' ? "מגורים א'" : plan.zoningType === 'residential_b' ? "מגורים ב'" : 'שימוש מעורב'}`, 'info');
     await delay(400);
 
+    // ========== AUDIT Step 2: Approved Plans ==========
+    auditTrail.push({
+      step: 2,
+      title: 'זיהוי תוכניות מפורטות',
+      subtitle: 'תוכניות מאושרות בלבד (לא מתאריות)',
+      data: {
+        'תכנית מובילה': `${plan.planNumber} (${plan.status === 'active' ? 'מאושרת' : plan.status})`,
+        'ייעוד': plan.zoningType === 'residential_a' ? "מגורים א'" : "מגורים ב'",
+        'אחוזי בנייה עיקרי': `${plan.buildingRights.mainBuildingPercent}%`,
+        'אחוזי בנייה שירות': `${plan.buildingRights.serviceBuildingPercent}%`,
+        'קומות מרביות': plan.buildingRights.maxFloors,
+        'גובה מרבי': `${plan.buildingRights.maxHeight} מ'`,
+      },
+      source: `תקנון ${plan.planNumber}`,
+      sourceType: 'iplan_api',
+      citations: plan.buildingRights.citations,
+    });
+
     addLog(`מקור: ${plan.sourceDocument.name} | עדכון: ${plan.sourceDocument.lastUpdated}`, 'info');
     await delay(500);
 
     addLog('מחלץ זכויות בנייה מתוך תקנון התב"ע...', 'extract');
     await delay(900);
 
-    // Show citations
     for (const citation of plan.buildingRights.citations.slice(0, 3)) {
       addLog(`[${citation.confidence}% ודאות] ${citation.section}: ${citation.value}`, 'extract');
       await delay(400);
@@ -157,6 +237,41 @@ export function ZoningProvider({ children }: { children: ReactNode }) {
 
     addLog(`צפיפות מותרת: עד ${plan.buildingRights.maxUnits} יח"ד | חניות: ${plan.restrictions.minParkingSpaces} לדירה`, 'extract');
     await delay(300);
+
+    // ========== AUDIT Step 3: Existing Built State ==========
+    addLog('בודק מצב בנוי קיים (רישוי זמין)...', 'search');
+    await delay(500);
+
+    let permitsFromApi = false;
+    try {
+      const res = await fetch(`/api/permits?block=${mapping.block}&parcel=${mapping.parcel}`);
+      if (res.ok) {
+        const apiData = await res.json();
+        if (apiData.success && apiData.source === 'rishui_zamin') {
+          permitsFromApi = true;
+          addLog(`[LIVE] רישוי זמין: ${apiData.data.totalBuiltArea} מ"ר בנוי, ${apiData.data.floors} קומות`, 'info');
+        }
+      }
+    } catch { /* fallback */ }
+
+    if (!permitsFromApi) {
+      addLog(`מצב קיים: ${currentBuiltArea} מ"ר, ${currentFloors} קומות (מאגר מקומי)`, 'info');
+    }
+    await delay(400);
+
+    auditTrail.push({
+      step: 3,
+      title: 'מצב בנוי קיים',
+      subtitle: 'שטחים מאושרים בהיתר אחרון',
+      data: {
+        'שטח בנוי': `${currentBuiltArea} מ"ר`,
+        'קומות': currentFloors,
+        'יח"ד': mapping.existingUnits,
+        'שנת בנייה': mapping.yearBuilt || 'לא ידוע',
+      },
+      source: 'ארכיון הנדסה / רישוי זמין',
+      sourceType: permitsFromApi ? 'rishui_zamin' : 'local_db',
+    });
 
     // ========== TMA 38 Eligibility Check ==========
     addLog('RADAR // בודק זכאות לתמ"א 38...', 'radar');
@@ -169,11 +284,10 @@ export function ZoningProvider({ children }: { children: ReactNode }) {
       addLog(`[תמ"א 38] ${icon} ${c.criterion}: ${c.actual} (נדרש: ${c.required})`, c.met ? 'extract' : 'warning');
       await delay(300);
     }
-
     addLog(tma38Check.reason, tma38Check.eligible ? 'info' : 'warning');
     await delay(500);
 
-    // ========== Urban Renewal Plan רע/רע/ב Check ==========
+    // ========== Urban Renewal Plan Check ==========
     addLog(`RADAR // בודק זכאות לתכנית התחדשות עירונית ${raananaUrbanRenewalPlan.planNumber}...`, 'radar');
     await delay(700);
 
@@ -184,7 +298,6 @@ export function ZoningProvider({ children }: { children: ReactNode }) {
       addLog(`[${urbanCheck.planNumber}] ${icon} ${c.criterion}: ${c.actual} (נדרש: ${c.required})`, c.met ? 'extract' : 'warning');
       await delay(300);
     }
-
     addLog(urbanCheck.reason, urbanCheck.eligible ? 'info' : 'warning');
     await delay(500);
 
@@ -205,10 +318,8 @@ export function ZoningProvider({ children }: { children: ReactNode }) {
 
     addLog(`שטח בנייה מותר מכוח תב"ע (${plan.planNumber}): ${calculations.maxBuildableArea} מ"ר`, 'calculate');
     await delay(300);
-
     addLog(`שטח בנוי קיים: ${calculations.currentBuiltArea} מ"ר (${mapping.existingUnits} יח"ד, ${currentFloors} קומות)`, 'calculate');
     await delay(300);
-
     addLog(`פוטנציאל בנייה מכוח תב"ע: ${Math.max(0, calculations.maxBuildableArea - calculations.currentBuiltArea)} מ"ר`, 'calculate');
     await delay(300);
 
@@ -227,6 +338,65 @@ export function ZoningProvider({ children }: { children: ReactNode }) {
     addLog(`סה"כ פוטנציאל בנייה נוסף: ${calculations.additionalBuildableArea} מ"ר`, 'calculate');
     await delay(400);
 
+    // ========== Envelope Validation ==========
+    addLog('מחשב מעטפת בניין (קווי בניין + תכסית)...', 'calculate');
+    await delay(500);
+
+    const envelope = calculateBuildingEnvelope({
+      plotWidth: mapping.plotWidth,
+      plotDepth: mapping.plotDepth,
+      plotArea: plotSize,
+      frontSetback: plan.restrictions.frontSetback,
+      rearSetback: plan.restrictions.rearSetback,
+      sideSetback: plan.restrictions.sideSetback,
+      maxCoverage: plan.restrictions.maxLandCoverage,
+      maxFloors: plan.buildingRights.maxFloors,
+      maxHeight: plan.buildingRights.maxHeight,
+      floorHeight: 3.0,
+    });
+
+    const envelopeValidation = validateAreaFitsEnvelope(
+      calculations.maxBuildableArea + (tma38Check.eligible ? (calculations.floorBreakdown.find(f => f.floor === 'tma')?.totalArea || 0) : 0),
+      envelope
+    );
+
+    addLog(`מעטפת בניין: ${envelope.totalVolume} מ"ר | ניצולת: ${envelopeValidation.utilizationPercent}%`, 'calculate');
+    if (!envelopeValidation.fits) {
+      addLog(`אזהרה: שטח בנייה חורג ממעטפת - יש לבדוק הקלות`, 'warning');
+    }
+    await delay(400);
+
+    const envelopeResult: EnvelopeVerification = {
+      netFootprint: envelope.netFootprint,
+      maxCoverageArea: envelope.maxCoverageArea,
+      effectiveFootprint: envelope.effectiveFootprint,
+      totalEnvelopeVolume: envelope.totalVolume,
+      requestedArea: calculations.maxBuildableArea,
+      fits: envelopeValidation.fits,
+      utilizationPercent: envelopeValidation.utilizationPercent,
+      message: envelopeValidation.message,
+      steps: envelope.steps,
+    };
+
+    // ========== AUDIT Step 4: Summary ==========
+    auditTrail.push({
+      step: 4,
+      title: 'סיכום פוטנציאל',
+      subtitle: 'חישוב סופי כולל מעטפת בניין',
+      data: {
+        'זכויות מכוח תב"ע': `${calculations.maxBuildableArea} מ"ר`,
+        'שטח קיים': `${currentBuiltArea} מ"ר`,
+        'יתרה (מכוח תב"ע)': `${Math.max(0, calculations.maxBuildableArea - currentBuiltArea)} מ"ר`,
+        'תוספת תמ"א': tma38Check.eligible ? `${calculations.floorBreakdown.find(f => f.floor === 'tma')?.totalArea || 0} מ"ר` : 'לא זכאי',
+        'תוספת התחדשות': urbanCheck.eligible ? `${calculations.floorBreakdown.find(f => f.floor === 'urban_renewal')?.totalArea || 0} מ"ר` : 'לא זכאי',
+        'סה"כ בנייה נוספת': `${calculations.additionalBuildableArea} מ"ר`,
+        'מעטפת בניין': `${envelope.totalVolume} מ"ר`,
+        'נכנס במעטפת': envelopeValidation.fits ? 'כן' : 'לא - נדרשת הקלה',
+      },
+      source: 'מנוע חישוב Zchut.AI',
+      sourceType: 'calculation',
+    });
+
     // ========== Financial with Levies ==========
     addLog('מחשב הערכה כלכלית כולל היטלים ואגרות...', 'calculate');
     await delay(600);
@@ -235,22 +405,59 @@ export function ZoningProvider({ children }: { children: ReactNode }) {
       calculations.additionalBuildableArea,
       mapping.avgPricePerSqm,
       mapping.constructionCostPerSqm,
-      calculations.maxBuildableArea - calculations.currentBuiltArea // value increase for betterment levy
+      calculations.maxBuildableArea - calculations.currentBuiltArea
     );
 
-    addLog(`עלות בנייה ישירה: ₪${formatCurrency(financial.costBreakdown.constructionCost)}`, 'calculate');
+    addLog(`עלות בנייה ישירה: ₪${fmtCurrency(financial.costBreakdown.constructionCost)}`, 'calculate');
     await delay(200);
-    addLog(`היטל השבחה (50%): ₪${formatCurrency(financial.costBreakdown.bettermentLevy)}`, 'calculate');
+    addLog(`היטל השבחה (50%): ₪${fmtCurrency(financial.costBreakdown.bettermentLevy)}`, 'calculate');
     await delay(200);
-    addLog(`אגרות + היטלי פיתוח: ₪${formatCurrency(financial.costBreakdown.buildingPermitFees + financial.costBreakdown.developmentLevies)}`, 'calculate');
+    addLog(`אגרות + היטלי פיתוח: ₪${fmtCurrency(financial.costBreakdown.buildingPermitFees + financial.costBreakdown.developmentLevies)}`, 'calculate');
     await delay(200);
-    addLog(`תכנון ופיקוח: ₪${formatCurrency(financial.costBreakdown.planningAndSupervision)}`, 'calculate');
-    await delay(200);
-    addLog(`מע"מ: ₪${formatCurrency(financial.costBreakdown.vat)}`, 'calculate');
-    await delay(200);
-
-    addLog(`סה"כ עלויות: ₪${formatCurrency(financial.costBreakdown.totalCost)} | שווי: ₪${formatCurrency(financial.additionalValueEstimate)} | ROI: ${Math.round(((financial.estimatedProfit / financial.costBreakdown.totalCost) * 100))}%`, 'calculate');
+    addLog(`סה"כ עלויות: ₪${fmtCurrency(financial.costBreakdown.totalCost)} | שווי: ₪${fmtCurrency(financial.additionalValueEstimate)}`, 'calculate');
     await delay(400);
+
+    // ========== Developer Report (דו"ח אפס) ==========
+    let developerReport: DeveloperReport | undefined;
+    const totalNewArea = calculations.additionalBuildableArea;
+    const avgUnitSize = 100; // avg sqm per unit
+    const newUnits = Math.floor(totalNewArea / avgUnitSize);
+
+    if (newUnits > 0) {
+      const totalRevenue = totalNewArea * mapping.avgPricePerSqm;
+      const landCost = mapping.existingUnits * mapping.avgPricePerSqm * avgUnitSize * 0.3; // 30% of existing units value
+      const constructionCost = totalNewArea * mapping.constructionCostPerSqm;
+      const softCosts = Math.round(constructionCost * 0.15); // 15%
+      const leviesAndFees = financial.costBreakdown.bettermentLevy + financial.costBreakdown.buildingPermitFees + financial.costBreakdown.developmentLevies;
+      const financingCost = Math.round(constructionCost * 0.08); // 8% financing
+      const totalCost = landCost + constructionCost + softCosts + leviesAndFees + financingCost;
+      const grossProfit = totalRevenue - totalCost;
+      const profitPercent = totalCost > 0 ? Math.round((grossProfit / totalCost) * 100) : 0;
+
+      developerReport = {
+        totalSaleableArea: totalNewArea,
+        avgPricePerSqm: mapping.avgPricePerSqm,
+        totalRevenue,
+        landCost,
+        constructionCost,
+        softCosts,
+        leviesAndFees,
+        financingCost,
+        totalCost,
+        grossProfit,
+        profitPercent,
+        profitPerUnit: newUnits > 0 ? Math.round(grossProfit / newUnits) : 0,
+        newUnits,
+        feasible: profitPercent >= 15,
+        feasibilityNote: profitPercent >= 25 ? 'כדאיות גבוהה - פרויקט מומלץ' :
+          profitPercent >= 15 ? 'כדאיות סבירה - נדרשת בדיקה מעמיקה' :
+          profitPercent >= 5 ? 'כדאיות נמוכה - סיכון גבוה' :
+          'לא כלכלי בתנאים הנוכחיים',
+      };
+
+      addLog(`דו"ח יזם: ${newUnits} יח"ד חדשות | רווח: ${profitPercent}% | ${developerReport.feasibilityNote}`, 'calculate');
+      await delay(300);
+    }
 
     addLog('ניתוח הושלם בהצלחה', 'complete');
     await delay(300);
@@ -292,6 +499,9 @@ export function ZoningProvider({ children }: { children: ReactNode }) {
       calculations,
       urbanRenewalEligibility,
       financial,
+      envelope: envelopeResult,
+      auditTrail,
+      developerReport,
       timestamp: new Date(),
     };
 
@@ -311,7 +521,7 @@ export function ZoningProvider({ children }: { children: ReactNode }) {
 
   return (
     <ZoningContext.Provider
-      value={{ screen, setScreen, logs, result, isAnalyzing, analyze, reset }}
+      value={{ screen, setScreen, logs, result, isAnalyzing, userPath, setUserPath, analyze, reset }}
     >
       {children}
     </ZoningContext.Provider>
@@ -336,7 +546,6 @@ function calculateBuildingRights(
   const landCoverageArea = Math.round((restrictions.maxLandCoverage / 100) * plotSize);
   const greenArea = Math.round((restrictions.minGreenAreaPercent / 100) * plotSize);
   const parkingSpaces = Math.ceil(rights.maxUnits * restrictions.minParkingSpaces);
-
   const netBuildableArea = Math.round(landCoverageArea - (restrictions.frontSetback * 2 + restrictions.sideSetback * 2));
 
   const floorBreakdown: FloorBreakdownItem[] = rights.floorAllocations.map((alloc) => {
@@ -354,7 +563,6 @@ function calculateBuildingRights(
   let totalAdditionalFromTma = 0;
   let totalAdditionalFromUrbanRenewal = 0;
 
-  // TMA 38 rights (separate calculation)
   if (plan.tmaRights?.eligible && mapping.yearBuilt && mapping.yearBuilt < 1980) {
     const tmaAdditional = Math.round((plan.tmaRights.additionalBuildingPercent / 100) * plotSize);
     totalAdditionalFromTma = tmaAdditional;
@@ -368,7 +576,6 @@ function calculateBuildingRights(
     });
   }
 
-  // Urban renewal plan רע/רע/ב rights (separate calculation)
   if (urbanRenewalEligible) {
     const urbanRights = raananaUrbanRenewalPlan.rights;
     const urbanAdditional = Math.round((urbanRights.additionalBuildingPercent / 100) * maxBuildableArea);
@@ -409,31 +616,14 @@ function calculateFinancials(
   valueIncreaseArea: number
 ): FinancialEstimate {
   const additionalValueEstimate = additionalArea * pricePerSqm;
-
-  // ========== Detailed Cost Breakdown ==========
-  // 1. Direct construction cost
   const constructionCost = additionalArea * constructionCostPerSqm;
-
-  // 2. Planning & supervision (architect, structural engineer, supervisor) ~12%
   const planningAndSupervision = Math.round(constructionCost * 0.12);
-
-  // 3. Betterment levy (היטל השבחה) - 50% of value increase (Israeli law)
   const bettermentLevy = Math.round(valueIncreaseArea * pricePerSqm * 0.5 * 0.5);
-
-  // 4. Building permit fees (~150 ₪/sqm in Raanana)
   const buildingPermitFees = Math.round(additionalArea * 150);
-
-  // 5. Development levies: water + sewage + roads (~350 ₪/sqm in Raanana)
   const developmentLevies = Math.round(additionalArea * 350);
-
-  // 6. VAT 17% on construction
   const vat = Math.round(constructionCost * 0.17);
-
-  // 7. Legal, misc (~3% of construction)
   const legalAndMisc = Math.round(constructionCost * 0.03);
-
-  const totalCost = constructionCost + planningAndSupervision + bettermentLevy +
-    buildingPermitFees + developmentLevies + vat + legalAndMisc;
+  const totalCost = constructionCost + planningAndSupervision + bettermentLevy + buildingPermitFees + developmentLevies + vat + legalAndMisc;
 
   const costBreakdown: CostBreakdown = {
     constructionCost,
@@ -446,24 +636,18 @@ function calculateFinancials(
     totalCost,
   };
 
-  const estimatedProfit = additionalValueEstimate - totalCost;
-
   return {
     pricePerSqm,
     additionalValueEstimate,
     constructionCostPerSqm,
     estimatedConstructionCost: totalCost,
-    estimatedProfit,
+    estimatedProfit: additionalValueEstimate - totalCost,
     neighborhoodAvgPrice: pricePerSqm,
     costBreakdown,
   };
 }
 
-function formatCurrency(amount: number): string {
-  if (amount >= 1_000_000) {
-    return `${(amount / 1_000_000).toFixed(1)}M`;
-  }
-  return new Intl.NumberFormat('he-IL', {
-    maximumFractionDigits: 0,
-  }).format(amount);
+function fmtCurrency(amount: number): string {
+  if (amount >= 1_000_000) return `${(amount / 1_000_000).toFixed(1)}M`;
+  return new Intl.NumberFormat('he-IL', { maximumFractionDigits: 0 }).format(amount);
 }

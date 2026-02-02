@@ -10,6 +10,8 @@ import {
   Banknote,
   Shield,
   Zap,
+  Home as HomeIcon,
+  TrendingUp,
 } from 'lucide-react';
 import { useZoning } from '@/context/ZoningContext';
 import { useTheme } from '@/context/ThemeContext';
@@ -18,7 +20,7 @@ import { AnalysisProgress } from '@/components/features/AnalysisProgress';
 import { ResultsDashboard } from '@/components/features/ResultsDashboard';
 
 export default function Home() {
-  const { screen } = useZoning();
+  const { screen, userPath, setUserPath } = useZoning();
   const { theme, toggleTheme } = useTheme();
 
   return (
@@ -86,6 +88,43 @@ export default function Home() {
                 {"מנוע AI שמנתח תב\"ע מורכבות ומחלץ זכויות בנייה עם הוכחות מקור, הדמיית Massing תלת-ממדית והערכה כלכלית מיידית."}
               </p>
             </motion.section>
+
+            {/* User Path Selection */}
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 }}
+              className="flex gap-3 justify-center mb-8"
+            >
+              <button
+                onClick={() => setUserPath('homeowner')}
+                className={`flex items-center gap-2 px-5 py-3 rounded-xl border transition-all ${
+                  userPath === 'homeowner'
+                    ? 'bg-accent/15 border-accent text-accent-light glow'
+                    : 'glass-card border-border hover:border-accent/40'
+                }`}
+              >
+                <HomeIcon className="w-5 h-5" />
+                <div className="text-right">
+                  <div className="font-semibold text-sm">בעל נכס</div>
+                  <div className="text-[10px] text-foreground-muted">מה מותר לי לבנות?</div>
+                </div>
+              </button>
+              <button
+                onClick={() => setUserPath('developer')}
+                className={`flex items-center gap-2 px-5 py-3 rounded-xl border transition-all ${
+                  userPath === 'developer'
+                    ? 'bg-gold/15 border-gold text-gold glow'
+                    : 'glass-card border-border hover:border-gold/40'
+                }`}
+              >
+                <TrendingUp className="w-5 h-5" />
+                <div className="text-right">
+                  <div className="font-semibold text-sm">יזם / התחדשות</div>
+                  <div className="text-[10px] text-foreground-muted">כדאיות כלכלית ופוטנציאל</div>
+                </div>
+              </button>
+            </motion.div>
 
             {/* Search */}
             <AddressSearch />

@@ -189,6 +189,88 @@ export interface FinancialEstimate {
   costBreakdown: CostBreakdown;
 }
 
+// User path segmentation
+export type UserPath = 'homeowner' | 'developer';
+
+export const userPathLabels: Record<UserPath, { title: string; subtitle: string }> = {
+  homeowner: {
+    title: 'בעל נכס',
+    subtitle: 'מה מותר לי לבנות?',
+  },
+  developer: {
+    title: 'יזם / התחדשות',
+    subtitle: 'כדאיות כלכלית ופוטנציאל',
+  },
+};
+
+// Audit trail for transparent step-by-step verification
+export interface AuditStep {
+  step: number;
+  title: string;
+  subtitle: string;
+  data: Record<string, string | number>;
+  source: string;
+  sourceType: 'mapi_gis' | 'iplan_api' | 'rishui_zamin' | 'local_db' | 'calculation';
+  citations?: SourceCitation[];
+}
+
+// Building envelope result (physical constraint validation)
+export interface EnvelopeVerification {
+  netFootprint: number;
+  maxCoverageArea: number;
+  effectiveFootprint: number;
+  totalEnvelopeVolume: number;
+  requestedArea: number;
+  fits: boolean;
+  utilizationPercent: number;
+  message: string;
+  steps: Array<{
+    step: number;
+    title: string;
+    calculation: string;
+    result: string;
+    source: string;
+  }>;
+}
+
+// Developer economic report (דו"ח אפס)
+export interface DeveloperReport {
+  // Revenue
+  totalSaleableArea: number;      // שטח למכירה
+  avgPricePerSqm: number;         // מחיר ממוצע למ"ר
+  totalRevenue: number;            // הכנסות צפויות
+
+  // Costs
+  landCost: number;                // עלות קרקע / דירות קיימות
+  constructionCost: number;        // עלות בנייה
+  softCosts: number;               // עלויות רכות (תכנון, שיווק, משפטי)
+  leviesAndFees: number;           // היטלים ואגרות
+  financingCost: number;           // עלויות מימון
+  totalCost: number;               // סך הכל עלויות
+
+  // Profitability
+  grossProfit: number;             // רווח גולמי
+  profitPercent: number;           // אחוז רווח
+  profitPerUnit: number;           // רווח ליח"ד
+  newUnits: number;                // יח"ד חדשות
+
+  // Feasibility
+  feasible: boolean;
+  feasibilityNote: string;
+}
+
+export interface AnalysisResult {
+  property: PropertySearch;
+  zoningPlan: ZoningPlan;
+  calculations: BuildingCalculations;
+  urbanRenewalEligibility: UrbanRenewalEligibility;
+  financial: FinancialEstimate;
+  envelope?: EnvelopeVerification;
+  auditTrail?: AuditStep[];
+  developerReport?: DeveloperReport;
+  timestamp: Date;
+}
+
 export interface AnalysisLogEntry {
   id: string;
   message: string;
