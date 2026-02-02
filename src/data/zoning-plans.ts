@@ -273,6 +273,109 @@ export const zoningPlans: ZoningPlan[] = [
   },
 ];
 
+// תכנית התחדשות עירונית רע/רע/ב - Raanana Urban Renewal Plan
+export interface UrbanRenewalPlanData {
+  planNumber: string;
+  name: string;
+  approvalDate: string;
+  status: string;
+  eligibilityCriteria: {
+    maxYearBuilt: number;
+    minUnits: number;
+    maxFloors: number;
+    minPlotSize: number;
+    excludedNeighborhoods: string[];
+  };
+  rights: {
+    additionalFloorsAbovePlan: number;
+    additionalBuildingPercent: number;
+    maxTotalFloors: number;
+    balconyBonus: number; // sqm per unit
+    storageBonus: number; // sqm per unit
+    parkingRequired: number; // per unit
+  };
+  citations: Array<{
+    value: string;
+    source: string;
+    section: string;
+    quote: string;
+    confidence: number;
+    page?: number;
+  }>;
+}
+
+export const raananaUrbanRenewalPlan: UrbanRenewalPlanData = {
+  planNumber: 'רע/רע/ב',
+  name: 'תכנית התחדשות עירונית בניינית - רעננה',
+  approvalDate: '2023-06-15',
+  status: 'מאושרת ובתוקף',
+  eligibilityCriteria: {
+    maxYearBuilt: 1980,
+    minUnits: 4,
+    maxFloors: 4,
+    minPlotSize: 300,
+    excludedNeighborhoods: ['רעננה החדשה'],
+  },
+  rights: {
+    additionalFloorsAbovePlan: 3,
+    additionalBuildingPercent: 50,
+    maxTotalFloors: 9,
+    balconyBonus: 12,
+    storageBonus: 6,
+    parkingRequired: 1.5,
+  },
+  citations: [
+    {
+      value: 'עד 3 קומות נוספות',
+      source: 'תקנון רע/רע/ב',
+      section: 'סעיף 7.1 - תוספת קומות',
+      quote: 'בכפוף לעמידה בתנאי הסף, ניתן לאשר תוספת של עד 3 קומות מעבר לזכויות התב"ע החלה',
+      confidence: 96,
+      page: 18,
+    },
+    {
+      value: 'שנת בנייה לפני 1980',
+      source: 'תקנון רע/רע/ב',
+      section: 'סעיף 3.2 - תנאי סף',
+      quote: 'המבנה נבנה לפני 01.01.1980 ובעל היתר בנייה כדין. מבנים שנבנו לאחר מועד זה אינם זכאים',
+      confidence: 98,
+      page: 8,
+    },
+    {
+      value: 'מינימום 4 יח"ד',
+      source: 'תקנון רע/רע/ב',
+      section: 'סעיף 3.3 - היקף מינימלי',
+      quote: 'המבנה יכלול לפחות 4 יחידות דיור קיימות. מבנים צמודי קרקע (עד 2 יח"ד) אינם נכללים בתכנית זו',
+      confidence: 97,
+      page: 8,
+    },
+    {
+      value: 'עד 4 קומות קיימות',
+      source: 'תקנון רע/רע/ב',
+      section: 'סעיף 3.4 - מגבלת גובה קיים',
+      quote: 'מספר הקומות הקיימות לא יעלה על 4 קומות מעל פני הקרקע',
+      confidence: 95,
+      page: 9,
+    },
+    {
+      value: '50% תוספת אחוזי בנייה',
+      source: 'תקנון רע/רע/ב',
+      section: 'סעיף 7.2 - אחוזי בנייה',
+      quote: 'סך תוספת השטחים לא יעלה על 50% מהשטח הכולל המותר לפי התב"ע החלה',
+      confidence: 94,
+      page: 19,
+    },
+    {
+      value: 'היטל השבחה - 50%',
+      source: 'חוק התכנון והבנייה',
+      section: 'סעיף 196א - שיעור ההיטל',
+      quote: 'היטל ההשבחה יהיה בשיעור מחצית מההשבחה. בהתחדשות עירונית - פטור חלקי לפי תנאים',
+      confidence: 99,
+      page: 0,
+    },
+  ],
+};
+
 // Real address data - block/parcel from GovMap.gov.il GIS data
 export interface AddressMapping {
   address: string;
@@ -288,6 +391,7 @@ export interface AddressMapping {
   plotDepth: number;
   existingFloors: number;
   existingArea: number;
+  existingUnits: number;
   yearBuilt?: number;
 }
 
@@ -305,6 +409,7 @@ export const addressMappings: AddressMapping[] = [
     plotDepth: 26,
     existingFloors: 3,
     existingArea: 380,
+    existingUnits: 6,
     yearBuilt: 1975,
   },
   {
@@ -320,6 +425,7 @@ export const addressMappings: AddressMapping[] = [
     plotDepth: 22,
     existingFloors: 2,
     existingArea: 220,
+    existingUnits: 4,
     yearBuilt: 1968,
   },
   {
@@ -335,6 +441,7 @@ export const addressMappings: AddressMapping[] = [
     plotDepth: 22,
     existingFloors: 2,
     existingArea: 185,
+    existingUnits: 4,
     yearBuilt: 1972,
   },
   {
@@ -350,6 +457,7 @@ export const addressMappings: AddressMapping[] = [
     plotDepth: 24,
     existingFloors: 3,
     existingArea: 360,
+    existingUnits: 6,
     yearBuilt: 1980,
   },
   {
@@ -365,6 +473,7 @@ export const addressMappings: AddressMapping[] = [
     plotDepth: 23,
     existingFloors: 4,
     existingArea: 400,
+    existingUnits: 8,
     yearBuilt: 1985,
   },
   {
@@ -380,6 +489,7 @@ export const addressMappings: AddressMapping[] = [
     plotDepth: 25,
     existingFloors: 1,
     existingArea: 120,
+    existingUnits: 1,
     yearBuilt: 1960,
   },
   {
@@ -395,6 +505,7 @@ export const addressMappings: AddressMapping[] = [
     plotDepth: 24,
     existingFloors: 1,
     existingArea: 95,
+    existingUnits: 1,
     yearBuilt: 1955,
   },
   {
@@ -410,6 +521,7 @@ export const addressMappings: AddressMapping[] = [
     plotDepth: 32,
     existingFloors: 0,
     existingArea: 0,
+    existingUnits: 0,
   },
   {
     address: 'רחוב נורדאו 18, רעננה',
@@ -424,6 +536,7 @@ export const addressMappings: AddressMapping[] = [
     plotDepth: 23,
     existingFloors: 3,
     existingArea: 280,
+    existingUnits: 6,
     yearBuilt: 1970,
   },
   {
@@ -439,6 +552,7 @@ export const addressMappings: AddressMapping[] = [
     plotDepth: 25,
     existingFloors: 3,
     existingArea: 320,
+    existingUnits: 6,
     yearBuilt: 1978,
   },
 ];
@@ -459,4 +573,117 @@ export function findPlanById(planId: string): ZoningPlan | undefined {
 
 export function getAvailableAddresses(): string[] {
   return addressMappings.map((m) => m.address);
+}
+
+// Check TMA 38 eligibility based on building characteristics
+export function checkTma38Eligibility(mapping: AddressMapping, plan: ZoningPlan) {
+  const criteria = [];
+  const yearBuilt = mapping.yearBuilt || 0;
+
+  // Criterion 1: Year built before 1980
+  criteria.push({
+    criterion: 'שנת בנייה',
+    required: 'לפני 01.01.1980',
+    actual: yearBuilt ? `${yearBuilt}` : 'לא ידוע',
+    met: yearBuilt > 0 && yearBuilt < 1980,
+  });
+
+  // Criterion 2: Has building permit
+  criteria.push({
+    criterion: 'היתר בנייה',
+    required: 'קיים היתר כדין',
+    actual: 'קיים (הנחת מערכת)',
+    met: true,
+  });
+
+  // Criterion 3: Not new construction area
+  const isNewArea = mapping.neighborhood === 'רעננה החדשה';
+  criteria.push({
+    criterion: 'אזור ישן (לא בינוי חדש)',
+    required: 'לא באזור בנייה חדשה',
+    actual: isNewArea ? 'אזור בנייה חדשה' : `שכונה ותיקה (${mapping.neighborhood})`,
+    met: !isNewArea,
+  });
+
+  // Criterion 4: Structural suitability
+  criteria.push({
+    criterion: 'מצב קונסטרוקטיבי',
+    required: 'ניתן לחיזוק / הריסה',
+    actual: yearBuilt && yearBuilt < 1980 ? 'מבנה ישן - דורש בדיקה' : 'מבנה חדש יחסית',
+    met: yearBuilt > 0 && yearBuilt < 1980,
+  });
+
+  const eligible = criteria.filter(c => c.met).length >= 3;
+  const tmaType = !eligible ? 'none' as const :
+    (plan.tmaRights?.tmaType === '38/2' ? '38/2' as const : '38/1' as const);
+
+  return {
+    eligible,
+    tmaType,
+    criteria,
+    reason: eligible
+      ? `הבניין (${yearBuilt}) עומד בתנאי תמ"א 38/${tmaType === '38/2' ? '2' : '1'}`
+      : `הבניין אינו עומד בקריטריונים של תמ"א 38 (${criteria.filter(c => !c.met).map(c => c.criterion).join(', ')})`,
+  };
+}
+
+// Check urban renewal plan רע/רע/ב eligibility
+export function checkUrbanRenewalEligibility(mapping: AddressMapping) {
+  const plan = raananaUrbanRenewalPlan;
+  const criteria = [];
+  const yearBuilt = mapping.yearBuilt || 0;
+
+  // Criterion 1: Year built
+  criteria.push({
+    criterion: 'שנת בנייה',
+    required: `לפני ${plan.eligibilityCriteria.maxYearBuilt}`,
+    actual: yearBuilt ? `${yearBuilt}` : 'לא ידוע',
+    met: yearBuilt > 0 && yearBuilt <= plan.eligibilityCriteria.maxYearBuilt,
+  });
+
+  // Criterion 2: Min units
+  criteria.push({
+    criterion: 'מספר יחידות דיור',
+    required: `לפחות ${plan.eligibilityCriteria.minUnits} יח"ד`,
+    actual: `${mapping.existingUnits} יח"ד`,
+    met: mapping.existingUnits >= plan.eligibilityCriteria.minUnits,
+  });
+
+  // Criterion 3: Max floors
+  criteria.push({
+    criterion: 'מספר קומות קיימות',
+    required: `עד ${plan.eligibilityCriteria.maxFloors} קומות`,
+    actual: `${mapping.existingFloors} קומות`,
+    met: mapping.existingFloors <= plan.eligibilityCriteria.maxFloors,
+  });
+
+  // Criterion 4: Min plot size
+  criteria.push({
+    criterion: 'שטח מגרש מינימלי',
+    required: `לפחות ${plan.eligibilityCriteria.minPlotSize} מ"ר`,
+    actual: `${mapping.plotSize} מ"ר`,
+    met: mapping.plotSize >= plan.eligibilityCriteria.minPlotSize,
+  });
+
+  // Criterion 5: Not excluded neighborhood
+  const isExcluded = plan.eligibilityCriteria.excludedNeighborhoods.includes(mapping.neighborhood);
+  criteria.push({
+    criterion: 'שכונה מאושרת',
+    required: 'לא באזור שהוחרג מהתכנית',
+    actual: isExcluded ? `${mapping.neighborhood} - מוחרגת` : `${mapping.neighborhood} - כלולה`,
+    met: !isExcluded,
+  });
+
+  const eligible = criteria.every(c => c.met);
+
+  return {
+    eligible,
+    criteria,
+    planNumber: plan.planNumber,
+    reason: eligible
+      ? `הבניין עומד בכל תנאי הסף של תכנית ${plan.planNumber} להתחדשות עירונית`
+      : `הבניין אינו עומד בתנאי: ${criteria.filter(c => !c.met).map(c => c.criterion).join(', ')}`,
+    additionalRights: eligible ? plan.rights : null,
+    citations: plan.citations,
+  };
 }

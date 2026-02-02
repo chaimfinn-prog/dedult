@@ -16,6 +16,10 @@ import {
   Download,
   Eye,
   ArrowRight,
+  CheckCircle2,
+  XCircle,
+  Calendar,
+  Users,
 } from 'lucide-react';
 import { useZoning } from '@/context/ZoningContext';
 import { zoningTypeLabels } from '@/types';
@@ -30,7 +34,7 @@ export function ResultsDashboard() {
   const { result, reset } = useZoning();
   if (!result) return null;
 
-  const { property, zoningPlan, calculations, financial } = result;
+  const { property, zoningPlan, calculations, financial, urbanRenewalEligibility } = result;
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.5 }} className="space-y-6">
@@ -182,13 +186,13 @@ export function ResultsDashboard() {
           >
             <h3 className="font-bold text-sm mb-4 flex items-center gap-2">
               <Building2 className="w-4 h-4 text-accent" />
-              פירוט שטחים לפי קומות
+              פירוט שטחים לפי קומות ומקור זכות
             </h3>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-border">
-                    <th className="text-right py-2.5 px-3 font-semibold text-foreground-muted text-xs">קומה</th>
+                    <th className="text-right py-2.5 px-3 font-semibold text-foreground-muted text-xs">קומה / מקור</th>
                     <th className="text-center py-2.5 px-3 font-semibold text-foreground-muted text-xs">{"שטח עיקרי (מ\"ר)"}</th>
                     <th className="text-center py-2.5 px-3 font-semibold text-foreground-muted text-xs">{"שטח שירות (מ\"ר)"}</th>
                     <th className="text-center py-2.5 px-3 font-semibold text-foreground-muted text-xs">{"סה\"כ (מ\"ר)"}</th>
@@ -201,11 +205,15 @@ export function ResultsDashboard() {
                       initial={{ opacity: 0, x: 15 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: 0.5 + i * 0.08 }}
-                      className={`border-b border-border/50 hover:bg-accent/3 transition-colors ${floor.floor === 'tma' ? 'bg-gold/5' : ''}`}
+                      className={`border-b border-border/50 hover:bg-accent/3 transition-colors ${
+                        floor.floor === 'tma' ? 'bg-gold/5' :
+                        floor.floor === 'urban_renewal' ? 'bg-accent/5' : ''
+                      }`}
                     >
                       <td className="py-2.5 px-3 font-medium text-sm">
                         {floor.label}
-                        {floor.floor === 'tma' && <span className="mr-1 text-gold text-[10px]">★</span>}
+                        {floor.floor === 'tma' && <span className="mr-1 text-gold text-[10px]">★ תמ&quot;א</span>}
+                        {floor.floor === 'urban_renewal' && <span className="mr-1 text-accent text-[10px]">★ התחדשות</span>}
                       </td>
                       <td className="py-2.5 px-3 text-center price font-mono text-sm">{formatNumber(floor.mainArea)}</td>
                       <td className="py-2.5 px-3 text-center price font-mono text-sm">{formatNumber(floor.serviceArea)}</td>
@@ -244,28 +252,103 @@ export function ResultsDashboard() {
             </div>
           </motion.div>
 
-          {/* TMA 38 */}
-          {zoningPlan.tmaRights?.eligible && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.6 }}
-              className="glass-card-gold p-6"
-            >
-              <h3 className="font-bold text-sm mb-3 flex items-center gap-2">
-                <Shield className="w-4 h-4 text-gold" />
-                <span className="text-gradient-gold">{"זכויות תמ\"א 38/"}{zoningPlan.tmaRights.tmaType === '38/1' ? '1' : '2'}</span>
-              </h3>
-              <p className="text-sm text-foreground-secondary mb-4">{zoningPlan.tmaRights.notes}</p>
-              <div className="grid grid-cols-2 gap-3">
+          {/* ========== TMA 38 Eligibility Section ========== */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.55 }}
+            className={urbanRenewalEligibility.tma38Eligible ? 'glass-card-gold p-6' : 'glass-card p-6'}
+          >
+            <h3 className="font-bold text-sm mb-3 flex items-center gap-2">
+              <Shield className="w-4 h-4 text-gold" />
+              <span className={urbanRenewalEligibility.tma38Eligible ? 'text-gradient-gold' : ''}>
+                {"בדיקת זכאות תמ\"א 38"}
+              </span>
+              {urbanRenewalEligibility.tma38Eligible ? (
+                <span className="badge badge-success text-[10px]">זכאי</span>
+              ) : (
+                <span className="badge badge-danger text-[10px]">לא זכאי</span>
+              )}
+            </h3>
+
+            {/* Eligibility criteria checklist */}
+            <div className="space-y-2 mb-4">
+              {urbanRenewalEligibility.tma38Criteria.map((c, i) => (
+                <div key={i} className="flex items-center gap-2 text-sm">
+                  {c.met ? (
+                    <CheckCircle2 className="w-4 h-4 text-success flex-shrink-0" />
+                  ) : (
+                    <XCircle className="w-4 h-4 text-danger flex-shrink-0" />
+                  )}
+                  <span className="text-foreground-secondary">{c.criterion}:</span>
+                  <span className={`font-medium ${c.met ? 'text-foreground' : 'text-danger'}`}>{c.actual}</span>
+                  <span className="text-foreground-muted text-xs">(נדרש: {c.required})</span>
+                </div>
+              ))}
+            </div>
+
+            <p className="text-sm text-foreground-secondary mb-3">{urbanRenewalEligibility.tma38Reason}</p>
+
+            {urbanRenewalEligibility.tma38Eligible && zoningPlan.tmaRights && (
+              <div className="grid grid-cols-2 gap-3 mt-3">
                 <StatCard icon={<Building2 className="w-3.5 h-3.5" />} label="קומות נוספות" value={String(zoningPlan.tmaRights.additionalFloors)} />
                 <StatCard icon={<TrendingUp className="w-3.5 h-3.5" />} label="תוספת אחוזי בנייה" value={`${zoningPlan.tmaRights.additionalBuildingPercent}%`} />
+                <StatCard icon={<Ruler className="w-3.5 h-3.5" />} label={'תוספת שטח מכוח תמ"א'} value={`${formatNumber(urbanRenewalEligibility.tmaAdditionalArea)} מ"ר`} />
+                <StatCard icon={<Calendar className="w-3.5 h-3.5" />} label="סוג תמ&quot;א" value={`38/${zoningPlan.tmaRights.tmaType === '38/1' ? '1 (חיזוק)' : '2 (הריסה)'}`} />
               </div>
-              {zoningPlan.tmaRights.seismicUpgradeRequired && (
-                <p className="text-xs text-warning mt-3">* נדרש חיזוק סיסמי בהתאם לתקן ישראלי 413</p>
+            )}
+
+            {zoningPlan.tmaRights?.seismicUpgradeRequired && urbanRenewalEligibility.tma38Eligible && (
+              <p className="text-xs text-warning mt-3">* נדרש חיזוק סיסמי בהתאם לתקן ישראלי 413</p>
+            )}
+          </motion.div>
+
+          {/* ========== Urban Renewal Plan רע/רע/ב Section ========== */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.6 }}
+            className={urbanRenewalEligibility.urbanRenewalPlanEligible ? 'glass-card-gold p-6' : 'glass-card p-6'}
+          >
+            <h3 className="font-bold text-sm mb-3 flex items-center gap-2">
+              <Users className="w-4 h-4 text-accent" />
+              <span className={urbanRenewalEligibility.urbanRenewalPlanEligible ? 'text-gradient-gold' : ''}>
+                {"תכנית התחדשות עירונית "}{urbanRenewalEligibility.urbanRenewalPlanNumber}
+              </span>
+              {urbanRenewalEligibility.urbanRenewalPlanEligible ? (
+                <span className="badge badge-success text-[10px]">זכאי</span>
+              ) : (
+                <span className="badge badge-danger text-[10px]">לא זכאי</span>
               )}
-            </motion.div>
-          )}
+            </h3>
+
+            {/* Eligibility criteria checklist */}
+            <div className="space-y-2 mb-4">
+              {urbanRenewalEligibility.urbanRenewalCriteria.map((c, i) => (
+                <div key={i} className="flex items-center gap-2 text-sm">
+                  {c.met ? (
+                    <CheckCircle2 className="w-4 h-4 text-success flex-shrink-0" />
+                  ) : (
+                    <XCircle className="w-4 h-4 text-danger flex-shrink-0" />
+                  )}
+                  <span className="text-foreground-secondary">{c.criterion}:</span>
+                  <span className={`font-medium ${c.met ? 'text-foreground' : 'text-danger'}`}>{c.actual}</span>
+                  <span className="text-foreground-muted text-xs">(נדרש: {c.required})</span>
+                </div>
+              ))}
+            </div>
+
+            <p className="text-sm text-foreground-secondary mb-3">{urbanRenewalEligibility.urbanRenewalReason}</p>
+
+            {urbanRenewalEligibility.urbanRenewalPlanEligible && (
+              <div className="grid grid-cols-2 gap-3 mt-3">
+                <StatCard icon={<Building2 className="w-3.5 h-3.5" />} label="תוספת קומות" value="עד 3" />
+                <StatCard icon={<TrendingUp className="w-3.5 h-3.5" />} label="תוספת אחוזי בנייה" value="50%" />
+                <StatCard icon={<Ruler className="w-3.5 h-3.5" />} label="תוספת שטח" value={`${formatNumber(urbanRenewalEligibility.urbanRenewalAdditionalArea)} מ"ר`} />
+                <StatCard icon={<Home className="w-3.5 h-3.5" />} label="בונוס מרפסות" value={'12 מ"ר ליח"ד'} />
+              </div>
+            )}
+          </motion.div>
         </div>
 
         {/* Right column - Profit Slider */}
@@ -280,6 +363,7 @@ export function ResultsDashboard() {
               additionalArea={calculations.additionalBuildableArea}
               defaultPricePerSqm={financial.pricePerSqm}
               constructionCostPerSqm={financial.constructionCostPerSqm}
+              costBreakdown={financial.costBreakdown}
             />
 
             {/* Summary */}
@@ -288,7 +372,13 @@ export function ResultsDashboard() {
               <div className="space-y-2.5">
                 <SummaryRow label="שטח מגרש" value={`${formatNumber(property.plotSize)} מ"ר`} />
                 <SummaryRow label="שטח בנוי קיים" value={`${formatNumber(calculations.currentBuiltArea)} מ"ר`} />
-                <SummaryRow label='סה"כ מותר לבנייה' value={`${formatNumber(calculations.maxBuildableArea)} מ"ר`} />
+                <SummaryRow label={'מותר מכוח תב"ע'} value={`${formatNumber(calculations.maxBuildableArea)} מ"ר`} />
+                {urbanRenewalEligibility.tma38Eligible && (
+                  <SummaryRow label={'תוספת תמ"א 38'} value={`${formatNumber(urbanRenewalEligibility.tmaAdditionalArea)} מ"ר`} />
+                )}
+                {urbanRenewalEligibility.urbanRenewalPlanEligible && (
+                  <SummaryRow label={`תוספת ${urbanRenewalEligibility.urbanRenewalPlanNumber}`} value={`${formatNumber(urbanRenewalEligibility.urbanRenewalAdditionalArea)} מ"ר`} />
+                )}
                 <div className="border-t border-border pt-2">
                   <SummaryRow label="פוטנציאל נוסף" value={`${formatNumber(calculations.additionalBuildableArea)} מ"ר`} highlight />
                 </div>
@@ -300,7 +390,8 @@ export function ResultsDashboard() {
               <p className="text-[10px] text-foreground-muted leading-relaxed">
                 {"* דו\"ח זה הינו הערכה ראשונית בלבד ואינו מהווה חוות דעת מקצועית. "}
                 {"לקבלת חוות דעת מחייבת יש לפנות לאדריכל רישוי או שמאי מקרקעין מוסמך. "}
-                {"הנתונים מבוססים על תב\"ע חלה כפי שפורסמה במאגר התכנון הארצי."}
+                {"הנתונים מבוססים על תב\"ע חלה כפי שפורסמה במאגר התכנון הארצי. "}
+                {"היטלים ואגרות לפי תעריפי עיריית רעננה 2024."}
               </p>
             </div>
           </motion.div>

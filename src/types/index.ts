@@ -118,6 +118,7 @@ export interface AnalysisResult {
   property: PropertySearch;
   zoningPlan: ZoningPlan;
   calculations: BuildingCalculations;
+  urbanRenewalEligibility: UrbanRenewalEligibility;
   financial: FinancialEstimate;
   timestamp: Date;
 }
@@ -147,6 +148,37 @@ export interface FloorBreakdownItem {
   isAdditional?: boolean;
 }
 
+export interface CostBreakdown {
+  constructionCost: number;        // עלות בנייה ישירה
+  planningAndSupervision: number;  // תכנון ופיקוח (אדריכל, מהנדס, מפקח)
+  bettermentLevy: number;          // היטל השבחה
+  buildingPermitFees: number;      // אגרות בנייה
+  developmentLevies: number;       // היטלי פיתוח (מים, ביוב, כבישים)
+  vat: number;                     // מע"מ 17%
+  legalAndMisc: number;            // עלויות משפטיות ושונות
+  totalCost: number;               // סך הכל עלויות
+}
+
+export interface EligibilityCriterion {
+  criterion: string;
+  required: string;
+  actual: string;
+  met: boolean;
+}
+
+export interface UrbanRenewalEligibility {
+  tma38Eligible: boolean;
+  tma38Type: '38/1' | '38/2' | 'none';
+  tma38Reason: string;
+  tma38Criteria: EligibilityCriterion[];
+  urbanRenewalPlanEligible: boolean;
+  urbanRenewalPlanNumber: string;
+  urbanRenewalReason: string;
+  urbanRenewalCriteria: EligibilityCriterion[];
+  tmaAdditionalArea: number;
+  urbanRenewalAdditionalArea: number;
+}
+
 export interface FinancialEstimate {
   pricePerSqm: number;
   additionalValueEstimate: number;
@@ -154,6 +186,7 @@ export interface FinancialEstimate {
   estimatedConstructionCost: number;
   estimatedProfit: number;
   neighborhoodAvgPrice: number;
+  costBreakdown: CostBreakdown;
 }
 
 export interface AnalysisLogEntry {

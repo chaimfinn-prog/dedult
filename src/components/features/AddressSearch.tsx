@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, MapPin, Ruler, Building2, ArrowLeft } from 'lucide-react';
 import { useZoning } from '@/context/ZoningContext';
-import { getAvailableAddresses } from '@/data/zoning-plans';
+import { getAvailableAddresses, findPlanByAddress } from '@/data/zoning-plans';
 
 export function AddressSearch() {
   const { analyze } = useZoning();
@@ -51,13 +51,21 @@ export function AddressSearch() {
     setAddress(addr);
     setShowSuggestions(false);
     setShowDetails(true);
+
+    // Auto-fill property data from mapping
+    const mapping = findPlanByAddress(addr);
+    if (mapping) {
+      setPlotSize(String(mapping.plotSize));
+      setCurrentArea(String(mapping.existingArea));
+      setCurrentFloors(String(mapping.existingFloors));
+    }
   }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!address.trim()) return;
 
-    const size = parseFloat(plotSize) || 300;
+    const size = parseFloat(plotSize) || 0;
     const built = parseFloat(currentArea) || 0;
     const floors = parseInt(currentFloors) || 0;
 
