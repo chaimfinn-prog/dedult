@@ -8,6 +8,8 @@ import {
   FileSearch,
   Calculator,
   Banknote,
+  Shield,
+  Zap,
 } from 'lucide-react';
 import { useZoning } from '@/context/ZoningContext';
 import { useTheme } from '@/context/ThemeContext';
@@ -21,20 +23,20 @@ export default function Home() {
 
   return (
     <div className="container-app pb-8">
+      <div className="grid-overlay" />
+
       {/* Header */}
       <header className="flex items-center justify-between py-4 mb-2">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-accent to-accent-dark flex items-center justify-center">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-accent to-accent-dark flex items-center justify-center glow">
             <Building2 className="w-5 h-5 text-white" />
           </div>
           <div>
             <h1 className="font-bold text-lg leading-tight">
-              <span className="bg-gradient-to-l from-accent to-accent-light bg-clip-text text-transparent">
-                Zchut.AI
-              </span>
+              <span className="text-gradient">Zchut.AI</span>
             </h1>
-            <p className="text-xs text-foreground-secondary">
-              מנוע זכויות בנייה חכם
+            <p className="text-[10px] text-foreground-muted font-mono tracking-wider">
+              REAL ESTATE INTELLIGENCE
             </p>
           </div>
         </div>
@@ -51,7 +53,7 @@ export default function Home() {
         </button>
       </header>
 
-      {/* Content based on screen */}
+      {/* Content */}
       <AnimatePresence mode="wait">
         {screen === 'search' && (
           <motion.div
@@ -64,71 +66,64 @@ export default function Home() {
             <motion.section
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              className="py-8 text-center"
+              className="py-10 text-center"
             >
               <motion.div
                 initial={{ scale: 0 }}
                 animate={{ scale: 1 }}
-                transition={{
-                  type: 'spring',
-                  stiffness: 200,
-                  damping: 15,
-                }}
-                className="w-20 h-20 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-accent to-accent-dark flex items-center justify-center"
+                transition={{ type: 'spring', stiffness: 200, damping: 15 }}
+                className="w-20 h-20 mx-auto mb-5 rounded-2xl bg-gradient-to-br from-accent to-accent-dark flex items-center justify-center glow"
               >
                 <Building2 className="w-10 h-10 text-white" />
               </motion.div>
-              <h2 className="text-3xl md:text-4xl font-bold mb-2">
-                <span className="bg-gradient-to-l from-accent to-accent-light bg-clip-text text-transparent">
-                  Zchut.AI
-                </span>
+              <h2 className="text-3xl md:text-5xl font-bold mb-3">
+                <span className="text-gradient">Zchut.AI</span>
               </h2>
               <p className="text-foreground-secondary text-lg mb-2">
                 גלה את זכויות הבנייה שלך בשניות
               </p>
-              <p className="text-foreground-secondary/60 text-sm max-w-lg mx-auto">
-                מנוע AI שהופך קבצי תב&quot;ע מורכבים לדו&quot;ח היתכנות
-                כלכלי-תכנוני פשוט. במקום לשלם אלפי שקלים לאדריכל - קבל
-                תשובה מיידית.
+              <p className="text-foreground-muted text-sm max-w-lg mx-auto leading-relaxed">
+                {"מנוע AI שמנתח תב\"ע מורכבות ומחלץ זכויות בנייה עם הוכחות מקור, הדמיית Massing תלת-ממדית והערכה כלכלית מיידית."}
               </p>
             </motion.section>
 
             {/* Search */}
             <AddressSearch />
 
-            {/* How it works */}
+            {/* Features */}
             <motion.section
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
-              className="py-12"
+              className="py-14"
             >
-              <h3 className="text-xl font-bold text-center mb-8">
-                איך זה עובד?
+              <h3 className="text-lg font-bold text-center mb-2">
+                <span className="text-gradient-gold">בדיקה של אדריכל בשניות</span>
               </h3>
+              <p className="text-sm text-foreground-muted text-center mb-8">ממגרש למספרים ב-3 צעדים</p>
               <div className="grid md:grid-cols-3 gap-4">
                 <FeatureCard
                   step={1}
                   title="הכנס כתובת"
-                  description={'הזן כתובת או גוש/חלקה וגודל המגרש - המערכת מאתרת את התב"ע הרלוונטית'}
-                  icon={<FileSearch className="w-8 h-8 text-accent" />}
+                  description={'הזן כתובת או גוש/חלקה - המערכת מאתרת תב"ע חלה ונתוני GIS'}
+                  icon={<FileSearch className="w-7 h-7 text-accent" />}
                 />
                 <FeatureCard
                   step={2}
                   title="ניתוח AI"
-                  description={'מנוע ה-AI מחלץ אחוזי בנייה, שטחי שירות, קומות ונסיגות מתוך התקנון'}
-                  icon={<Calculator className="w-8 h-8 text-accent" />}
+                  description={'מחלץ אחוזי בנייה, תכסית, קווי בניין, צפיפות וזכויות תמ"א 38'}
+                  icon={<Calculator className="w-7 h-7 text-accent" />}
                 />
                 <FeatureCard
                   step={3}
-                  title={'דו"ח מיידי'}
-                  description="קבל פירוט מלא של זכויות הבנייה כולל הערכה כלכלית - בשניות"
-                  icon={<Banknote className="w-8 h-8 text-accent" />}
+                  title={'דו"ח מקצועי'}
+                  description={'הדמיית Massing 3D, הוכחות מקור, מחשבון רווח ודו"ח להורדה'}
+                  icon={<Banknote className="w-7 h-7 text-accent" />}
                 />
               </div>
             </motion.section>
 
-            {/* Stats */}
+            {/* Capabilities */}
             <motion.section
               initial={{ opacity: 0 }}
               whileInView={{ opacity: 1 }}
@@ -137,10 +132,10 @@ export default function Home() {
             >
               <div className="glass-card p-8">
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
-                  <StatItem value="5" label='תכניות תב"ע' />
-                  <StatItem value="10" label="כתובות לדוגמה" />
-                  <StatItem value="רעננה" label="עיר MVP" />
-                  <StatItem value="< 10 שניות" label="זמן ניתוח" />
+                  <CapItem icon={<Shield className="w-5 h-5 text-gold" />} value={'הוכחות מקור'} label={'ציטוט סעיף + עמוד'} />
+                  <CapItem icon={<Building2 className="w-5 h-5 text-accent" />} value={'Massing 3D'} label={'הדמיית נפח בנייה'} />
+                  <CapItem icon={<Zap className="w-5 h-5 text-success" />} value={'< 10 שניות'} label={'זמן ניתוח'} />
+                  <CapItem icon={<Banknote className="w-5 h-5 text-gold" />} value={'מחשבון רווח'} label={'סליידר אינטראקטיבי'} />
                 </div>
               </div>
             </motion.section>
@@ -150,13 +145,16 @@ export default function Home() {
               initial={{ opacity: 0 }}
               whileInView={{ opacity: 1 }}
               viewport={{ once: true }}
-              className="py-8 text-center text-sm text-foreground-secondary"
+              className="py-8 text-center"
             >
-              <p>Zchut.AI - מנוע זכויות בנייה חכם</p>
-              <p className="mt-1">
-                MVP - עיר רעננה | נתוני דמו לצורך הדגמה
+              <p className="text-sm text-foreground-secondary">
+                <span className="text-gradient">Zchut.AI</span>
+                <span className="text-foreground-muted"> — Real Estate Intelligence Platform</span>
               </p>
-              <p className="mt-2 text-xs opacity-70">
+              <p className="mt-1 text-xs text-foreground-muted">
+                MVP - עיר רעננה | 5 תכניות | 10 כתובות
+              </p>
+              <p className="mt-2 text-[10px] text-foreground-muted/50">
                 &copy; {new Date().getFullYear()} Zchut.AI. כל הזכויות שמורות.
               </p>
             </motion.footer>
@@ -205,26 +203,27 @@ function FeatureCard({
   return (
     <motion.div
       className="glass-card p-6 text-center"
-      whileHover={{ scale: 1.02, y: -5 }}
+      whileHover={{ scale: 1.02, y: -4 }}
       transition={{ type: 'spring', stiffness: 400, damping: 25 }}
     >
       <div className="relative inline-block mb-4">
         {icon}
-        <span className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-accent text-white text-sm font-bold flex items-center justify-center">
+        <span className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-gradient-to-br from-accent to-accent-dark text-white text-[10px] font-bold flex items-center justify-center">
           {step}
         </span>
       </div>
-      <h4 className="font-semibold mb-2">{title}</h4>
-      <p className="text-sm text-foreground-secondary">{description}</p>
+      <h4 className="font-semibold mb-1.5 text-sm">{title}</h4>
+      <p className="text-xs text-foreground-secondary leading-relaxed">{description}</p>
     </motion.div>
   );
 }
 
-function StatItem({ value, label }: { value: string; label: string }) {
+function CapItem({ icon, value, label }: { icon: React.ReactNode; value: string; label: string }) {
   return (
-    <div>
-      <div className="text-2xl font-bold text-accent">{value}</div>
-      <div className="text-sm text-foreground-secondary">{label}</div>
+    <div className="flex flex-col items-center gap-2">
+      {icon}
+      <div className="text-sm font-bold">{value}</div>
+      <div className="text-[10px] text-foreground-muted">{label}</div>
     </div>
   );
 }

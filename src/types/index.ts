@@ -1,8 +1,8 @@
-// Core data types for Zchut.AI - Zoning Compliance Analyzer
+// Core data types for Zchut.AI - Premium Zoning Intelligence Platform
 
 export interface ZoningPlan {
   id: string;
-  planNumber: string; // e.g., "רע/3000"
+  planNumber: string;
   name: string;
   city: string;
   neighborhood: string;
@@ -11,18 +11,19 @@ export interface ZoningPlan {
   zoningType: ZoningType;
   buildingRights: BuildingRights;
   restrictions: BuildingRestrictions;
-  tmaRights?: TmaRights; // תמ"א 38 rights
+  tmaRights?: TmaRights;
+  sourceDocument: SourceDocument;
 }
 
 export type ZoningType =
-  | 'residential_a' // מגורים א'
-  | 'residential_b' // מגורים ב'
-  | 'residential_c' // מגורים ג'
-  | 'commercial' // מסחרי
-  | 'mixed_use' // שימוש מעורב
-  | 'industrial' // תעשייה
-  | 'public' // ציבורי
-  | 'agricultural'; // חקלאי
+  | 'residential_a'
+  | 'residential_b'
+  | 'residential_c'
+  | 'commercial'
+  | 'mixed_use'
+  | 'industrial'
+  | 'public'
+  | 'agricultural';
 
 export const zoningTypeLabels: Record<ZoningType, string> = {
   residential_a: "מגורים א'",
@@ -35,33 +36,45 @@ export const zoningTypeLabels: Record<ZoningType, string> = {
   agricultural: 'חקלאי',
 };
 
+export interface SourceDocument {
+  name: string;
+  url?: string;
+  lastUpdated: string;
+}
+
+export interface SourceCitation {
+  value: string;
+  source: string;
+  section: string;
+  quote: string;
+  confidence: number; // 0-100
+  page?: number;
+}
+
 export interface BuildingRights {
-  mainBuildingPercent: number; // אחוזי בנייה עיקריים
-  serviceBuildingPercent: number; // אחוזי שטחי שירות
-  totalBuildingPercent: number; // סה"כ אחוזי בנייה
-  maxFloors: number; // מקסימום קומות
-  maxHeight: number; // גובה מקסימלי במטרים
-  maxUnits: number; // מספר יחידות דיור מקסימלי
+  mainBuildingPercent: number;
+  serviceBuildingPercent: number;
+  totalBuildingPercent: number;
+  maxFloors: number;
+  maxHeight: number;
+  maxUnits: number;
   basementAllowed: boolean;
-  basementPercent: number; // אחוזי מרתף
-  rooftopPercent: number; // אחוזי גג (חדר יציאה לגג)
+  basementPercent: number;
+  rooftopPercent: number;
+  landCoveragePercent: number;
   floorAllocations: FloorAllocation[];
+  citations: SourceCitation[];
 }
 
 export interface FloorAllocation {
   floor: FloorType;
   label: string;
-  mainAreaPercent: number; // שטח עיקרי (%)
-  serviceAreaPercent: number; // שטח שירות (%)
+  mainAreaPercent: number;
+  serviceAreaPercent: number;
   notes: string;
 }
 
-export type FloorType =
-  | 'basement'
-  | 'ground'
-  | 'typical'
-  | 'top'
-  | 'rooftop';
+export type FloorType = 'basement' | 'ground' | 'typical' | 'top' | 'rooftop';
 
 export const floorTypeLabels: Record<FloorType, string> = {
   basement: 'מרתף',
@@ -72,16 +85,17 @@ export const floorTypeLabels: Record<FloorType, string> = {
 };
 
 export interface BuildingRestrictions {
-  frontSetback: number; // נסיגה קדמית (מטרים)
-  rearSetback: number; // נסיגה אחורית
-  sideSetback: number; // נסיגה צדדית
-  minParkingSpaces: number; // חניות נדרשות
-  minGreenAreaPercent: number; // אחוז שטח ירוק
-  maxLandCoverage: number; // אחוז כיסוי קרקע
+  frontSetback: number;
+  rearSetback: number;
+  sideSetback: number;
+  minParkingSpaces: number;
+  minGreenAreaPercent: number;
+  maxLandCoverage: number;
 }
 
 export interface TmaRights {
   eligible: boolean;
+  tmaType: '38/1' | '38/2' | 'none';
   additionalFloors: number;
   additionalBuildingPercent: number;
   seismicUpgradeRequired: boolean;
@@ -91,10 +105,12 @@ export interface TmaRights {
 export interface PropertySearch {
   address: string;
   city: string;
-  block: string; // גוש
-  parcel: string; // חלקה
-  plotSize: number; // גודל מגרש במ"ר
-  currentBuiltArea: number; // שטח בנוי קיים במ"ר
+  block: string;
+  parcel: string;
+  plotSize: number;
+  plotWidth?: number;
+  plotDepth?: number;
+  currentBuiltArea: number;
   currentFloors: number;
 }
 
@@ -107,40 +123,43 @@ export interface AnalysisResult {
 }
 
 export interface BuildingCalculations {
-  maxBuildableArea: number; // סה"כ שטח בנייה מותר
-  currentBuiltArea: number; // שטח בנוי קיים
-  additionalBuildableArea: number; // פוטנציאל בנייה נוסף
-  mainAreaTotal: number; // סה"כ שטח עיקרי
-  serviceAreaTotal: number; // סה"כ שטחי שירות
-  basementArea: number; // שטח מרתף
-  rooftopArea: number; // שטח גג
+  maxBuildableArea: number;
+  currentBuiltArea: number;
+  additionalBuildableArea: number;
+  mainAreaTotal: number;
+  serviceAreaTotal: number;
+  basementArea: number;
+  rooftopArea: number;
   floorBreakdown: FloorBreakdownItem[];
-  landCoverageArea: number; // שטח כיסוי קרקע
-  greenArea: number; // שטח ירוק נדרש
-  parkingSpaces: number; // חניות נדרשות
+  landCoverageArea: number;
+  greenArea: number;
+  parkingSpaces: number;
+  netBuildableArea: number;
 }
 
 export interface FloorBreakdownItem {
   floor: string;
   label: string;
-  mainArea: number; // מ"ר עיקרי
-  serviceArea: number; // מ"ר שירות
-  totalArea: number; // סה"כ מ"ר
+  mainArea: number;
+  serviceArea: number;
+  totalArea: number;
+  isExisting?: boolean;
+  isAdditional?: boolean;
 }
 
 export interface FinancialEstimate {
-  pricePerSqm: number; // מחיר למ"ר באזור
-  additionalValueEstimate: number; // הערכת שווי תוספת
-  constructionCostPerSqm: number; // עלות בנייה למ"ר
-  estimatedConstructionCost: number; // עלות בנייה משוערת
-  estimatedProfit: number; // רווח משוער
-  neighborhoodAvgPrice: number; // מחיר ממוצע בשכונה
+  pricePerSqm: number;
+  additionalValueEstimate: number;
+  constructionCostPerSqm: number;
+  estimatedConstructionCost: number;
+  estimatedProfit: number;
+  neighborhoodAvgPrice: number;
 }
 
 export interface AnalysisLogEntry {
   id: string;
   message: string;
-  type: 'info' | 'search' | 'extract' | 'calculate' | 'complete' | 'warning';
+  type: 'info' | 'search' | 'extract' | 'calculate' | 'complete' | 'warning' | 'radar';
   timestamp: number;
 }
 
