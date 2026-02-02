@@ -22,22 +22,19 @@ import {
   Users,
   ClipboardList,
   Box,
-  Banknote,
 } from 'lucide-react';
 import { useZoning } from '@/context/ZoningContext';
 import { zoningTypeLabels } from '@/types';
-import type { AuditStep, DeveloperReport } from '@/types';
+import type { AuditStep } from '@/types';
 import { Building3D } from './Building3D';
 import { ProfitSlider } from './ProfitSlider';
+import { DeveloperCalculator } from './DeveloperCalculator';
 
 function formatNumber(n: number): string {
   return new Intl.NumberFormat('he-IL').format(n);
 }
 
-function formatCurrency(n: number): string {
-  if (n >= 1_000_000) return `₪${(n / 1_000_000).toFixed(1)}M`;
-  return `₪${new Intl.NumberFormat('he-IL').format(n)}`;
-}
+
 
 export function ResultsDashboard() {
   const { result, reset, userPath } = useZoning();
@@ -108,6 +105,8 @@ export function ResultsDashboard() {
                 currentBuiltArea={calculations.currentBuiltArea}
                 maxBuildableArea={calculations.maxBuildableArea}
                 maxFloors={zoningPlan.buildingRights.maxFloors}
+                plotWidth={property.plotWidth}
+                plotDepth={property.plotDepth}
               />
             </motion.div>
 
@@ -325,17 +324,10 @@ export function ResultsDashboard() {
             </motion.div>
           )}
 
-          {/* ========== Developer Economic Report ========== */}
+          {/* ========== Developer Economic Report (Full Feasibility) ========== */}
           {userPath === 'developer' && developerReport && (
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.7 }} className="glass-card-gold p-6">
-              <h3 className="font-bold text-sm mb-4 flex items-center gap-2">
-                <Banknote className="w-4 h-4 text-gold" />
-                <span className="text-gradient-gold">{"דו\"ח כלכלי ליזם (דו\"ח אפס)"}</span>
-                <span className={`badge text-[10px] ${developerReport.feasible ? 'badge-success' : 'badge-danger'}`}>
-                  {developerReport.feasibilityNote}
-                </span>
-              </h3>
-              <DeveloperReportSection report={developerReport} />
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.7 }} className="glass-card p-4">
+              <DeveloperCalculator report={developerReport} />
             </motion.div>
           )}
         </div>
@@ -425,65 +417,6 @@ function AuditTrailSection({ steps }: { steps: AuditStep[] }) {
   );
 }
 
-// ========== Developer Report Component ==========
-function DeveloperReportSection({ report }: { report: DeveloperReport }) {
-  return (
-    <div className="space-y-4">
-      {/* Revenue side */}
-      <div>
-        <h4 className="text-xs font-semibold text-foreground-muted mb-2">הכנסות צפויות</h4>
-        <div className="bg-success/5 rounded-xl p-4 border border-success/15">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm text-foreground-secondary">{report.newUnits} {"יח\"ד חדשות"} × {formatNumber(report.avgPricePerSqm)} {"₪/מ\"ר"}</span>
-            <span className="text-xl font-bold text-success font-mono">{formatCurrency(report.totalRevenue)}</span>
-          </div>
-          <div className="text-xs text-foreground-muted">{formatNumber(report.totalSaleableArea)} {"מ\"ר למכירה"}</div>
-        </div>
-      </div>
-
-      {/* Cost side */}
-      <div>
-        <h4 className="text-xs font-semibold text-foreground-muted mb-2">עלויות</h4>
-        <div className="bg-warning/5 rounded-xl p-4 border border-warning/15 space-y-2">
-          <CostRow label={'עלות קרקע / דירות קיימות'} amount={report.landCost} />
-          <CostRow label={'עלות בנייה'} amount={report.constructionCost} />
-          <CostRow label={'עלויות רכות (תכנון, שיווק, משפטי)'} amount={report.softCosts} />
-          <CostRow label={'היטלים ואגרות'} amount={report.leviesAndFees} />
-          <CostRow label={'עלויות מימון'} amount={report.financingCost} />
-          <div className="border-t border-warning/20 pt-2 flex items-center justify-between font-bold">
-            <span className="text-sm">{"סה\"כ עלויות"}</span>
-            <span className="text-lg text-warning font-mono">{formatCurrency(report.totalCost)}</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Bottom line */}
-      <div className={`rounded-xl p-5 border ${report.feasible ? 'bg-accent/8 border-accent/20' : 'bg-danger/8 border-danger/20'}`}>
-        <div className="flex items-center justify-between mb-2">
-          <div>
-            <span className="text-sm font-semibold block">שורה תחתונה (רווח גולמי)</span>
-            <span className="text-xs text-foreground-muted">רווח: {report.profitPercent}% | {formatCurrency(report.profitPerUnit)} {"ליח\"ד"}</span>
-          </div>
-          <span className={`text-3xl font-bold font-mono ${report.grossProfit > 0 ? 'text-success' : 'text-danger'}`}>
-            {formatCurrency(report.grossProfit)}
-          </span>
-        </div>
-        <div className={`text-sm font-medium ${report.feasible ? 'text-success' : 'text-danger'}`}>
-          {report.feasibilityNote}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function CostRow({ label, amount }: { label: string; amount: number }) {
-  return (
-    <div className="flex items-center justify-between text-xs">
-      <span className="text-foreground-secondary">{label}</span>
-      <span className="font-mono font-medium">{formatCurrency(amount)}</span>
-    </div>
-  );
-}
 
 function InfoRow({ label, value }: { label: string; value: string }) {
   return (

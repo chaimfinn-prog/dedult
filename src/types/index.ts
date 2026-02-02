@@ -233,28 +233,91 @@ export interface EnvelopeVerification {
   }>;
 }
 
-// Developer economic report (דו"ח אפס)
+// Developer economic report (דו"ח אפס) - Full feasibility model
 export interface DeveloperReport {
-  // Revenue
-  totalSaleableArea: number;      // שטח למכירה
-  avgPricePerSqm: number;         // מחיר ממוצע למ"ר
-  totalRevenue: number;            // הכנסות צפויות
+  // A. קרקע - Land
+  land: {
+    acquisitionCost: number;          // רכישת קרקע / עסקת קומבינציה
+    bettermentLevy: number;           // היטל השבחה 50%
+    bettermentLevyCityPlan: number;   // היטל השבחה בגין תכניות בניין עיר
+    consultants: number;              // מארגנים ויועצים חברתיים
+    total: number;
+  };
 
-  // Costs
-  landCost: number;                // עלות קרקע / דירות קיימות
-  constructionCost: number;        // עלות בנייה
-  softCosts: number;               // עלויות רכות (תכנון, שיווק, משפטי)
-  leviesAndFees: number;           // היטלים ואגרות
-  financingCost: number;           // עלויות מימון
-  totalCost: number;               // סך הכל עלויות
+  // B. עלויות עקיפות/כלליות - Indirect/General Costs
+  indirectCosts: {
+    feesAndLevies: number;            // אגרות והיטלים (תחשיב נפרד)
+    purchaseTax: number;              // מס רכישה 5%
+    ownerSpecialCosts: number;        // עלויות מיוחדות לבעלים 100%
+    ownerGeneralCosts: number;        // עלויות כלליות 30%
+    ownerServiceCosts: number;        // עלויות שירות 30%
+    electricityResidential: number;   // חיבור חשמל מגורים 18%
+    electricityCommercial: number;    // חיבור חשמל מסחר 18%
+    waterConnection: number;          // חיבור מים
+    sales: number;                    // מכירות 1%
+    marketing: number;                // שיווק/פרסום/מיתוג 2%
+    planningInspection: number;       // תכנון בדיקות ומדידות 2%
+    legalPerUnit: number;             // משפטיות/שכ"ט עו"ד - מגורים
+    legalOwnerCosts: number;          // משפטיות הדר הוצאות
+    total: number;
+  };
 
-  // Profitability
-  grossProfit: number;             // רווח גולמי
-  profitPercent: number;           // אחוז רווח
-  profitPerUnit: number;           // רווח ליח"ד
-  newUnits: number;                // יח"ד חדשות
+  // C. עמלות - Commissions/Fees
+  commissions: {
+    autonomousGuarantee: number;      // ערבות אוטונומית יורדת 1%
+    landGuarantee: number;            // ערבות לדיירים בעלי קרקע 0.65%
+    inspectionRegistration: number;   // בדק ורישום 1%
+    torahAffairs: number;             // עו"ד תורות 0.65%
+    creditAllocation: number;         // עמלת אי הקצאת אשראי 0.20%
+    openingFee: number;               // עמלת פתיחת תיק 0.20%
+    total: number;
+  };
 
-  // Feasibility
+  // D. עלויות בנייה ישירות - Direct Construction Costs
+  directConstruction: {
+    demolition: { area: number; costPerSqm: number; total: number };
+    basement: { area: number; costPerSqm: number; total: number };
+    commercial: { area: number; costPerSqm: number; total: number };
+    employment: { area: number; costPerSqm: number; total: number };
+    publicArea: { area: number; costPerSqm: number; total: number };
+    residential: { area: number; costPerSqm: number; total: number };
+    balconies: { area: number; costPerSqm: number; total: number };
+    outdoorDev: { area: number; costPerSqm: number; total: number };
+    total: number;
+  };
+
+  // E. סה"כ הוצאות צמודות בפרויקט
+  totalIndexedCosts: number;
+
+  // F. מימון - Financing
+  financing: {
+    monthsToPermit: number;           // משך עד היתר
+    monthsConstruction: number;       // משך בנייה
+    effectiveInterest: number;        // ריבית אפקטיבית %
+    selfEquityPercent: number;        // הון עצמי %
+    selfEquityAmount: number;         // הון עצמי סכום
+    earlySalesPercent: number;        // מכירה מוקדמת %
+    earlySalesAmount: number;         // מכירה מוקדמת סכום
+    total: number;
+  };
+
+  // G. סה"כ עלויות כולל מימון
+  totalCostWithFinancing: number;
+
+  // H. אומדן הכנסות - Revenue
+  revenue: {
+    residential: { area: number; pricePerSqm: number; total: number };
+    residentialAffordable: { area: number; pricePerSqm: number; total: number };
+    commercial: { area: number; pricePerSqm: number; total: number };
+    employment: { area: number; pricePerSqm: number; total: number };
+    total: number;
+  };
+
+  // Summary
+  grossProfit: number;
+  profitPercent: number;
+  profitPerUnit: number;
+  newUnits: number;
   feasible: boolean;
   feasibilityNote: string;
 }

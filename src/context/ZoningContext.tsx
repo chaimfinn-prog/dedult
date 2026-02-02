@@ -423,33 +423,160 @@ export function ZoningProvider({ children }: { children: ReactNode }) {
     addLog(`סה"כ עלויות: ₪${fmtCurrency(financial.costBreakdown.totalCost)} | שווי: ₪${fmtCurrency(financial.additionalValueEstimate)}`, 'calculate');
     await delay(400);
 
-    // ========== Developer Report (דו"ח אפס) ==========
+    // ========== Developer Report (דו"ח אפס) - Full Feasibility Model ==========
     let developerReport: DeveloperReport | undefined;
     const totalNewArea = calculations.additionalBuildableArea;
-    const avgUnitSize = 100; // avg sqm per unit
+    const avgUnitSize = 100;
     const newUnits = Math.floor(totalNewArea / avgUnitSize);
 
     if (newUnits > 0) {
-      const totalRevenue = totalNewArea * mapping.avgPricePerSqm;
-      const landCost = mapping.existingUnits * mapping.avgPricePerSqm * avgUnitSize * 0.3; // 30% of existing units value
-      const constructionCost = totalNewArea * mapping.constructionCostPerSqm;
-      const softCosts = Math.round(constructionCost * 0.15); // 15%
-      const leviesAndFees = financial.costBreakdown.bettermentLevy + financial.costBreakdown.buildingPermitFees + financial.costBreakdown.developmentLevies;
-      const financingCost = Math.round(constructionCost * 0.08); // 8% financing
-      const totalCost = landCost + constructionCost + softCosts + leviesAndFees + financingCost;
-      const grossProfit = totalRevenue - totalCost;
-      const profitPercent = totalCost > 0 ? Math.round((grossProfit / totalCost) * 100) : 0;
+      const pricePerSqm = mapping.avgPricePerSqm;
+      const costPerSqm = mapping.constructionCostPerSqm;
+
+      // Area breakdown estimates
+      const demolitionArea = currentBuiltArea;
+      const basementArea = calculations.basementArea;
+      const residentialArea = Math.round(totalNewArea * 0.85);
+      const commercialArea = plan.zoningType === 'mixed_use' ? Math.round(totalNewArea * 0.1) : 0;
+      const balconyArea = Math.round(residentialArea * 0.09);
+      const outdoorArea = Math.round(plotSize * 0.4);
+
+      // D. Direct construction
+      const dDemolition = { area: demolitionArea, costPerSqm: 300, total: demolitionArea * 300 };
+      const dBasement = { area: basementArea, costPerSqm: 3800, total: basementArea * 3800 };
+      const dCommercial = { area: commercialArea, costPerSqm: 6500, total: commercialArea * 6500 };
+      const dEmployment = { area: 0, costPerSqm: 6000, total: 0 };
+      const dPublic = { area: 0, costPerSqm: 10000, total: 0 };
+      const dResidential = { area: residentialArea, costPerSqm: costPerSqm, total: residentialArea * costPerSqm };
+      const dBalconies = { area: balconyArea, costPerSqm: 2970, total: balconyArea * 2970 };
+      const dOutdoor = { area: outdoorArea, costPerSqm: 700, total: outdoorArea * 700 };
+      const directTotal = dDemolition.total + dBasement.total + dCommercial.total + dEmployment.total +
+        dPublic.total + dResidential.total + dBalconies.total + dOutdoor.total;
+
+      // A. Land
+      const landAcquisition = 0; // עסקת קומבינציה
+      const bettermentLevy = financial.costBreakdown.bettermentLevy;
+      const bettermentLevyCity = Math.round(directTotal * 0.01);
+      const consultants = Math.round(directTotal * 0.01);
+      const landTotal = landAcquisition + bettermentLevy + bettermentLevyCity + consultants;
+
+      // B. Indirect costs
+      const feesAndLevies = financial.costBreakdown.buildingPermitFees + financial.costBreakdown.developmentLevies;
+      const purchaseTax = Math.round(directTotal * 0.05);
+      const ownerSpecialCosts = Math.round(mapping.existingUnits * pricePerSqm * avgUnitSize * 0.005);
+      const ownerGeneralCosts = Math.round(ownerSpecialCosts * 0.3);
+      const ownerServiceCosts = Math.round(ownerSpecialCosts * 0.3);
+      const electricityRes = Math.round(newUnits * 3500);
+      const electricityCom = commercialArea > 0 ? Math.round(commercialArea * 60) : 0;
+      const waterConn = Math.round(newUnits * 163);
+      const salesCost = Math.round(directTotal * 0.01);
+      const marketingCost = Math.round(directTotal * 0.02);
+      const planningInspection = Math.round(directTotal * 0.02);
+      const legalPerUnit = Math.round(newUnits * pricePerSqm * avgUnitSize * 0.01);
+      const legalOwner = Math.round(newUnits * 216);
+      const indirectTotal = feesAndLevies + purchaseTax + ownerSpecialCosts + ownerGeneralCosts +
+        ownerServiceCosts + electricityRes + electricityCom + waterConn + salesCost +
+        marketingCost + planningInspection + legalPerUnit + legalOwner;
+
+      // C. Commissions
+      const autoGuarantee = Math.round(directTotal * 0.01);
+      const landGuarantee = Math.round(directTotal * 0.0065);
+      const inspReg = Math.round(directTotal * 0.01);
+      const torah = Math.round(directTotal * 0.0065);
+      const creditAlloc = Math.round(directTotal * 0.002);
+      const openingFee = Math.round(directTotal * 0.002);
+      const commissionsTotal = autoGuarantee + landGuarantee + inspReg + torah + creditAlloc + openingFee;
+
+      // E. Total indexed costs
+      const totalIndexedCosts = landTotal + indirectTotal + commissionsTotal + directTotal;
+
+      // F. Financing
+      const monthsToPermit = 48;
+      const monthsConstruction = 42;
+      const effectiveInterest = 6.5;
+      const selfEquityPercent = 13.2;
+      const selfEquityAmount = Math.round(totalIndexedCosts * selfEquityPercent / 100);
+      const earlySalesPercent = 30;
+      const totalRevenueEst = (residentialArea * pricePerSqm) + (commercialArea * 27429);
+      const earlySalesAmount = Math.round(totalRevenueEst * earlySalesPercent / 100);
+      const financingTotal = Math.round(totalIndexedCosts * effectiveInterest / 100 * (monthsToPermit + monthsConstruction) / 24);
+
+      // G. Total with financing
+      const totalCostWithFinancing = totalIndexedCosts + financingTotal;
+
+      // H. Revenue
+      const revResidential = { area: residentialArea, pricePerSqm: pricePerSqm, total: residentialArea * pricePerSqm };
+      const revAffordable = { area: 0, pricePerSqm: Math.round(pricePerSqm * 0.6), total: 0 };
+      const revCommercial = { area: commercialArea, pricePerSqm: 27429, total: commercialArea * 27429 };
+      const revEmployment = { area: 0, pricePerSqm: 10286, total: 0 };
+      const revenueTotal = revResidential.total + revAffordable.total + revCommercial.total + revEmployment.total;
+
+      const grossProfit = revenueTotal - totalCostWithFinancing;
+      const profitPercent = totalCostWithFinancing > 0 ? Math.round((grossProfit / totalCostWithFinancing) * 100) : 0;
 
       developerReport = {
-        totalSaleableArea: totalNewArea,
-        avgPricePerSqm: mapping.avgPricePerSqm,
-        totalRevenue,
-        landCost,
-        constructionCost,
-        softCosts,
-        leviesAndFees,
-        financingCost,
-        totalCost,
+        land: {
+          acquisitionCost: landAcquisition,
+          bettermentLevy,
+          bettermentLevyCityPlan: bettermentLevyCity,
+          consultants,
+          total: landTotal,
+        },
+        indirectCosts: {
+          feesAndLevies,
+          purchaseTax,
+          ownerSpecialCosts,
+          ownerGeneralCosts,
+          ownerServiceCosts,
+          electricityResidential: electricityRes,
+          electricityCommercial: electricityCom,
+          waterConnection: waterConn,
+          sales: salesCost,
+          marketing: marketingCost,
+          planningInspection,
+          legalPerUnit,
+          legalOwnerCosts: legalOwner,
+          total: indirectTotal,
+        },
+        commissions: {
+          autonomousGuarantee: autoGuarantee,
+          landGuarantee,
+          inspectionRegistration: inspReg,
+          torahAffairs: torah,
+          creditAllocation: creditAlloc,
+          openingFee,
+          total: commissionsTotal,
+        },
+        directConstruction: {
+          demolition: dDemolition,
+          basement: dBasement,
+          commercial: dCommercial,
+          employment: dEmployment,
+          publicArea: dPublic,
+          residential: dResidential,
+          balconies: dBalconies,
+          outdoorDev: dOutdoor,
+          total: directTotal,
+        },
+        totalIndexedCosts,
+        financing: {
+          monthsToPermit,
+          monthsConstruction,
+          effectiveInterest,
+          selfEquityPercent,
+          selfEquityAmount,
+          earlySalesPercent,
+          earlySalesAmount,
+          total: financingTotal,
+        },
+        totalCostWithFinancing,
+        revenue: {
+          residential: revResidential,
+          residentialAffordable: revAffordable,
+          commercial: revCommercial,
+          employment: revEmployment,
+          total: revenueTotal,
+        },
         grossProfit,
         profitPercent,
         profitPerUnit: newUnits > 0 ? Math.round(grossProfit / newUnits) : 0,
