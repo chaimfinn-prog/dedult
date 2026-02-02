@@ -30,6 +30,7 @@ import {
   raananaUrbanRenewalPlan,
   type AddressMapping,
 } from '@/data/zoning-plans';
+import { getAllPlans, getAllAddresses } from '@/services/admin-storage';
 import { calculateBuildingEnvelope, validateAreaFitsEnvelope } from '@/services/envelope-calculator';
 
 interface ZoningContextType {
@@ -111,9 +112,12 @@ export function ZoningProvider({ children }: { children: ReactNode }) {
       }
       await delay(400);
 
-      const mapping = findPlanByAddress(address);
+      // Search in both hardcoded and custom (admin-added) addresses
+      const allAddresses = getAllAddresses();
+      const mapping = findPlanByAddress(address) ||
+        allAddresses.find(a => a.address.includes(address.trim()) || address.trim().includes(a.address));
       if (!mapping) {
-        const fallback = addressMappings[0];
+        const fallback = allAddresses[0] || addressMappings[0];
         addLog(`כתובת "${address}" - נתוני דמו (${fallback.neighborhood})`, 'warning');
         await delay(500);
         await runAnalysis(fallback.planId, address, fallback, plotSize || fallback.plotSize, currentBuiltArea || fallback.existingArea, currentFloors || fallback.existingFloors);
@@ -149,7 +153,9 @@ export function ZoningProvider({ children }: { children: ReactNode }) {
     currentBuiltArea: number,
     currentFloors: number
   ) {
-    const plan = findPlanById(planId);
+    // Search both hardcoded and custom (admin-added) plans
+    const allPlans = getAllPlans();
+    const plan = findPlanById(planId) || allPlans.find(p => p.id === planId);
     if (!plan) {
       addLog('שגיאה: לא נמצאה תב"ע חלה', 'warning');
       setIsAnalyzing(false);

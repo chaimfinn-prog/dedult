@@ -4,7 +4,8 @@ import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, MapPin, Ruler, Building2, ArrowLeft } from 'lucide-react';
 import { useZoning } from '@/context/ZoningContext';
-import { getAvailableAddresses, findPlanByAddress } from '@/data/zoning-plans';
+import { findPlanByAddress } from '@/data/zoning-plans';
+import { getAllAddresses } from '@/services/admin-storage';
 
 export function AddressSearch() {
   const { analyze } = useZoning();
@@ -18,7 +19,7 @@ export function AddressSearch() {
   const inputRef = useRef<HTMLInputElement>(null);
   const suggestionsRef = useRef<HTMLDivElement>(null);
 
-  const availableAddresses = getAvailableAddresses();
+  const availableAddresses = getAllAddresses().map(a => a.address);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -52,8 +53,9 @@ export function AddressSearch() {
     setShowSuggestions(false);
     setShowDetails(true);
 
-    // Auto-fill property data from mapping
-    const mapping = findPlanByAddress(addr);
+    // Auto-fill property data from mapping (check both hardcoded and custom)
+    const allAddrs = getAllAddresses();
+    const mapping = findPlanByAddress(addr) || allAddrs.find(a => a.address === addr);
     if (mapping) {
       setPlotSize(String(mapping.plotSize));
       setCurrentArea(String(mapping.existingArea));
