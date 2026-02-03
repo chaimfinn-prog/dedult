@@ -168,7 +168,7 @@ export function DeveloperCalculator({ report }: DeveloperCalculatorProps) {
       <AnimatePresence>
         {openSections.has('A') && (
           <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
-            <div className="mx-3 mb-2 glass-card rounded-lg p-1">
+            <div className="mx-3 mb-2 db-card rounded-lg p-1">
               <Row label="רכישת קרקע / עסקת קומבינציה" value={`${fmt(report.land.acquisitionCost)} ₪`} />
               <Row label="היטל השבחה" value={`${fmt(report.land.bettermentLevy)} ₪`} sub="50%" />
               <Row label="היטל השבחה בגין תכניות בניין עיר" value={`${fmt(report.land.bettermentLevyCityPlan)} ₪`} sub="1%" />
@@ -194,7 +194,7 @@ export function DeveloperCalculator({ report }: DeveloperCalculatorProps) {
       <AnimatePresence>
         {openSections.has('B') && (
           <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
-            <div className="mx-3 mb-2 glass-card rounded-lg p-1">
+            <div className="mx-3 mb-2 db-card rounded-lg p-1">
               <Row label="אגרות והיטלים" value={`${fmt(report.indirectCosts.feesAndLevies)} ₪`} sub="תחשיב נפרד" />
               <Row label="מס רכישה" value={`${fmt(report.indirectCosts.purchaseTax)} ₪`} sub="5%" />
               <Row label="עלויות מיוחדות לבעלים" value={`${fmt(report.indirectCosts.ownerSpecialCosts)} ₪`} sub="100%" />
@@ -228,7 +228,7 @@ export function DeveloperCalculator({ report }: DeveloperCalculatorProps) {
       <AnimatePresence>
         {openSections.has('C') && (
           <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
-            <div className="mx-3 mb-2 glass-card rounded-lg p-1">
+            <div className="mx-3 mb-2 db-card rounded-lg p-1">
               <Row label="ערבות אוטונומית יורדת" value={`${fmt(report.commissions.autonomousGuarantee)} ₪`} sub="1%" />
               <Row label="ערבות לדיירים בעלי קרקע" value={`${fmt(report.commissions.landGuarantee)} ₪`} sub="0.65%" />
               <Row label="בדק ורישום" value={`${fmt(report.commissions.inspectionRegistration)} ₪`} sub="1%" />
@@ -256,7 +256,7 @@ export function DeveloperCalculator({ report }: DeveloperCalculatorProps) {
       <AnimatePresence>
         {openSections.has('D') && (
           <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
-            <div className="mx-3 mb-2 glass-card rounded-lg p-1">
+            <div className="mx-3 mb-2 db-card rounded-lg p-1">
               <div className="flex items-center justify-between py-1 px-3 text-[10px] text-foreground-muted border-b border-foreground/10 mb-1">
                 <span>סוג</span>
                 <div className="flex items-center gap-4 font-mono">
@@ -282,7 +282,7 @@ export function DeveloperCalculator({ report }: DeveloperCalculatorProps) {
       </AnimatePresence>
 
       {/* ── E. Indexed total ── */}
-      <div className="mx-3 p-3 glass-card rounded-xl flex items-center justify-between">
+      <div className="mx-3 p-3 db-card rounded-xl flex items-center justify-between">
         <div className="flex items-center gap-2">
           <div className="w-6 h-6 rounded bg-foreground/10 flex items-center justify-center text-[10px] font-bold text-foreground-muted">E</div>
           <span className="text-sm font-medium text-foreground">{'סה"כ הוצאות צמודות (A+B+C+D)'}</span>
@@ -303,7 +303,7 @@ export function DeveloperCalculator({ report }: DeveloperCalculatorProps) {
       <AnimatePresence>
         {openSections.has('F') && (
           <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
-            <div className="mx-3 mb-2 glass-card rounded-lg p-1">
+            <div className="mx-3 mb-2 db-card rounded-lg p-1">
               <Row label="משך עד היתר בנייה" value={`${report.financing.monthsToPermit} חודשים`} />
               <Row label="משך בנייה" value={`${report.financing.monthsConstruction} חודשים`} />
               <Row label="ריבית אפקטיבית" value={`${report.financing.effectiveInterest}%`} />
@@ -318,7 +318,7 @@ export function DeveloperCalculator({ report }: DeveloperCalculatorProps) {
       </AnimatePresence>
 
       {/* ── G. Total with financing ── */}
-      <div className="mx-3 p-3 glass-card rounded-xl flex items-center justify-between border border-foreground/20">
+      <div className="mx-3 p-3 db-card rounded-xl flex items-center justify-between border border-foreground/20">
         <div className="flex items-center gap-2">
           <div className="w-6 h-6 rounded bg-red-500/10 flex items-center justify-center text-[10px] font-bold text-red-400">G</div>
           <span className="text-sm font-bold text-foreground">{'סה"כ עלויות כולל מימון'}</span>
@@ -339,7 +339,7 @@ export function DeveloperCalculator({ report }: DeveloperCalculatorProps) {
       <AnimatePresence>
         {openSections.has('H') && (
           <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
-            <div className="mx-3 mb-2 glass-card rounded-lg p-1">
+            <div className="mx-3 mb-2 db-card rounded-lg p-1">
               <div className="flex items-center justify-between py-1 px-3 text-[10px] text-foreground-muted border-b border-foreground/10 mb-1">
                 <span>סוג</span>
                 <div className="flex items-center gap-4 font-mono">

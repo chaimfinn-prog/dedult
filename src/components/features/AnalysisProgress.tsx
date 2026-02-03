@@ -61,7 +61,7 @@ export function AnalysisProgress() {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="glass-card-strong p-6"
+        className="db-card p-6"
       >
         {/* Header */}
         <div className="flex items-center gap-3 mb-4">

@@ -83,7 +83,7 @@ export function AddressSearch() {
       <form onSubmit={handleSubmit} className="space-y-4">
         {/* Main address search */}
         <div className="relative" ref={suggestionsRef}>
-          <div className="glass-card-strong p-2">
+          <div className="db-card p-2">
             <div className="flex items-center gap-3">
               <div className="flex-shrink-0 w-12 h-12 rounded-xl bg-accent/20 flex items-center justify-center">
                 <MapPin className="w-6 h-6 text-accent" />
@@ -124,7 +124,7 @@ export function AddressSearch() {
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -10 }}
-                className="absolute z-50 w-full mt-2 glass-card-strong overflow-hidden"
+                className="absolute z-50 w-full mt-2 db-card overflow-hidden"
               >
                 {suggestions.map((s) => (
                   <button
@@ -151,7 +151,7 @@ export function AddressSearch() {
               exit={{ opacity: 0, height: 0 }}
               transition={{ duration: 0.3 }}
             >
-              <div className="glass-card p-6 space-y-4">
+              <div className="db-card p-6 space-y-4">
                 <h3 className="font-semibold text-foreground-secondary text-sm">
                   פרטי הנכס (אופציונלי - לתוצאה מדויקת יותר)
                 </h3>
@@ -228,7 +228,7 @@ export function AddressSearch() {
             <button
               key={addr}
               onClick={() => selectAddress(addr)}
-              className="glass-button px-3 py-2 text-sm flex items-center gap-1.5"
+              className="btn-secondary px-3 py-2 text-sm flex items-center gap-1.5"
             >
               <MapPin className="w-3 h-3 text-accent" />
               {addr.replace(', רעננה', '')}

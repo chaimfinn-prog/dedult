@@ -66,7 +66,7 @@ export function ResultsDashboard() {
         initial={{ scale: 0.95, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         transition={{ delay: 0.1, type: 'spring', stiffness: 200 }}
-        className="glass-card-strong p-8 text-center relative overflow-hidden"
+        className="db-card p-8 text-center relative overflow-hidden"
       >
         <div className="scan-line" />
         <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-success/10 border border-success/20 text-success text-sm font-medium mb-4">
@@ -95,7 +95,7 @@ export function ResultsDashboard() {
         <div className="lg:col-span-2 space-y-6">
           {/* 3D + Property Info */}
           <div className="grid md:grid-cols-2 gap-6">
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="glass-card p-6">
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="db-card p-6">
               <h3 className="font-bold text-sm mb-3 flex items-center gap-2 text-foreground-secondary">
                 <Building2 className="w-4 h-4 text-accent" />
                 Massing Study
@@ -110,7 +110,7 @@ export function ResultsDashboard() {
               />
             </motion.div>
 
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }} className="glass-card p-6">
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }} className="db-card p-6">
               <h3 className="font-bold text-sm mb-4 flex items-center gap-2">
                 <MapPin className="w-4 h-4 text-accent" />
                 פרטי הנכס
@@ -130,7 +130,7 @@ export function ResultsDashboard() {
           </div>
 
           {/* Zoning Plan + Citations */}
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="glass-card p-6">
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="db-card p-6">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-bold text-sm flex items-center gap-2">
                 <FileText className="w-4 h-4 text-accent" />
@@ -155,7 +155,7 @@ export function ResultsDashboard() {
                 </h4>
                 <div className="space-y-2">
                   {zoningPlan.buildingRights.citations.map((c, i) => (
-                    <div key={i} className="text-xs p-2.5 rounded-lg bg-background-secondary/50 border border-border">
+                    <div key={i} className="text-xs p-2.5 rounded-lg bg-[rgba(17,24,39,0.5)] border border-border">
                       <div className="flex items-center justify-between mb-1">
                         <span className="font-semibold text-accent-light">{c.value}</span>
                         <span className={`badge text-[9px] ${c.confidence >= 95 ? 'badge-success' : c.confidence >= 85 ? 'badge-warning' : 'badge-danger'}`}>
@@ -173,7 +173,7 @@ export function ResultsDashboard() {
           </motion.div>
 
           {/* Floor Breakdown */}
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }} className="glass-card p-6">
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }} className="db-card p-6">
             <h3 className="font-bold text-sm mb-4 flex items-center gap-2">
               <Building2 className="w-4 h-4 text-accent" />
               פירוט שטחים לפי קומות ומקור זכות
@@ -227,7 +227,7 @@ export function ResultsDashboard() {
               {/* Envelope calculation steps */}
               <div className="space-y-2">
                 {envelope.steps.map((s, i) => (
-                  <div key={i} className="text-xs p-2.5 rounded-lg bg-background-secondary/50 border border-border/50">
+                  <div key={i} className="text-xs p-2.5 rounded-lg bg-[rgba(17,24,39,0.5)] border border-border/50">
                     <div className="font-semibold text-foreground-secondary mb-1">שלב {s.step}: {s.title}</div>
                     <div className="text-foreground-muted whitespace-pre-line font-mono text-[11px]">{s.calculation}</div>
                     <div className="mt-1 text-accent-light font-semibold">{s.result}</div>
@@ -238,7 +238,7 @@ export function ResultsDashboard() {
           )}
 
           {/* Setbacks */}
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }} className="glass-card p-6">
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }} className="db-card p-6">
             <h3 className="font-bold text-sm mb-4 flex items-center gap-2">
               <Shield className="w-4 h-4 text-accent" />
               קווי בניין ומגבלות
@@ -255,7 +255,7 @@ export function ResultsDashboard() {
 
           {/* TMA 38 */}
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.55 }}
-            className={urbanRenewalEligibility.tma38Eligible ? 'glass-card-gold p-6' : 'glass-card p-6'}>
+            className={urbanRenewalEligibility.tma38Eligible ? 'db-card-gold p-6' : 'glass-card p-6'}>
             <h3 className="font-bold text-sm mb-3 flex items-center gap-2">
               <Shield className="w-4 h-4 text-gold" />
               <span className={urbanRenewalEligibility.tma38Eligible ? 'text-gradient-gold' : ''}>{"בדיקת זכאות תמ\"א 38"}</span>
@@ -284,7 +284,7 @@ export function ResultsDashboard() {
 
           {/* Urban Renewal */}
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.6 }}
-            className={urbanRenewalEligibility.urbanRenewalPlanEligible ? 'glass-card-gold p-6' : 'glass-card p-6'}>
+            className={urbanRenewalEligibility.urbanRenewalPlanEligible ? 'db-card-gold p-6' : 'glass-card p-6'}>
             <h3 className="font-bold text-sm mb-3 flex items-center gap-2">
               <Users className="w-4 h-4 text-accent" />
               <span className={urbanRenewalEligibility.urbanRenewalPlanEligible ? 'text-gradient-gold' : ''}>
@@ -315,7 +315,7 @@ export function ResultsDashboard() {
 
           {/* ========== Audit Trail ========== */}
           {auditTrail && auditTrail.length > 0 && (
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.65 }} className="glass-card p-6">
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.65 }} className="db-card p-6">
               <h3 className="font-bold text-sm mb-4 flex items-center gap-2">
                 <ClipboardList className="w-4 h-4 text-accent" />
                 דו&quot;ח אימות שקוף (Audit Trail)
@@ -326,7 +326,7 @@ export function ResultsDashboard() {
 
           {/* ========== Developer Economic Report (Full Feasibility) ========== */}
           {userPath === 'developer' && developerReport && (
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.7 }} className="glass-card p-4">
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.7 }} className="db-card p-4">
               <DeveloperCalculator report={developerReport} />
             </motion.div>
           )}
@@ -343,7 +343,7 @@ export function ResultsDashboard() {
             />
 
             {/* Summary */}
-            <div className="glass-card p-5">
+            <div className="db-card p-5">
               <h4 className="font-semibold text-xs text-foreground-muted mb-3">סיכום נתונים</h4>
               <div className="space-y-2.5">
                 <SummaryRow label="שטח מגרש" value={`${formatNumber(property.plotSize)} מ"ר`} />
@@ -363,7 +363,7 @@ export function ResultsDashboard() {
             </div>
 
             {/* Disclaimer */}
-            <div className="p-4 rounded-xl border border-border bg-background-secondary/30">
+            <div className="p-4 rounded-xl border border-border bg-[rgba(17,24,39,0.3)]">
               <p className="text-[10px] text-foreground-muted leading-relaxed">
                 {"* דו\"ח זה הינו הערכה ראשונית בלבד ואינו מהווה חוות דעת מקצועית. "}
                 {"לקבלת חוות דעת מחייבת יש לפנות לאדריכל רישוי או שמאי מקרקעין מוסמך. "}
@@ -399,7 +399,7 @@ function AuditTrailSection({ steps }: { steps: AuditStep[] }) {
             <span className="font-bold text-sm">{step.title}</span>
             <span className="text-foreground-muted text-xs mr-2">— {step.subtitle}</span>
           </div>
-          <div className="bg-background-secondary/50 rounded-lg p-3 space-y-1.5">
+          <div className="bg-[rgba(17,24,39,0.5)] rounded-lg p-3 space-y-1.5">
             {Object.entries(step.data).map(([key, val]) => (
               <div key={key} className="flex items-center justify-between text-xs">
                 <span className="text-foreground-muted">{key}</span>
@@ -429,7 +429,7 @@ function InfoRow({ label, value }: { label: string; value: string }) {
 
 function StatCard({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
   return (
-    <div className="p-3 rounded-xl bg-background-secondary/40 border border-border/50">
+    <div className="p-3 rounded-xl bg-[rgba(17,24,39,0.4)] border border-border/50">
       <div className="flex items-center gap-1.5 text-foreground-muted text-[10px] mb-1">
         {icon}
         <span>{label}</span>

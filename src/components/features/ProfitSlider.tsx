@@ -62,7 +62,7 @@ export function ProfitSlider({
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="glass-card-gold p-6"
+      className="db-card-gold p-6"
     >
       <h3 className="font-bold text-lg mb-1 flex items-center gap-2">
         <CircleDollarSign className="w-5 h-5 text-gold" />
@@ -163,7 +163,7 @@ export function ProfitSlider({
           </div>
 
           {/* Profit bar */}
-          <div className="mt-3 h-2 rounded-full bg-background-secondary overflow-hidden">
+          <div className="mt-3 h-2 rounded-full bg-[rgba(17,24,39,0.8)] overflow-hidden">
             <motion.div
               className={`h-full rounded-full ${profit > 0 ? 'bg-gradient-to-l from-accent to-success' : 'bg-danger'}`}
               initial={{ width: 0 }}
