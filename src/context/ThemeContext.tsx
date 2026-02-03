@@ -2,49 +2,26 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 
-type Theme = 'light' | 'dark';
-
 interface ThemeContextType {
-  theme: Theme;
+  theme: 'dark';
   toggleTheme: () => void;
-  setTheme: (theme: Theme) => void;
+  setTheme: (theme: 'dark') => void;
 }
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setThemeState] = useState<Theme>('dark');
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     setMounted(true);
-    // Check for saved theme preference or system preference
-    const savedTheme = localStorage.getItem('sali-theme') as Theme | null;
-    if (savedTheme) {
-      setThemeState(savedTheme);
-    } else if (window.matchMedia('(prefers-color-scheme: light)').matches) {
-      setThemeState('light');
-    }
+    // Deepblocks-style: always dark mode
+    document.documentElement.classList.remove('light');
+    document.documentElement.classList.add('dark');
   }, []);
 
-  useEffect(() => {
-    if (mounted) {
-      document.documentElement.classList.remove('light', 'dark');
-      document.documentElement.classList.add(theme);
-      localStorage.setItem('sali-theme', theme);
-    }
-  }, [theme, mounted]);
-
-  const toggleTheme = () => {
-    setThemeState((prev) => (prev === 'dark' ? 'light' : 'dark'));
-  };
-
-  const setTheme = (newTheme: Theme) => {
-    setThemeState(newTheme);
-  };
-
   return (
-    <ThemeContext.Provider value={{ theme, toggleTheme, setTheme }}>
+    <ThemeContext.Provider value={{ theme: 'dark', toggleTheme: () => {}, setTheme: () => {} }}>
       {!mounted ? (
         <div style={{ visibility: 'hidden' }}>{children}</div>
       ) : (
