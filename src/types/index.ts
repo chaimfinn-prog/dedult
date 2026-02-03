@@ -1,151 +1,130 @@
-// Core data types for Sali AI
+// ===== Zchut.AI Type Definitions =====
 
-export interface Product {
+export type ViewMode = 'homeowner' | 'developer';
+
+// Property & Land Registry
+export interface Property {
   id: string;
-  name: string;
-  nameHe: string;
-  barcode: string;
-  category: ProductCategory;
-  image?: string;
-  brand: string;
-  unit: string;
-  unitAmount: number;
-}
-
-export type ProductCategory =
-  | 'dairy'
-  | 'bread'
-  | 'meat'
-  | 'produce'
-  | 'dry_goods'
-  | 'beverages'
-  | 'frozen'
-  | 'snacks'
-  | 'cleaning'
-  | 'personal_care';
-
-export const categoryLabels: Record<ProductCategory, string> = {
-  dairy: 'מוצרי חלב',
-  bread: 'לחם ומאפים',
-  meat: 'בשר ודגים',
-  produce: 'פירות וירקות',
-  dry_goods: 'מזון יבש',
-  beverages: 'משקאות',
-  frozen: 'קפואים',
-  snacks: 'חטיפים',
-  cleaning: 'ניקיון',
-  personal_care: 'טיפוח אישי',
-};
-
-export interface Store {
-  id: string;
-  name: string;
-  nameHe: string;
-  logo: string;
-  color: string;
-  deliveryFee: number;
-  minOrderForFreeDelivery: number;
-  estimatedDeliveryMinutes: number;
-  branches: StoreBranch[];
-}
-
-export interface StoreBranch {
-  id: string;
-  storeId: string;
-  name: string;
-  city: string;
   address: string;
+  city: string;
+  gush: number;
+  chelka: number;
+  plotArea: number; // sqm
+  builtArea: number; // current built sqm
+  floors: number;
+  yearBuilt: number;
+  landUse: string;
+  zone: string;
+  neighborhoodName: string;
 }
 
-export interface StorePrice {
-  productId: string;
-  storeId: string;
-  branchId?: string;
-  price: number;
-  salePrice?: number;
-  updateDate: Date;
-  priceHistory: PricePoint[];
+// Zoning Plan (Taba)
+export interface ZoningPlan {
+  planNumber: string;
+  planName: string;
+  approvalDate: string;
+  city: string;
+  status: 'approved' | 'pending' | 'deposited';
+  buildingPercentage: number;
+  maxFloors: number;
+  maxHeight: number;
+  frontSetback: number;
+  sideSetback: number;
+  rearSetback: number;
+  allowedUses: string[];
+  parkingRatio: number;
+  publicAreaPercentage: number;
+  serviceAreaPercentage: number;
+  basementAllowed: boolean;
+  poolAllowed: boolean;
+  balconyPercentage: number;
+  sources: SourceReference[];
 }
 
-export interface PricePoint {
-  date: Date;
-  price: number;
+// Building Rights Calculation
+export interface BuildingRights {
+  totalAllowed: number;
+  currentBuilt: number;
+  remaining: number;
+  mainBuildPercentage: number;
+  serviceAreaAllowed: number;
+  balconyAllowed: number;
+  basementAllowed: number;
+  totalWithServices: number;
+  breakdown: BuildingRightsBreakdown[];
+  sources: SourceReference[];
 }
 
-export interface BasketItem {
-  product: Product;
-  quantity: number;
+export interface BuildingRightsBreakdown {
+  label: string;
+  percentage: number;
+  sqm: number;
+  source: SourceReference;
 }
 
-export interface BasketAnalysis {
-  storeId: string;
-  storeName: string;
-  storeColor: string;
-  items: BasketItemPrice[];
-  subtotal: number;
-  deliveryFee: number;
-  total: number;
-  savings: number;
-  hasMissingItems: boolean;
-  missingItems: string[];
+// Enhancement Opportunities (Homeowner View)
+export interface Enhancement {
+  type: 'extension' | 'pool' | 'basement' | 'floor' | 'balcony' | 'mamad';
+  title: string;
+  description: string;
+  additionalSqm: number;
+  estimatedCost: number;
+  estimatedValueAdd: number;
+  isEligible: boolean;
+  eligibilityReason: string;
+  source: SourceReference;
 }
 
-export interface BasketItemPrice {
-  productId: string;
-  productName: string;
-  quantity: number;
-  unitPrice: number;
-  totalPrice: number;
-  isOnSale: boolean;
-  originalPrice?: number;
+// Duch Efes - Zero Report (Developer View)
+export interface DuchEfes {
+  totalSellableArea: number;
+  totalUnits: number;
+  unitMix: UnitMix[];
+  constructionCostPerSqm: number;
+  totalConstructionCost: number;
+  landValueEstimate: number;
+  bettermentLevy: number;
+  totalRevenue: number;
+  totalCosts: number;
+  profit: number;
+  profitMargin: number;
+  feasibilityScore: 'excellent' | 'good' | 'marginal' | 'unfeasible';
+  sources: SourceReference[];
 }
 
-export interface SplitStrategy {
-  stores: SplitStoreOrder[];
-  totalCost: number;
-  totalDeliveryFees: number;
-  totalSavings: number;
-  savingsVsSingleStore: number;
-  recommendation: string;
+export interface UnitMix {
+  type: string;
+  count: number;
+  avgSize: number;
+  pricePerSqm: number;
+  totalValue: number;
 }
 
-export interface SplitStoreOrder {
-  storeId: string;
-  storeName: string;
-  storeColor: string;
-  items: BasketItemPrice[];
-  subtotal: number;
-  deliveryFee: number;
-  total: number;
-  deepLink: string;
-}
-
-export interface OptimizationResult {
-  cheapestSingleStore: BasketAnalysis;
-  smartSplit: SplitStrategy;
-  fastestDelivery: BasketAnalysis;
-  allStores: BasketAnalysis[];
-}
-
-export interface PriceAnomaly {
+// Source Reference (Audit Trail)
+export interface SourceReference {
   id: string;
-  productId: string;
-  productName: string;
-  storeId: string;
-  storeName: string;
-  branchId?: string;
-  branchName?: string;
-  previousPrice: number;
-  currentPrice: number;
-  percentageChange: number;
-  detectedAt: Date;
-  type: 'drop' | 'spike';
+  documentName: string;
+  planNumber: string;
+  pageNumber: number;
+  sectionTitle: string;
+  quote: string;
+  confidence: number;
 }
 
-export interface UserStats {
-  totalSavings: number;
-  basketsOptimized: number;
-  favoriteStore: string;
-  lastOptimization: Date;
-  monthlySavings: { month: string; savings: number }[];
+// Analysis Result
+export interface PropertyAnalysis {
+  property: Property;
+  zoningPlan: ZoningPlan;
+  buildingRights: BuildingRights;
+  enhancements: Enhancement[];
+  duchEfes: DuchEfes;
+  allSources: SourceReference[];
+  analyzedAt: string;
+}
+
+// Search
+export interface SearchResult {
+  property: Property;
+  matchType: 'address' | 'gush_chelka';
+  relevance: number;
 }

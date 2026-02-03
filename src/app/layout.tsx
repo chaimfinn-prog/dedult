@@ -1,18 +1,12 @@
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
-import { ThemeProvider } from '@/context/ThemeContext';
-import { BasketProvider } from '@/context/BasketContext';
+import { ViewProvider } from '@/context/ViewContext';
 
 export const metadata: Metadata = {
-  title: 'סלי AI | השוואת מחירים חכמה',
-  description: 'מנוע חכם להשוואת מחירים ואופטימיזציית סל קניות בישראל',
-  keywords: ['השוואת מחירים', 'סופרמרקט', 'קניות', 'ישראל', 'חיסכון'],
-  authors: [{ name: 'Sali AI' }],
-  manifest: '/manifest.json',
-  icons: {
-    icon: '/favicon.ico',
-    apple: '/apple-touch-icon.png',
-  },
+  title: 'Zchut.AI | מנוע זכויות בנייה חכם',
+  description: 'מנוע בינה מלאכותית לניתוח זכויות בנייה, תב"עות ופוטנציאל נדל"ן בישראל',
+  keywords: ['זכויות בנייה', 'תב"ע', 'נדל"ן', 'גוש חלקה', 'תמ"א 38', 'היטל השבחה'],
+  authors: [{ name: 'Zchut.AI' }],
 };
 
 export const viewport: Viewport = {
@@ -20,10 +14,7 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
-  themeColor: [
-    { media: '(prefers-color-scheme: light)', color: '#f8fafc' },
-    { media: '(prefers-color-scheme: dark)', color: '#0a0f1a' },
-  ],
+  themeColor: '#0B0F19',
 };
 
 export default function RootLayout({
@@ -34,14 +25,12 @@ export default function RootLayout({
   return (
     <html lang="he" dir="rtl" suppressHydrationWarning>
       <body className="font-sans antialiased">
-        <ThemeProvider>
-          <BasketProvider>
-            <div className="gradient-bg" />
-            <main className="min-h-screen safe-area-top safe-area-bottom">
-              {children}
-            </main>
-          </BasketProvider>
-        </ThemeProvider>
+        <ViewProvider>
+          <div className="gradient-bg" />
+          <main className="min-h-screen safe-area-top safe-area-bottom">
+            {children}
+          </main>
+        </ViewProvider>
       </body>
     </html>
   );
