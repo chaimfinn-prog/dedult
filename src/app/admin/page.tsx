@@ -31,6 +31,7 @@ import {
   generateId,
   fileToBase64,
   createPlanFromExtractedData,
+  autoSavePlanFromDocument,
 } from '@/services/admin-storage';
 import { parseDocument, type ParsedDocument, type ParsedField } from '@/services/document-parser';
 
@@ -285,12 +286,13 @@ function AddressForm({
 // ── Document Upload with Auto-Parsing ────────────────────────
 
 function DocumentUpload({
-  doc, onSave, onCancel, onCreatePlan,
+  doc, onSave, onCancel, onCreatePlan, onAutoSaved,
 }: {
   doc?: DocumentEntry;
   onSave: (doc: DocumentEntry) => void;
   onCancel: () => void;
   onCreatePlan: (data: ExtractedPlanData, docId: string) => void;
+  onAutoSaved?: () => void;
 }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [form, setForm] = useState<Partial<DocumentEntry>>(
@@ -304,6 +306,7 @@ function DocumentUpload({
   const [parsing, setParsing] = useState(false);
   const [parseResult, setParseResult] = useState<ParsedDocument | null>(null);
   const [parseError, setParseError] = useState<string>('');
+  const [autoSavedPlan, setAutoSavedPlan] = useState<string>('');
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -313,11 +316,13 @@ function DocumentUpload({
     setUploading(true);
     setParseError('');
     setParseResult(null);
+    setAutoSavedPlan('');
 
     try {
       // Store file
+      let dataUrl: string | undefined;
       if (file.size < 5 * 1024 * 1024) {
-        const dataUrl = await fileToBase64(file);
+        dataUrl = await fileToBase64(file);
         setForm((prev) => ({
           ...prev, dataUrl, fileSize: file.size,
           name: prev?.name || file.name.replace(/\.[^.]+$/, ''),
@@ -340,12 +345,44 @@ function DocumentUpload({
 
           // Auto-fill extracted data into form
           if (result.extractedData) {
-            setForm((prev) => ({
-              ...prev,
+            const updatedForm: Partial<DocumentEntry> = {
+              ...form,
               extractedData: result.extractedData,
-              planNumber: result.extractedData.planNumber || prev?.planNumber || '',
+              planNumber: result.extractedData.planNumber || form?.planNumber || '',
               pageCount: result.pages.length,
-            }));
+              name: form?.name || file.name.replace(/\.[^.]+$/, ''),
+              uploadDate: new Date().toISOString().split('T')[0],
+              fileSize: file.size,
+              dataUrl,
+            };
+
+            setForm(updatedForm);
+
+            // Auto-save: save the document and create a plan automatically
+            if (result.matchedFields.length > 0) {
+              const docToSave: DocumentEntry = {
+                id: updatedForm.id || generateId('doc'),
+                name: updatedForm.name || file.name,
+                planNumber: updatedForm.planNumber || '',
+                type: updatedForm.type || 'takkanon',
+                description: updatedForm.description || '',
+                uploadDate: updatedForm.uploadDate || new Date().toISOString().split('T')[0],
+                fileSize: file.size,
+                pageCount: result.pages.length,
+                dataUrl,
+                extractedData: result.extractedData,
+              };
+
+              // Save document
+              saveDocument(docToSave);
+
+              // Auto-create plan from extracted data
+              const savedPlan = autoSavePlanFromDocument(docToSave);
+              if (savedPlan) {
+                setAutoSavedPlan(savedPlan.planNumber || savedPlan.name || 'תכנית חדשה');
+                onAutoSaved?.();
+              }
+            }
           }
         } catch (err) {
           console.error('Parse error:', err);
@@ -475,12 +512,19 @@ function DocumentUpload({
             </div>
           )}
 
-          {parseResult.matchedFields.length > 0 && (
+          {autoSavedPlan ? (
+            <div className="flex items-center gap-2 p-2.5 rounded-lg bg-[rgba(34,197,94,0.1)] border border-[rgba(34,197,94,0.2)]">
+              <CheckCircle2 className="w-4 h-4 text-green flex-shrink-0" />
+              <span className="text-xs text-green font-medium">
+                {'תכנית "' + autoSavedPlan + '" נוצרה והוזנה למערכת אוטומטית'}
+              </span>
+            </div>
+          ) : parseResult.matchedFields.length > 0 ? (
             <button onClick={handleCreatePlanFromData} className="btn-green w-full flex items-center justify-center gap-2 text-sm">
               <Plus className="w-4 h-4" />
               {'צור תכנית אוטומטית מהנתונים שזוהו'}
             </button>
-          )}
+          ) : null}
         </motion.div>
       )}
 
@@ -578,6 +622,7 @@ export default function AdminPage() {
   const handleSaveAddr = (addr: AddressMapping) => { saveCustomAddress(addr); setShowForm(false); setEditingAddr(null); refreshData(); };
   const handleDeleteAddr = (address: string) => { if (!customAddrs.has(address)) return; deleteCustomAddress(address); refreshData(); };
   const handleSaveDoc = (doc: DocumentEntry) => { saveDocument(doc); setShowForm(false); setEditingDoc(null); refreshData(); };
+  const handleAutoSaveNotify = () => { refreshData(); };
   const handleDeleteDoc = (docId: string) => { deleteDocument(docId); refreshData(); };
   const handleLogout = () => { setAdminAuthenticated(false); setAuthenticated(false); };
 
@@ -678,7 +723,7 @@ export default function AdminPage() {
           <motion.div key="form" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
             {tab === 'plans' && <PlanForm plan={editingPlan || undefined} onSave={handleSavePlan} onCancel={() => { setShowForm(false); setEditingPlan(null); }} />}
             {tab === 'addresses' && <AddressForm addr={editingAddr || undefined} plans={plans} onSave={handleSaveAddr} onCancel={() => { setShowForm(false); setEditingAddr(null); }} />}
-            {tab === 'documents' && <DocumentUpload doc={editingDoc || undefined} onSave={handleSaveDoc} onCancel={() => { setShowForm(false); setEditingDoc(null); }} onCreatePlan={handleCreatePlanFromDoc} />}
+            {tab === 'documents' && <DocumentUpload doc={editingDoc || undefined} onSave={handleSaveDoc} onCancel={() => { setShowForm(false); setEditingDoc(null); }} onCreatePlan={handleCreatePlanFromDoc} onAutoSaved={handleAutoSaveNotify} />}
           </motion.div>
         ) : (
           <motion.div key="list" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-2">

@@ -30,7 +30,7 @@ import {
   raananaUrbanRenewalPlan,
   type AddressMapping,
 } from '@/data/zoning-plans';
-import { getAllPlans, getAllAddresses } from '@/services/admin-storage';
+import { getAllPlans, getAllAddresses, findPlanByCityOrNeighborhood } from '@/services/admin-storage';
 import { calculateBuildingEnvelope, validateAreaFitsEnvelope } from '@/services/envelope-calculator';
 
 interface ZoningContextType {
@@ -114,8 +114,18 @@ export function ZoningProvider({ children }: { children: ReactNode }) {
 
       // Search in both hardcoded and custom (admin-added) addresses
       const allAddresses = getAllAddresses();
-      const mapping = findPlanByAddress(address) ||
+      let mapping = findPlanByAddress(address) ||
         allAddresses.find(a => a.address.includes(address.trim()) || address.trim().includes(a.address));
+
+      // Smart fallback: try matching by city/neighborhood from uploaded plans
+      if (!mapping) {
+        const smartMatch = findPlanByCityOrNeighborhood(address);
+        if (smartMatch) {
+          addLog(`זוהתה תכנית "${smartMatch.plan.planNumber}" לפי עיר/שכונה`, 'info');
+          mapping = smartMatch.mapping;
+        }
+      }
+
       if (!mapping) {
         const fallback = allAddresses[0] || addressMappings[0];
         addLog(`כתובת "${address}" - נתוני דמו (${fallback.neighborhood})`, 'warning');

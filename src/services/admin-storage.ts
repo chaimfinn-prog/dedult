@@ -182,6 +182,100 @@ export function setAdminAuthenticated(value: boolean): void {
   }
 }
 
+// ── Smart Plan Matching ──────────────────────────────────────
+
+/**
+ * Find a plan that matches an address by city or neighborhood.
+ * Used as fallback when no exact address mapping exists.
+ * Returns the plan + a temporary default mapping for analysis.
+ */
+export function findPlanByCityOrNeighborhood(
+  address: string
+): { plan: ZoningPlan; mapping: AddressMapping } | null {
+  const allPlans = getAllPlans();
+  if (allPlans.length === 0) return null;
+
+  const addressLower = address.trim();
+
+  // 1. Try city match (e.g., address contains "רעננה" and plan.city === "רעננה")
+  for (const plan of allPlans) {
+    if (plan.city && plan.city.length > 1 && addressLower.includes(plan.city)) {
+      return { plan, mapping: createDefaultMapping(address, plan) };
+    }
+  }
+
+  // 2. Try neighborhood match
+  for (const plan of allPlans) {
+    if (plan.neighborhood && plan.neighborhood.length > 1 && addressLower.includes(plan.neighborhood)) {
+      return { plan, mapping: createDefaultMapping(address, plan) };
+    }
+  }
+
+  // 3. Try plan number in address (rare but possible)
+  for (const plan of allPlans) {
+    if (plan.planNumber && addressLower.includes(plan.planNumber)) {
+      return { plan, mapping: createDefaultMapping(address, plan) };
+    }
+  }
+
+  // 4. If there are any custom plans at all, use the first one as best guess
+  const customPlans = getCustomPlans();
+  if (customPlans.length > 0) {
+    return { plan: customPlans[0], mapping: createDefaultMapping(address, customPlans[0]) };
+  }
+
+  return null;
+}
+
+/**
+ * Create a default address mapping for an address using data from a plan.
+ * Used when we match by city/neighborhood but have no specific address data.
+ */
+function createDefaultMapping(address: string, plan: ZoningPlan): AddressMapping {
+  // Try to find an existing address in the same city/neighborhood for reasonable defaults
+  const allAddresses = getAllAddresses();
+  const sameCity = allAddresses.find(a =>
+    plan.city && a.address.includes(plan.city)
+  );
+
+  return {
+    address,
+    block: '0000',
+    parcel: '000',
+    planId: plan.id,
+    neighborhood: plan.neighborhood || '',
+    avgPricePerSqm: sameCity?.avgPricePerSqm || 35000,
+    constructionCostPerSqm: sameCity?.constructionCostPerSqm || 8000,
+    plotSize: sameCity?.plotSize || 300,
+    plotWidth: sameCity?.plotWidth || 15,
+    plotDepth: sameCity?.plotDepth || 20,
+    existingFloors: sameCity?.existingFloors || 2,
+    existingArea: sameCity?.existingArea || 120,
+    existingUnits: sameCity?.existingUnits || 2,
+    yearBuilt: sameCity?.yearBuilt,
+  };
+}
+
+/**
+ * Auto-save a plan from a parsed document's extracted data.
+ * Called after successful document parsing to immediately feed data into the system.
+ */
+export function autoSavePlanFromDocument(doc: DocumentEntry): ZoningPlan | null {
+  const data = doc.extractedData;
+  if (!data || (!data.planNumber && !data.planName)) return null;
+
+  // Check if plan with same number already exists
+  if (data.planNumber) {
+    const allPlans = getAllPlans();
+    const existing = allPlans.find(p => p.planNumber === data.planNumber);
+    if (existing) return existing; // Don't duplicate
+  }
+
+  const plan = createPlanFromExtractedData(data, doc.id) as ZoningPlan;
+  saveCustomPlan(plan);
+  return plan;
+}
+
 // ── Generate ID ──────────────────────────────────────────────
 
 export function generateId(prefix: string = 'custom'): string {
