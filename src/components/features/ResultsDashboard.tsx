@@ -56,7 +56,7 @@ export function ResultsDashboard() {
         </button>
         <div className="flex items-center gap-2">
           <span className="badge badge-accent font-mono text-[10px]">
-            {userPath === 'developer' ? 'DEVELOPER REPORT' : 'HOMEOWNER REPORT'}
+            HOMEOWNER REPORT
           </span>
           <button onClick={() => window.print()} className="btn-secondary flex items-center gap-2 text-sm">
             <Download className="w-4 h-4" />
@@ -75,7 +75,7 @@ export function ResultsDashboard() {
         <div className="scan-line" />
         <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-success/10 border border-success/20 text-success text-sm font-medium mb-4">
           <TrendingUp className="w-4 h-4" />
-          <span>{userPath === 'developer' ? 'פוטנציאל התחדשות עירונית' : 'פוטנציאל בנייה נוסף'}</span>
+          <span>פוטנציאל בנייה נוסף</span>
         </div>
         <div className="text-5xl md:text-6xl font-bold mb-2">
           <span className="text-gradient">{formatNumber(calculations.additionalBuildableArea)}</span>
