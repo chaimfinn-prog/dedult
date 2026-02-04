@@ -627,6 +627,7 @@ export default function AdminPage() {
   const addressImportRef = useRef<HTMLInputElement>(null);
   const [isImportingAddresses, setIsImportingAddresses] = useState(false);
   const [verifyingAddress, setVerifyingAddress] = useState<string | null>(null);
+  const [isVerifyingAll, setIsVerifyingAll] = useState(false);
 
   const refreshData = useCallback(() => {
     setPlans(getAllPlans());
@@ -702,7 +703,7 @@ export default function AdminPage() {
             ...nextMapping,
             block: String(parcelData.data.block || nextMapping.block),
             parcel: String(parcelData.data.parcel || nextMapping.parcel),
-            plotSize: Number(parcelData.data.area || nextMapping.plotSize),
+            plotSize: parcelData.data.area ? Number(parcelData.data.area) : nextMapping.plotSize,
           };
         }
       }
@@ -714,9 +715,9 @@ export default function AdminPage() {
         if (permitData.success && permitData.data) {
           nextMapping = {
             ...nextMapping,
-            existingArea: Number(permitData.data.totalBuiltArea || nextMapping.existingArea),
-            existingFloors: Number(permitData.data.floors || nextMapping.existingFloors),
-            existingUnits: Number(permitData.data.units || nextMapping.existingUnits),
+            existingArea: permitData.data.totalBuiltArea ? Number(permitData.data.totalBuiltArea) : nextMapping.existingArea,
+            existingFloors: permitData.data.floors ? Number(permitData.data.floors) : nextMapping.existingFloors,
+            existingUnits: permitData.data.units ? Number(permitData.data.units) : nextMapping.existingUnits,
           };
           verifiedSource = permitData.source === 'rishui_zamin' ? 'rishui_zamin' : 'local_db';
         }
@@ -728,9 +729,9 @@ export default function AdminPage() {
         if (gisData.success && gisData.data && !verifiedSource) {
           nextMapping = {
             ...nextMapping,
-            existingArea: Number(gisData.data.builtArea || nextMapping.existingArea),
-            existingFloors: Number(gisData.data.floors || nextMapping.existingFloors),
-            existingUnits: Number(gisData.data.units || nextMapping.existingUnits),
+            existingArea: gisData.data.builtArea ? Number(gisData.data.builtArea) : nextMapping.existingArea,
+            existingFloors: gisData.data.floors ? Number(gisData.data.floors) : nextMapping.existingFloors,
+            existingUnits: gisData.data.units ? Number(gisData.data.units) : nextMapping.existingUnits,
           };
           verifiedSource = gisData.source === 'raanana_gis' ? 'raanana_gis' : 'local_db';
         }
@@ -746,6 +747,16 @@ export default function AdminPage() {
       refreshData();
     } finally {
       setVerifyingAddress(null);
+    }
+  };
+  const handleVerifyAll = async () => {
+    setIsVerifyingAll(true);
+    try {
+      for (const addr of filteredAddresses) {
+        await handleVerifyAddress(addr);
+      }
+    } finally {
+      setIsVerifyingAll(false);
     }
   };
 
@@ -966,6 +977,13 @@ export default function AdminPage() {
                   </div>
                   <button onClick={() => { setShowForm(true); setEditingAddr(null); }} className="btn-primary flex items-center gap-2 px-4">
                     <Plus className="w-4 h-4" />הוסף
+                  </button>
+                  <button
+                    onClick={handleVerifyAll}
+                    className="btn-secondary flex items-center gap-2 px-4"
+                    disabled={isVerifyingAll || filteredAddresses.length === 0}
+                  >
+                    {isVerifyingAll ? 'מאמת הכל...' : 'אמת את הכל'}
                   </button>
                   <input
                     ref={addressImportRef}

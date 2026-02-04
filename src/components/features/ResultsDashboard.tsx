@@ -114,7 +114,7 @@ export function ResultsDashboard() {
               />
             </motion.div>
 
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }} className="db-card p-6">
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }} className="db-card p-6 relative overflow-hidden">
               <h3 className="font-bold text-sm mb-4 flex items-center gap-2">
                 <MapPin className="w-4 h-4 text-accent" />
                 פרטי הנכס
@@ -129,6 +129,9 @@ export function ResultsDashboard() {
                 )}
                 <InfoRow label="שטח בנוי קיים" value={`${formatNumber(property.currentBuiltArea)} מ"ר`} />
                 <InfoRow label="קומות קיימות" value={String(property.currentFloors)} />
+              </div>
+              <div className="mt-4">
+                <MapBackdropSmall />
               </div>
             </motion.div>
           </div>
@@ -333,6 +336,10 @@ export function ResultsDashboard() {
         {/* Right column */}
         <div className="space-y-6">
           <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.3 }} className="sticky top-6 space-y-6">
+            <div className="db-card p-5">
+              <h4 className="font-semibold text-xs text-foreground-muted mb-3">מפת אזור</h4>
+              <MapBackdrop />
+            </div>
             <ProfitSlider
               additionalArea={calculations.additionalBuildableArea}
               defaultPricePerSqm={financial.pricePerSqm}
@@ -443,6 +450,36 @@ function SummaryRow({ label, value, highlight }: { label: string; value: string;
     <div className="flex items-center justify-between text-xs">
       <span className="text-foreground-muted">{label}</span>
       <span className={highlight ? 'font-bold text-accent-light' : 'font-medium'}>{value}</span>
+    </div>
+  );
+}
+
+function MapBackdrop() {
+  return (
+    <div
+      className="h-40 rounded-xl border border-border overflow-hidden relative"
+      style={{
+        backgroundImage:
+          'radial-gradient(circle at 20% 20%, rgba(59,130,246,0.35), transparent 55%), radial-gradient(circle at 80% 30%, rgba(14,165,233,0.3), transparent 50%), linear-gradient(135deg, rgba(10,25,47,0.9), rgba(15,23,42,0.8))',
+      }}
+    >
+      <div className="absolute inset-0 opacity-30" style={{ backgroundImage: 'linear-gradient(0deg, rgba(255,255,255,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px)', backgroundSize: '18px 18px' }} />
+      <div className="absolute bottom-2 left-2 text-[10px] text-foreground-muted">GIS Preview</div>
+    </div>
+  );
+}
+
+function MapBackdropSmall() {
+  return (
+    <div
+      className="h-24 rounded-lg border border-border overflow-hidden relative"
+      style={{
+        backgroundImage:
+          'radial-gradient(circle at 30% 30%, rgba(34,197,94,0.25), transparent 55%), radial-gradient(circle at 70% 40%, rgba(59,130,246,0.25), transparent 55%), linear-gradient(135deg, rgba(10,25,47,0.95), rgba(15,23,42,0.85))',
+      }}
+    >
+      <div className="absolute inset-0 opacity-25" style={{ backgroundImage: 'linear-gradient(0deg, rgba(255,255,255,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px)', backgroundSize: '14px 14px' }} />
+      <div className="absolute bottom-1 left-2 text-[9px] text-foreground-muted">Parcel Preview</div>
     </div>
   );
 }
