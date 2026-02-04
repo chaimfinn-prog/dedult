@@ -10,6 +10,7 @@ export interface ZoningPlan {
   neighborhood: string;
   approvalDate: string;
   status: 'active' | 'pending' | 'expired';
+  planKind: 'detailed' | 'outline';
   zoningType: ZoningType;
   buildingRights: BuildingRights;
   restrictions: BuildingRestrictions;

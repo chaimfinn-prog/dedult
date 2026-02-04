@@ -28,6 +28,7 @@ export interface ExtractedPlanData {
   neighborhood?: string;
   approvalDate?: string;
   zoningType?: string;
+  planKind?: 'detailed' | 'outline';
   rules: ZoningRule[];
   documents: UploadedDocRef[];
 }
@@ -80,13 +81,16 @@ export async function getAllPlans(): Promise<ZoningPlan[]> {
   const db = await getDB();
   const plans = await db.getAll(PLANS_STORE);
   // Ensure backward compat: old plans without rules get empty array
-  return plans.map((p: ZoningPlan) => ({ ...p, rules: p.rules || [] }));
+  return plans.map((p: ZoningPlan) => ({ ...p, rules: p.rules || [], planKind: p.planKind || 'detailed' }));
 }
 
 export async function getPlanById(id: string): Promise<ZoningPlan | undefined> {
   const db = await getDB();
   const plan = await db.get(PLANS_STORE, id);
-  if (plan) plan.rules = plan.rules || [];
+  if (plan) {
+    plan.rules = plan.rules || [];
+    plan.planKind = plan.planKind || 'detailed';
+  }
   return plan;
 }
 
@@ -182,6 +186,7 @@ export function buildPlanFromExtraction(
     neighborhood: data.neighborhood || '',
     approvalDate: data.approvalDate || new Date().toISOString().split('T')[0],
     status: 'active',
+    planKind: data.planKind || 'detailed',
     zoningType: (data.zoningType as ZoningPlan['zoningType']) || 'residential_a',
     sourceDocument: {
       name: docNames.join(', ') || 'Uploaded Documents',

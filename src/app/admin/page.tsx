@@ -74,6 +74,7 @@ function AutoIngestFlow({ onDone }: { onDone: () => void }) {
   const [city, setCity] = useState('');
   const [neighborhood, setNeighborhood] = useState('');
   const [zoningType, setZoningType] = useState<ZoningType>('residential_a');
+  const [planKind, setPlanKind] = useState<'detailed' | 'outline'>('detailed');
   const [saving, setSaving] = useState(false);
   const [savedName, setSavedName] = useState('');
 
@@ -230,6 +231,7 @@ function AutoIngestFlow({ onDone }: { onDone: () => void }) {
         city,
         neighborhood,
         zoningType,
+        planKind,
         rules: confirmedRules,
         documents: slots.filter(s => s.file).map(s => ({
           type: s.type,
@@ -260,6 +262,7 @@ function AutoIngestFlow({ onDone }: { onDone: () => void }) {
     setCity('');
     setNeighborhood('');
     setZoningType('residential_a');
+    setPlanKind('detailed');
     setSavedName('');
     setEditingRuleId(null);
   };
@@ -578,6 +581,13 @@ function AutoIngestFlow({ onDone }: { onDone: () => void }) {
                     <option value="industrial">תעשייה</option>
                   </select>
                 </div>
+                <div>
+                  <label className="text-xs text-foreground-muted">רמת תכנית</label>
+                  <select className="input-field w-full mt-1" value={planKind} onChange={(e) => setPlanKind(e.target.value as 'detailed' | 'outline')}>
+                    <option value="detailed">תב"ע מפורטת (להיתר)</option>
+                    <option value="outline">תכנית מתאר (ללא היתר)</option>
+                  </select>
+                </div>
               </div>
             </div>
 
@@ -658,6 +668,7 @@ function PlanForm({
       planNumber: '', name: '', city: '', neighborhood: '',
       approvalDate: new Date().toISOString().split('T')[0],
       status: 'active',
+      planKind: 'detailed',
       zoningType: 'residential_a' as ZoningType,
       buildingRights: {
         mainBuildingPercent: 0, serviceBuildingPercent: 0, totalBuildingPercent: 0,
@@ -707,6 +718,9 @@ function PlanForm({
           <div><label className="text-xs text-foreground-muted">סוג ייעוד</label><select className="input-field w-full mt-1" value={form.zoningType || 'residential_a'} onChange={(e) => updateField('zoningType', e.target.value)}>
             <option value="residential_a">{"מגורים א'"}</option><option value="residential_b">{"מגורים ב'"}</option><option value="residential_c">{"מגורים ג'"}</option>
             <option value="mixed_use">שימוש מעורב</option><option value="commercial">מסחרי</option>
+          </select></div>
+          <div><label className="text-xs text-foreground-muted">רמת תכנית</label><select className="input-field w-full mt-1" value={form.planKind || 'detailed'} onChange={(e) => updateField('planKind', e.target.value)}>
+            <option value="detailed">תב"ע מפורטת (להיתר)</option><option value="outline">תכנית מתאר (ללא היתר)</option>
           </select></div>
         </div>
       </div>

@@ -11,6 +11,7 @@ import type { ZoningPlan, CalculationResult, FormulaResult } from '@/types';
 import { ruleCategoryLabels } from '@/types';
 import { getAllPlans, findPlansByLocation, evaluateFormula } from '@/services/db';
 import { calculateBuildingEnvelope, validateAreaFitsEnvelope } from '@/services/envelope-calculator';
+import { searchGovmapAddress, fetchParcelByPoint, type GovmapAddressResult } from '@/services/govmap';
 
 // ── Isometric 3D Building ────────────────────────────────────
 
@@ -154,6 +155,11 @@ export default function CalculatePage() {
   const [plotWidth, setPlotWidth] = useState('');
   const [plotDepth, setPlotDepth] = useState('');
   const [plotArea, setPlotArea] = useState('');
+  const [addressQuery, setAddressQuery] = useState('');
+  const [addressResults, setAddressResults] = useState<GovmapAddressResult[]>([]);
+  const [addressLoading, setAddressLoading] = useState(false);
+  const [addressError, setAddressError] = useState('');
+  const [selectedAddress, setSelectedAddress] = useState<GovmapAddressResult | null>(null);
   const [planSearch, setPlanSearch] = useState('');
   const [showPlanPicker, setShowPlanPicker] = useState(false);
   const [result, setResult] = useState<CalculationResult | null>(null);
@@ -162,6 +168,10 @@ export default function CalculatePage() {
   useEffect(() => {
     getAllPlans().then(setPlans);
   }, []);
+
+  useEffect(() => {
+    if (!city) setCity('רעננה');
+  }, [city]);
 
   useEffect(() => {
     const w = parseFloat(plotWidth);
@@ -175,22 +185,58 @@ export default function CalculatePage() {
     if (city.length >= 2 && !selectedPlan) {
       findPlansByLocation(city).then((matches) => {
         if (matches.length === 1) {
-          setSelectedPlan(matches[0]);
+          const detailed = matches.find((plan) => plan.planKind === 'detailed');
+          if (detailed) setSelectedPlan(detailed);
         }
       });
     }
   }, [city, selectedPlan]);
 
-  const filteredPlans = plans.filter(
+  const detailedPlans = plans.filter((p) => p.planKind === 'detailed');
+
+  const filteredPlans = detailedPlans.filter(
     (p) => !planSearch || p.planNumber.includes(planSearch) || p.name.includes(planSearch) || (p.city && p.city.includes(planSearch))
   );
+
+  const handleSelectAddress = async (address: GovmapAddressResult) => {
+    setSelectedAddress(address);
+    setAddressResults([]);
+    setCity(address.city || 'רעננה');
+
+    if (address.x && address.y) {
+      try {
+        const parcelInfo = await fetchParcelByPoint(address.x, address.y);
+        if (parcelInfo?.block) setBlock(parcelInfo.block);
+        if (parcelInfo?.parcel) setParcel(parcelInfo.parcel);
+        if (parcelInfo?.areaSqm) setPlotArea(String(Math.round(parcelInfo.areaSqm)));
+      } catch (err) {
+        setAddressError(err instanceof Error ? err.message : 'לא ניתן למשוך נתוני חלקה מ-GovMap');
+      }
+    }
+  };
+
+  const handleGovmapSearch = async () => {
+    setAddressError('');
+    setAddressLoading(true);
+    try {
+      const results = await searchGovmapAddress(addressQuery, 'רעננה');
+      setAddressResults(results);
+      if (results.length === 1) {
+        await handleSelectAddress(results[0]);
+      }
+    } catch (err) {
+      setAddressError(err instanceof Error ? err.message : 'שגיאת חיבור ל-GovMap');
+    } finally {
+      setAddressLoading(false);
+    }
+  };
 
   const handleCalculate = () => {
     setError('');
     setResult(null);
 
     if (!selectedPlan) {
-      setError('יש לבחור תכנית מהמערכת.');
+      setError('יש לבחור תב"ע מפורטת (להיתר) מתוך המערכת.');
       return;
     }
 
@@ -302,6 +348,21 @@ export default function CalculatePage() {
     });
   };
 
+  const rightsSources = result
+    ? (result.formulaResults.length > 0
+      ? result.formulaResults.map((fr) => fr.rule)
+      : result.plan.rules.filter((rule) => [
+        'main_rights',
+        'service_area',
+        'coverage',
+        'max_floors',
+        'max_height',
+        'front_setback',
+        'rear_setback',
+        'side_setback',
+      ].includes(rule.category)))
+    : [];
+
   return (
     <div className="min-h-screen">
       {/* Header */}
@@ -319,18 +380,18 @@ export default function CalculatePage() {
             </div>
           </div>
           <div className="text-xs text-foreground-muted">
-            {plans.length > 0 ? `${plans.length} תכניות במערכת` : 'אין תכניות — העלה תב"ע דרך /admin'}
+            {detailedPlans.length > 0 ? `${detailedPlans.length} תב"ע מפורטות במערכת` : 'אין תב"עות מפורטות — העלה תב"ע דרך /admin'}
           </div>
         </div>
       </div>
 
       <div className="max-w-7xl mx-auto p-4">
-        {plans.length === 0 ? (
+        {detailedPlans.length === 0 ? (
           <div className="db-card p-10 text-center mt-10">
             <AlertTriangle className="w-12 h-12 text-gold mx-auto mb-3 opacity-60" />
-            <h2 className="text-lg font-semibold mb-2">{'אין תכניות במערכת'}</h2>
+            <h2 className="text-lg font-semibold mb-2">{'אין תב"עות מפורטות במערכת'}</h2>
             <p className="text-sm text-foreground-muted mb-4">
-              {'המערכת לא למדה אף תב"ע. גש לפאנל הניהול והעלה מסמך PDF.'}
+              {'המערכת לא למדה תב"ע מפורטת. גש לפאנל הניהול והעלה מסמכי תכנית מפורטת.'}
             </p>
             <a href="/admin" className="btn-primary inline-flex items-center gap-2">
               <ArrowLeft className="w-4 h-4" />{'לפאנל ניהול'}
@@ -346,6 +407,9 @@ export default function CalculatePage() {
                   <Building2 className="w-4 h-4 text-accent" />
                   {'1. בחר תכנית'}
                 </h3>
+                <p className="text-[11px] text-foreground-muted">
+                  {'מציגים רק תב"עות מפורטות שמאפשרות היתר בנייה.'}
+                </p>
 
                 {selectedPlan ? (
                   <div className="flex items-center justify-between p-3 rounded-lg bg-[rgba(34,197,94,0.08)] border border-[rgba(34,197,94,0.2)]">
@@ -403,11 +467,67 @@ export default function CalculatePage() {
                 )}
               </div>
 
+              {/* GovMap Address Lookup */}
+              <div className="db-card p-4 space-y-3">
+                <h3 className="font-semibold text-sm flex items-center gap-2">
+                  <Search className="w-4 h-4 text-accent" />
+                  {'2. כתובת (GovMap רעננה)'}
+                </h3>
+                <div className="flex gap-2">
+                  <input
+                    className="input-field w-full"
+                    placeholder='לדוגמה: "אחוזה 45"'
+                    value={addressQuery}
+                    onChange={(e) => setAddressQuery(e.target.value)}
+                  />
+                  <button
+                    onClick={handleGovmapSearch}
+                    disabled={!addressQuery.trim() || addressLoading}
+                    className="btn-primary px-4 text-xs"
+                  >
+                    {addressLoading ? 'מחפש...' : 'חפש'}
+                  </button>
+                </div>
+                {addressError && (
+                  <div className="text-[11px] text-gold flex items-center gap-2">
+                    <AlertTriangle className="w-3 h-3" />
+                    <span>{addressError}</span>
+                  </div>
+                )}
+                {selectedAddress && (
+                  <div className="p-2 rounded bg-[rgba(34,197,94,0.08)] border border-[rgba(34,197,94,0.2)] text-xs">
+                    <div className="font-semibold">{selectedAddress.label}</div>
+                    <div className="text-foreground-muted">
+                      {selectedAddress.city || 'רעננה'} {selectedAddress.block && `| גוש ${selectedAddress.block}`} {selectedAddress.parcel && `חלקה ${selectedAddress.parcel}`}
+                    </div>
+                  </div>
+                )}
+                {addressResults.length > 0 && (
+                  <div className="space-y-2 max-h-48 overflow-y-auto">
+                    {addressResults.map((addr) => (
+                      <button
+                        key={addr.id}
+                        onClick={() => handleSelectAddress(addr)}
+                        className="w-full text-right p-2 rounded bg-[rgba(0,0,0,0.2)] hover:bg-[rgba(255,255,255,0.06)] transition-colors text-xs"
+                      >
+                        <div className="font-semibold">{addr.label}</div>
+                        <div className="text-[10px] text-foreground-muted">
+                          {addr.city || 'רעננה'} {addr.block && `| גוש ${addr.block}`} {addr.parcel && `חלקה ${addr.parcel}`}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+                <p className="text-[10px] text-foreground-muted">
+                  {'המערכת מושכת גוש/חלקה ושטח רשמי מ-GovMap לרעננה בלבד.'}
+                </p>
+              </div>
+
               {/* Plot Identification */}
               <div className="db-card p-4 space-y-3">
                 <h3 className="font-semibold text-sm flex items-center gap-2">
                   <MapPin className="w-4 h-4 text-accent" />
-                  {'2. פרטי חלקה'}
+                  {'3. פרטי חלקה'}
                 </h3>
                 <div className="grid grid-cols-3 gap-3">
                   <div>
@@ -429,7 +549,7 @@ export default function CalculatePage() {
               <div className="db-card p-4 space-y-3">
                 <h3 className="font-semibold text-sm flex items-center gap-2">
                   <Ruler className="w-4 h-4 text-accent" />
-                  {'3. מידות פיזיות של המגרש'}
+                  {'4. מידות פיזיות של המגרש'}
                 </h3>
                 <div className="grid grid-cols-3 gap-3">
                   <div>
@@ -544,6 +664,41 @@ export default function CalculatePage() {
                         </div>
                       </div>
                     )}
+
+                    {/* Rights Sources Audit */}
+                    <div className="db-card p-4 space-y-3">
+                      <h4 className="font-semibold text-sm">מקורות זכויות (Audit)</h4>
+                      <p className="text-[11px] text-foreground-muted">
+                        {'הזכויות מחושבות רק מתב"עות מפורטות. לכל כלל מוצגים מקור, עמוד וטקסט מקור.'}
+                      </p>
+                      {rightsSources.length === 0 ? (
+                        <div className="text-xs text-foreground-muted">לא נמצאו מקורות מאושרים לתכנית.</div>
+                      ) : (
+                        <div className="space-y-2">
+                          {rightsSources.map((rule) => (
+                            <div key={rule.id} className="p-2.5 rounded bg-[rgba(0,0,0,0.2)] space-y-1 text-xs">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-[rgba(255,255,255,0.06)] text-foreground-muted">
+                                    {ruleCategoryLabels[rule.category]}
+                                  </span>
+                                  <span className="font-mono font-bold">{rule.displayValue}</span>
+                                </div>
+                                <span className="text-[10px] text-foreground-muted">{rule.formula}</span>
+                              </div>
+                              <div className="text-[11px] text-foreground-secondary">
+                                {rule.source.documentName || 'מסמך ללא שם'}
+                                {rule.source.pageNumber ? ` | עמוד ${rule.source.pageNumber}` : ''}
+                                {rule.source.tableRef ? ` | טבלה ${rule.source.tableRef}` : ''}
+                              </div>
+                              <div className="text-[10px] text-foreground-muted">
+                                {`"${rule.source.rawText}"`} {'('}{rule.source.confidence}%{')'}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
 
                     {/* Total */}
                     <div className="db-card p-3">
