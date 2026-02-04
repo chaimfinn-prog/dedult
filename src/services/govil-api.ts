@@ -20,6 +20,8 @@ const MAPI_PARCEL_URL =
   process.env.MAPI_PARCEL_URL ??
   'https://ags.govmap.gov.il/Gis/ArcGIS/rest/services/Parcels/MapServer/0/query';
 
+const GOVMAP_API_TOKEN = process.env.GOVMAP_API_TOKEN;
+
 export interface ParcelResult {
   block: string;       // גוש
   parcel: string;      // חלקה
@@ -50,6 +52,7 @@ export async function geocodeAddress(address: string): Promise<{
         QueryType: 'ToponymSearch',
         Query: address,
         ResultType: 'Parcel',
+        ...(GOVMAP_API_TOKEN ? { Token: GOVMAP_API_TOKEN } : {}),
       }),
     });
 
@@ -88,6 +91,9 @@ export async function getParcelByCoordinates(
       outFields: 'GUSH_NUM,PARCEL,SUB_PARCEL,SHETACH_RASHUM,SHAPE_Area,SHAPE_Length',
       returnGeometry: 'false',
     });
+    if (GOVMAP_API_TOKEN) {
+      params.set('token', GOVMAP_API_TOKEN);
+    }
 
     const response = await fetch(`${MAPI_PARCEL_URL}?${params}`);
     if (!response.ok) return null;

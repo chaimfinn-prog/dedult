@@ -26,6 +26,7 @@ Optional environment overrides (useful on Vercel):
 ```
 MAPI_GEOCODE_URL=https://es.govmap.gov.il/TldSearch/api/DetailsByQuery
 MAPI_PARCEL_URL=https://ags.govmap.gov.il/Gis/ArcGIS/rest/services/Parcels/MapServer/0/query
+GOVMAP_API_TOKEN=your_token_here
 ```
 
 The output CSV follows the required schema:
