@@ -5,10 +5,11 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Ruler, Building2, Search, ArrowLeft, ChevronDown,
   AlertTriangle, CheckCircle2, Calculator, MapPin,
-  TrendingUp, Layers, Box, ArrowRight,
+  TrendingUp, Layers, Box, ArrowRight, Zap,
 } from 'lucide-react';
-import type { ZoningPlan, CalculationResult, FloorBreakdownItem } from '@/types';
-import { getAllPlans, findPlansByLocation } from '@/services/db';
+import type { ZoningPlan, CalculationResult, FormulaResult } from '@/types';
+import { ruleCategoryLabels } from '@/types';
+import { getAllPlans, findPlansByLocation, evaluateFormula } from '@/services/db';
 import { calculateBuildingEnvelope, validateAreaFitsEnvelope } from '@/services/envelope-calculator';
 
 // ── Isometric 3D Building ────────────────────────────────────
@@ -18,10 +19,9 @@ const GREEN_DARK = '#22c55e';
 const GREEN_DARKER = '#16a34a';
 const GREEN_LIGHT = '#86efac';
 const GOLD = '#fbbf24';
-const GOLD_DARK = '#f59e0b';
 
 function MassingSVG({ result }: { result: CalculationResult }) {
-  const { plan, input, buildable, envelope } = result;
+  const { plan, input, buildable } = result;
   const floorH = 16;
   const bW = 100;
   const bD = 60;
@@ -47,7 +47,6 @@ function MassingSVG({ result }: { result: CalculationResult }) {
   const plotW = Math.min(input.plotWidth * 2.5, 140);
   const plotD = Math.min(input.plotDepth * 2.5, 100);
 
-  // Grid lines
   const gridLines: string[] = [];
   for (let i = -3; i <= 3; i++) {
     const sp = 60;
@@ -71,15 +70,12 @@ function MassingSVG({ result }: { result: CalculationResult }) {
         </linearGradient>
       </defs>
 
-      {/* Ground */}
       <path d={face([[-180, -180, 0], [180, -180, 0], [180, 180, 0], [-180, 180, 0]])} fill="url(#ground)" />
 
-      {/* Grid */}
       {gridLines.map((d, i) => (
         <path key={i} d={d} stroke="rgba(100,116,139,0.12)" strokeWidth="0.5" fill="none" />
       ))}
 
-      {/* Plot boundary */}
       <path
         d={face([[-plotW / 2, -plotD / 2, 0], [plotW / 2, -plotD / 2, 0], [plotW / 2, plotD / 2, 0], [-plotW / 2, plotD / 2, 0]])}
         fill="rgba(74,222,128,0.08)"
@@ -89,7 +85,6 @@ function MassingSVG({ result }: { result: CalculationResult }) {
         opacity="0.6"
       />
 
-      {/* Building floors */}
       {Array.from({ length: numFloors }).map((_, i) => {
         const z0 = i * floorH;
         const z1 = z0 + floorH - 1;
@@ -105,7 +100,6 @@ function MassingSVG({ result }: { result: CalculationResult }) {
             <path d={face([[-hw, hd, z0], [hw, hd, z0], [hw, hd, z1], [-hw, hd, z1]])} fill={GREEN_DARK} stroke="#15803d" strokeWidth="0.5" />
             <path d={face([[-hw, -hd, z1], [hw, -hd, z1], [hw, hd, z1], [-hw, hd, z1]])} fill={GREEN_LIGHT} stroke="#15803d" strokeWidth="0.5" />
 
-            {/* Windows */}
             <g opacity="0.25">
               {Array.from({ length: 5 }).map((_, wi) => {
                 const t = (wi + 0.5) / 5;
@@ -124,7 +118,6 @@ function MassingSVG({ result }: { result: CalculationResult }) {
         );
       })}
 
-      {/* Height label */}
       <motion.g initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1.5 }}>
         <line
           x1={iso(-hw - 15, -hd, 0)[0]} y1={iso(-hw - 15, -hd, 0)[1]}
@@ -140,7 +133,6 @@ function MassingSVG({ result }: { result: CalculationResult }) {
         </text>
       </motion.g>
 
-      {/* Area badge */}
       <motion.g initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 2 }}>
         <rect x={svgW / 2 - 50} y={10} width={100} height={24} rx={6} fill="rgba(0,0,0,0.6)" stroke={GREEN} strokeWidth="0.5" />
         <text x={svgW / 2} y={26} fontSize="10" fill={GREEN} textAnchor="middle" fontFamily="monospace" fontWeight="bold">
@@ -171,7 +163,6 @@ export default function CalculatePage() {
     getAllPlans().then(setPlans);
   }, []);
 
-  // Auto-calculate area from width * depth
   useEffect(() => {
     const w = parseFloat(plotWidth);
     const d = parseFloat(plotDepth);
@@ -180,7 +171,6 @@ export default function CalculatePage() {
     }
   }, [plotWidth, plotDepth]);
 
-  // Auto-find matching plan by city
   useEffect(() => {
     if (city.length >= 2 && !selectedPlan) {
       findPlansByLocation(city).then((matches) => {
@@ -219,10 +209,55 @@ export default function CalculatePage() {
 
     const plan = selectedPlan;
     const rights = plan.buildingRights;
+    const hasRules = plan.rules && plan.rules.length > 0;
 
-    // Core Math: Plot Area * Plan % = Buildable Sqm
-    const mainAreaSqm = Math.round((rights.mainBuildingPercent / 100) * area);
-    const serviceAreaSqm = Math.round((rights.serviceBuildingPercent / 100) * area);
+    // Formula variables
+    const vars: Record<string, number> = {
+      Plot_Area: area,
+      Plot_Width: width,
+      Plot_Depth: depth,
+      Num_Units: rights.maxUnits || 1,
+      Num_Floors: rights.maxFloors || 1,
+    };
+
+    let mainAreaSqm: number;
+    let serviceAreaSqm: number;
+    const formulaResults: FormulaResult[] = [];
+
+    if (hasRules) {
+      // Formula-based calculation
+      for (const rule of plan.rules) {
+        const result = evaluateFormula(rule.formula, vars);
+        const usedVars: Record<string, number> = {};
+        for (const [k, v] of Object.entries(vars)) {
+          if (rule.formula.includes(k)) usedVars[k] = v;
+        }
+
+        // Build readable calculation string
+        let calcStr = rule.formula;
+        for (const [k, v] of Object.entries(usedVars)) {
+          calcStr = calcStr.replace(new RegExp(k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), String(v));
+        }
+
+        formulaResults.push({
+          rule,
+          inputValues: usedVars,
+          result,
+          calculation: `${rule.formula} = ${calcStr} = ${result.toLocaleString()}`,
+        });
+      }
+
+      // Get main and service from formula results
+      const mainResult = formulaResults.find(r => r.rule.category === 'main_rights');
+      const serviceResult = formulaResults.find(r => r.rule.category === 'service_area');
+      mainAreaSqm = mainResult ? Math.round(mainResult.result) : Math.round((rights.mainBuildingPercent / 100) * area);
+      serviceAreaSqm = serviceResult ? Math.round(serviceResult.result) : Math.round((rights.serviceBuildingPercent / 100) * area);
+    } else {
+      // Legacy flat-value calculation
+      mainAreaSqm = Math.round((rights.mainBuildingPercent / 100) * area);
+      serviceAreaSqm = Math.round((rights.serviceBuildingPercent / 100) * area);
+    }
+
     const totalBuildableSqm = mainAreaSqm + serviceAreaSqm;
 
     // Envelope Verification
@@ -263,6 +298,7 @@ export default function CalculatePage() {
         maxUnits: rights.maxUnits,
         landCoverageSqm: Math.round((rights.landCoveragePercent / 100) * area),
       },
+      formulaResults,
     });
   };
 
@@ -317,6 +353,9 @@ export default function CalculatePage() {
                       <CheckCircle2 className="w-4 h-4 text-green" />
                       <span className="font-bold text-sm">{selectedPlan.planNumber}</span>
                       {selectedPlan.city && <span className="text-xs text-foreground-muted">({selectedPlan.city})</span>}
+                      {selectedPlan.rules?.length > 0 && (
+                        <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-accent/10 text-accent">{selectedPlan.rules.length} נוסחאות</span>
+                      )}
                     </div>
                     <button onClick={() => { setSelectedPlan(null); setShowPlanPicker(true); }} className="text-xs text-accent hover:underline">שנה</button>
                   </div>
@@ -344,9 +383,17 @@ export default function CalculatePage() {
                             <div className="flex items-center gap-2">
                               <span className="font-bold text-sm">{p.planNumber}</span>
                               {p.city && <span className="text-xs text-foreground-muted">{p.city}</span>}
+                              {p.rules?.length > 0 && (
+                                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-accent/10 text-accent flex items-center gap-0.5">
+                                  <Zap className="w-2.5 h-2.5" />{p.rules.length}
+                                </span>
+                              )}
                             </div>
                             <div className="text-xs text-foreground-muted mt-0.5">
-                              {p.buildingRights.mainBuildingPercent}% עיקרי | {p.buildingRights.maxFloors} קומות
+                              {p.rules?.length > 0
+                                ? `${p.rules.length} נוסחאות בנייה`
+                                : `${p.buildingRights.mainBuildingPercent}% עיקרי | ${p.buildingRights.maxFloors} קומות`
+                              }
                             </div>
                           </button>
                         ))}
@@ -455,22 +502,54 @@ export default function CalculatePage() {
                       </div>
                     </div>
 
-                    {/* Breakdown */}
-                    <div className="db-card p-4 space-y-3">
-                      <h4 className="font-semibold text-sm">פירוט חישוב</h4>
-                      <div className="space-y-2 text-xs">
-                        <div className="flex justify-between p-2 rounded bg-[rgba(0,0,0,0.2)]">
-                          <span className="text-foreground-muted">{'שטח עיקרי ('}{ result.plan.buildingRights.mainBuildingPercent }{'%)'}</span>
-                          <span className="font-mono font-bold">{result.buildable.mainAreaSqm.toLocaleString()} {'מ"ר'}</span>
+                    {/* Formula Results (if available) */}
+                    {result.formulaResults.length > 0 && (
+                      <div className="db-card p-4 space-y-3">
+                        <h4 className="font-semibold text-sm flex items-center gap-2">
+                          <Zap className="w-4 h-4 text-accent" />
+                          {'חישוב לפי נוסחאות'}
+                        </h4>
+                        <div className="space-y-2">
+                          {result.formulaResults.map((fr, i) => (
+                            <div key={i} className="p-2.5 rounded bg-[rgba(0,0,0,0.2)] space-y-1">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xs px-2 py-0.5 rounded-full bg-[rgba(255,255,255,0.06)] text-foreground-muted">
+                                    {ruleCategoryLabels[fr.rule.category]}
+                                  </span>
+                                  <span className="text-xs text-foreground-secondary">{fr.rule.displayValue}</span>
+                                </div>
+                                <span className="font-mono font-bold text-sm text-green">{fr.result.toLocaleString()} {'מ"ר'}</span>
+                              </div>
+                              <pre className="text-[10px] text-foreground-muted font-mono whitespace-pre-wrap">{fr.calculation}</pre>
+                            </div>
+                          ))}
                         </div>
-                        <div className="flex justify-between p-2 rounded bg-[rgba(0,0,0,0.2)]">
-                          <span className="text-foreground-muted">{'שטח שירות ('}{ result.plan.buildingRights.serviceBuildingPercent }{'%)'}</span>
-                          <span className="font-mono font-bold">{result.buildable.serviceAreaSqm.toLocaleString()} {'מ"ר'}</span>
+                      </div>
+                    )}
+
+                    {/* Legacy Breakdown (when no formulas) */}
+                    {result.formulaResults.length === 0 && (
+                      <div className="db-card p-4 space-y-3">
+                        <h4 className="font-semibold text-sm">פירוט חישוב</h4>
+                        <div className="space-y-2 text-xs">
+                          <div className="flex justify-between p-2 rounded bg-[rgba(0,0,0,0.2)]">
+                            <span className="text-foreground-muted">{'שטח עיקרי ('}{result.plan.buildingRights.mainBuildingPercent}{'%)'}</span>
+                            <span className="font-mono font-bold">{result.buildable.mainAreaSqm.toLocaleString()} {'מ"ר'}</span>
+                          </div>
+                          <div className="flex justify-between p-2 rounded bg-[rgba(0,0,0,0.2)]">
+                            <span className="text-foreground-muted">{'שטח שירות ('}{result.plan.buildingRights.serviceBuildingPercent}{'%)'}</span>
+                            <span className="font-mono font-bold">{result.buildable.serviceAreaSqm.toLocaleString()} {'מ"ר'}</span>
+                          </div>
                         </div>
-                        <div className="flex justify-between p-2 rounded bg-[rgba(34,197,94,0.1)] border border-[rgba(34,197,94,0.2)]">
-                          <span className="text-green font-semibold">{'סה"כ ניתן לבנייה'}</span>
-                          <span className="font-mono font-bold text-green">{result.buildable.totalBuildableSqm.toLocaleString()} {'מ"ר'}</span>
-                        </div>
+                      </div>
+                    )}
+
+                    {/* Total */}
+                    <div className="db-card p-3">
+                      <div className="flex justify-between p-2 rounded bg-[rgba(34,197,94,0.1)] border border-[rgba(34,197,94,0.2)]">
+                        <span className="text-green font-semibold text-sm">{'סה"כ ניתן לבנייה'}</span>
+                        <span className="font-mono font-bold text-green text-sm">{result.buildable.totalBuildableSqm.toLocaleString()} {'מ"ר'}</span>
                       </div>
                     </div>
 

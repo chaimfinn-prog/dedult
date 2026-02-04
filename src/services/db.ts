@@ -3,10 +3,11 @@
  *
  * The system database starts EMPTY. All data comes from user uploads.
  * Persists across page refreshes using IndexedDB.
+ * Plans now store formula-based ZoningRules extracted from documents.
  */
 
 import { openDB, type IDBPDatabase } from 'idb';
-import type { ZoningPlan } from '@/types';
+import type { ZoningPlan, ZoningRule, DocumentType } from '@/types';
 
 // ── Database Schema ─────────────────────────────────────────
 
@@ -14,9 +15,10 @@ export interface StoredDocument {
   id: string;
   name: string;
   planNumber: string;
-  type: 'takkanon' | 'tashrit' | 'plan_map' | 'appendix' | 'other';
+  type: DocumentType;
   uploadDate: string;
-  extractedData?: ExtractedPlanData;
+  pageCount: number;
+  extractedRules?: ZoningRule[];
 }
 
 export interface ExtractedPlanData {
@@ -26,23 +28,20 @@ export interface ExtractedPlanData {
   neighborhood?: string;
   approvalDate?: string;
   zoningType?: string;
-  mainBuildingPercent?: number;
-  serviceBuildingPercent?: number;
-  maxFloors?: number;
-  maxHeight?: number;
-  maxUnits?: number;
-  unitsPerDunam?: number;
-  frontSetback?: number;
-  rearSetback?: number;
-  sideSetback?: number;
-  landCoveragePercent?: number;
-  notes?: string;
+  rules: ZoningRule[];
+  documents: UploadedDocRef[];
+}
+
+export interface UploadedDocRef {
+  type: DocumentType;
+  name: string;
+  uploadDate: string;
+  pageCount: number;
 }
 
 const DB_NAME = 'zchut-ai';
 const DB_VERSION = 1;
 
-// Store names
 const PLANS_STORE = 'plans';
 const DOCUMENTS_STORE = 'documents';
 
@@ -58,7 +57,6 @@ function getDB(): Promise<IDBPDatabase> {
   if (!dbPromise) {
     dbPromise = openDB(DB_NAME, DB_VERSION, {
       upgrade(db) {
-        // Plans store - keyed by id
         if (!db.objectStoreNames.contains(PLANS_STORE)) {
           const planStore = db.createObjectStore(PLANS_STORE, { keyPath: 'id' });
           planStore.createIndex('by-city', 'city', { unique: false });
@@ -66,7 +64,6 @@ function getDB(): Promise<IDBPDatabase> {
           planStore.createIndex('by-planNumber', 'planNumber', { unique: false });
         }
 
-        // Documents store - keyed by id
         if (!db.objectStoreNames.contains(DOCUMENTS_STORE)) {
           db.createObjectStore(DOCUMENTS_STORE, { keyPath: 'id' });
         }
@@ -81,12 +78,16 @@ function getDB(): Promise<IDBPDatabase> {
 
 export async function getAllPlans(): Promise<ZoningPlan[]> {
   const db = await getDB();
-  return db.getAll(PLANS_STORE);
+  const plans = await db.getAll(PLANS_STORE);
+  // Ensure backward compat: old plans without rules get empty array
+  return plans.map((p: ZoningPlan) => ({ ...p, rules: p.rules || [] }));
 }
 
 export async function getPlanById(id: string): Promise<ZoningPlan | undefined> {
   const db = await getDB();
-  return db.get(PLANS_STORE, id);
+  const plan = await db.get(PLANS_STORE, id);
+  if (plan) plan.rules = plan.rules || [];
+  return plan;
 }
 
 export async function savePlan(plan: ZoningPlan): Promise<void> {
@@ -104,10 +105,6 @@ export async function getPlanCount(): Promise<number> {
   return db.count(PLANS_STORE);
 }
 
-/**
- * Find plans matching a city or neighborhood string.
- * Used by the calculation engine to locate relevant plans.
- */
 export async function findPlansByLocation(query: string): Promise<ZoningPlan[]> {
   const allPlans = await getAllPlans();
   if (allPlans.length === 0) return [];
@@ -116,17 +113,14 @@ export async function findPlansByLocation(query: string): Promise<ZoningPlan[]> 
   const results: ZoningPlan[] = [];
 
   for (const plan of allPlans) {
-    // Match by city
     if (plan.city && plan.city.length > 1 && q.includes(plan.city)) {
       results.push(plan);
       continue;
     }
-    // Match by neighborhood
     if (plan.neighborhood && plan.neighborhood.length > 1 && q.includes(plan.neighborhood)) {
       results.push(plan);
       continue;
     }
-    // Match by plan number
     if (plan.planNumber && q.includes(plan.planNumber)) {
       results.push(plan);
     }
@@ -159,16 +153,26 @@ export function generateId(prefix: string = 'id'): string {
 }
 
 /**
- * Build a full ZoningPlan from extracted document data.
- * This is the core "learning" function - it structures extracted data
- * into the plan schema that the calculation engine uses.
+ * Get a rule value from the rules array by category.
+ * Returns the rawNumber of the first matching confirmed rule, or fallback.
+ */
+function getRuleValue(rules: ZoningRule[], category: string, fallback: number = 0): number {
+  const rule = rules.find(r => r.category === category && r.confirmed);
+  return rule?.rawNumber ?? fallback;
+}
+
+/**
+ * Build a full ZoningPlan from extracted data + rules.
+ * Populates both the legacy flat fields and the rules array.
  */
 export function buildPlanFromExtraction(
   data: ExtractedPlanData,
-  docId: string
+  docNames: string[]
 ): ZoningPlan {
-  const mainPct = data.mainBuildingPercent || 0;
-  const servicePct = data.serviceBuildingPercent || 0;
+  const rules = data.rules || [];
+
+  const mainPct = getRuleValue(rules, 'main_rights');
+  const servicePct = getRuleValue(rules, 'service_area');
 
   return {
     id: generateId('plan'),
@@ -180,53 +184,64 @@ export function buildPlanFromExtraction(
     status: 'active',
     zoningType: (data.zoningType as ZoningPlan['zoningType']) || 'residential_a',
     sourceDocument: {
-      name: `Uploaded Document #${docId}`,
+      name: docNames.join(', ') || 'Uploaded Documents',
       url: '',
       lastUpdated: new Date().toISOString().split('T')[0],
     },
+    rules,
     buildingRights: {
       mainBuildingPercent: mainPct,
       serviceBuildingPercent: servicePct,
       totalBuildingPercent: mainPct + servicePct,
-      maxFloors: data.maxFloors || 0,
-      maxHeight: data.maxHeight || 0,
-      maxUnits: data.maxUnits || 0,
-      basementAllowed: true,
-      basementPercent: 0,
-      rooftopPercent: 0,
-      landCoveragePercent: data.landCoveragePercent || 0,
+      maxFloors: getRuleValue(rules, 'max_floors'),
+      maxHeight: getRuleValue(rules, 'max_height'),
+      maxUnits: getRuleValue(rules, 'max_units'),
+      basementAllowed: rules.some(r => r.category === 'basement'),
+      basementPercent: getRuleValue(rules, 'basement'),
+      rooftopPercent: getRuleValue(rules, 'rooftop'),
+      landCoveragePercent: getRuleValue(rules, 'coverage'),
       floorAllocations: [],
       citations: [],
     },
     restrictions: {
-      frontSetback: data.frontSetback || 0,
-      rearSetback: data.rearSetback || 0,
-      sideSetback: data.sideSetback || 0,
-      minParkingSpaces: 1.5,
+      frontSetback: getRuleValue(rules, 'front_setback'),
+      rearSetback: getRuleValue(rules, 'rear_setback'),
+      sideSetback: getRuleValue(rules, 'side_setback'),
+      minParkingSpaces: getRuleValue(rules, 'parking', 1.5),
       minGreenAreaPercent: 30,
-      maxLandCoverage: data.landCoveragePercent || 0,
+      maxLandCoverage: getRuleValue(rules, 'coverage'),
     },
   };
 }
 
-// ── Admin Auth (session-only, no persistence needed) ────────
+// ── Formula Evaluator ───────────────────────────────────────
 
-const ADMIN_PASSWORD = 'zchut2024';
+/**
+ * Safely evaluate a formula string with variable substitution.
+ * Only allows basic math: numbers, +, -, *, /, (), and decimal points.
+ */
+export function evaluateFormula(
+  formula: string,
+  vars: Record<string, number>
+): number {
+  let expr = formula;
+  // Sort variable names by length (longest first) to avoid partial replacements
+  const sortedVars = Object.entries(vars).sort((a, b) => b[0].length - a[0].length);
+  for (const [name, value] of sortedVars) {
+    expr = expr.replace(new RegExp(name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), String(value));
+  }
 
-export function verifyAdminPassword(password: string): boolean {
-  return password === ADMIN_PASSWORD;
-}
+  // Safety: only allow numbers, math operators, parentheses, decimals, spaces
+  if (!/^[\d\s+\-*/().]+$/.test(expr)) {
+    console.warn('Invalid formula expression:', expr, 'from', formula);
+    return 0;
+  }
 
-export function isAdminAuthenticated(): boolean {
-  if (typeof window === 'undefined') return false;
-  return sessionStorage.getItem('zchut-admin-auth') === 'true';
-}
-
-export function setAdminAuthenticated(value: boolean): void {
-  if (typeof window === 'undefined') return;
-  if (value) {
-    sessionStorage.setItem('zchut-admin-auth', 'true');
-  } else {
-    sessionStorage.removeItem('zchut-admin-auth');
+  try {
+    const result = new Function(`return (${expr})`)() as number;
+    return isNaN(result) || !isFinite(result) ? 0 : Math.round(result * 100) / 100;
+  } catch {
+    console.warn('Formula evaluation error:', formula);
+    return 0;
   }
 }

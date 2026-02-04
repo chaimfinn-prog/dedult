@@ -1,5 +1,6 @@
-// Core data types for Zchut.AI - Dynamic Zoning Engine
+// Core data types for Zchut.AI - Auto-Ingest Zoning Engine
 // The system starts EMPTY - all data comes from user uploads.
+// Rules are stored as FORMULAS extracted from PDF documents.
 
 export interface ZoningPlan {
   id: string;
@@ -13,6 +14,7 @@ export interface ZoningPlan {
   buildingRights: BuildingRights;
   restrictions: BuildingRestrictions;
   sourceDocument: SourceDocument;
+  rules: ZoningRule[];
 }
 
 export type ZoningType =
@@ -85,6 +87,108 @@ export interface BuildingRestrictions {
   maxLandCoverage: number;
 }
 
+// ── Formula-Based Rule System ────────────────────────────────
+
+export type ZoningRuleCategory =
+  | 'main_rights'
+  | 'service_area'
+  | 'balcony'
+  | 'tma38'
+  | 'coverage'
+  | 'max_floors'
+  | 'max_height'
+  | 'max_units'
+  | 'units_per_dunam'
+  | 'front_setback'
+  | 'rear_setback'
+  | 'side_setback'
+  | 'basement'
+  | 'rooftop'
+  | 'parking'
+  | 'other';
+
+export const ruleCategoryLabels: Record<ZoningRuleCategory, string> = {
+  main_rights: 'זכויות בנייה עיקריות',
+  service_area: 'שטחי שירות',
+  balcony: 'מרפסות',
+  tma38: 'תמ"א 38 / התחדשות',
+  coverage: 'תכסית',
+  max_floors: 'קומות מרביות',
+  max_height: 'גובה מרבי',
+  max_units: 'יחידות דיור',
+  units_per_dunam: 'צפיפות (יח"ד לדונם)',
+  front_setback: 'קו בניין קדמי',
+  rear_setback: 'קו בניין אחורי',
+  side_setback: 'קו בניין צידי',
+  basement: 'מרתף',
+  rooftop: 'גג',
+  parking: 'חניה',
+  other: 'אחר',
+};
+
+export type RuleUnit =
+  | 'percent'
+  | 'sqm'
+  | 'sqm_per_unit'
+  | 'meters'
+  | 'floors'
+  | 'units'
+  | 'ratio'
+  | 'count'
+  | 'spaces';
+
+export const ruleUnitLabels: Record<RuleUnit, string> = {
+  percent: '%',
+  sqm: 'מ"ר',
+  sqm_per_unit: 'מ"ר ליח\'',
+  meters: 'מ\'',
+  floors: 'קומות',
+  units: 'יח"ד',
+  ratio: '',
+  count: '',
+  spaces: 'חניות',
+};
+
+export interface ZoningRule {
+  id: string;
+  category: ZoningRuleCategory;
+  label: string;
+  formula: string;
+  displayValue: string;
+  rawNumber: number;
+  unit: RuleUnit;
+  source: RuleSource;
+  confirmed: boolean;
+}
+
+export interface RuleSource {
+  documentType: DocumentType;
+  documentName: string;
+  pageNumber?: number;
+  tableRef?: string;
+  rawText: string;
+  confidence: number;
+}
+
+export type DocumentType = 'takanon' | 'rights_table' | 'annex';
+
+export const documentTypeLabels: Record<DocumentType, string> = {
+  takanon: 'תקנון',
+  rights_table: 'טבלת זכויות',
+  annex: 'נספח בינוי',
+};
+
+// ── Formula Evaluation ──────────────────────────────────────
+
+export interface FormulaVars {
+  Plot_Area: number;
+  Plot_Width: number;
+  Plot_Depth: number;
+  Num_Units: number;
+  Num_Floors: number;
+  [key: string]: number;
+}
+
 // ── User Input for Calculation ──────────────────────────────
 
 export interface PlotInput {
@@ -102,9 +206,9 @@ export interface CalculationResult {
   plan: ZoningPlan;
   input: PlotInput;
   buildable: {
-    mainAreaSqm: number;      // plotArea * mainBuildingPercent / 100
-    serviceAreaSqm: number;   // plotArea * serviceBuildingPercent / 100
-    totalBuildableSqm: number; // main + service
+    mainAreaSqm: number;
+    serviceAreaSqm: number;
+    totalBuildableSqm: number;
   };
   envelope: EnvelopeVerification;
   constraints: {
@@ -113,6 +217,14 @@ export interface CalculationResult {
     maxUnits: number;
     landCoverageSqm: number;
   };
+  formulaResults: FormulaResult[];
+}
+
+export interface FormulaResult {
+  rule: ZoningRule;
+  inputValues: Record<string, number>;
+  result: number;
+  calculation: string;
 }
 
 export interface EnvelopeVerification {
@@ -141,16 +253,6 @@ export interface FloorBreakdownItem {
   mainArea: number;
   serviceArea: number;
   totalArea: number;
-}
-
-// ── Financial Estimate ──────────────────────────────────────
-
-export interface FinancialEstimate {
-  pricePerSqm: number;
-  additionalValueEstimate: number;
-  constructionCostPerSqm: number;
-  estimatedConstructionCost: number;
-  estimatedProfit: number;
 }
 
 // ── App Screen State ────────────────────────────────────────
