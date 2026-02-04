@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Shield, Lock, LogOut, Plus, Trash2, Edit3, Save, X,
+  Shield, Plus, Trash2, Edit3, Save, X,
   Upload, Building2, ChevronDown, ChevronUp,
   Search, Cpu, CheckCircle2,
   Loader2, Sparkles, Database, BookOpen, AlertTriangle,
@@ -12,63 +12,10 @@ import type { ZoningPlan, ZoningType } from '@/types';
 import {
   getAllPlans, savePlan, deletePlan,
   getAllDocuments, saveDocument,
-  generateId, buildPlanFromExtraction, verifyAdminPassword,
-  isAdminAuthenticated, setAdminAuthenticated,
+  generateId, buildPlanFromExtraction,
   type StoredDocument, type ExtractedPlanData,
 } from '@/services/db';
 import { parseDocument, type ParsedDocument, type ParsedField } from '@/services/document-parser';
-
-// ── Login Screen ─────────────────────────────────────────────
-
-function LoginScreen({ onLogin }: { onLogin: () => void }) {
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (verifyAdminPassword(password)) {
-      setAdminAuthenticated(true);
-      onLogin();
-    } else {
-      setError('סיסמה שגויה');
-      setPassword('');
-    }
-  };
-
-  return (
-    <div className="min-h-screen flex items-center justify-center p-4">
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-sm"
-      >
-        <div className="db-card p-8 text-center">
-          <div className="w-16 h-16 rounded-2xl bg-[rgba(59,130,246,0.1)] flex items-center justify-center mx-auto mb-4">
-            <Shield className="w-8 h-8 text-accent" />
-          </div>
-          <h1 className="text-xl font-bold mb-1">ניהול מערכת</h1>
-          <p className="text-sm text-foreground-muted mb-6">Zchut.AI Admin Panel</p>
-
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="relative">
-              <Lock className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground-muted" />
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => { setPassword(e.target.value); setError(''); }}
-                placeholder="הזן סיסמה"
-                className="input-field w-full pr-10 text-center"
-                autoFocus
-              />
-            </div>
-            {error && <p className="text-red-400 text-sm">{error}</p>}
-            <button type="submit" className="btn-primary w-full">כניסה</button>
-          </form>
-        </div>
-      </motion.div>
-    </div>
-  );
-}
 
 // ── Upload & Parse Step ──────────────────────────────────────
 
@@ -465,7 +412,6 @@ function PlanForm({
 type AdminTab = 'learn' | 'plans';
 
 export default function AdminPage() {
-  const [authenticated, setAuthenticated] = useState(false);
   const [tab, setTab] = useState<AdminTab>('learn');
   const [plans, setPlans] = useState<ZoningPlan[]>([]);
   const [showLearn, setShowLearn] = useState(false);
@@ -480,14 +426,8 @@ export default function AdminPage() {
   };
 
   useEffect(() => {
-    if (isAdminAuthenticated()) setAuthenticated(true);
+    refreshData();
   }, []);
-
-  useEffect(() => {
-    if (authenticated) refreshData();
-  }, [authenticated]);
-
-  if (!authenticated) return <LoginScreen onLogin={() => setAuthenticated(true)} />;
 
   const handleSavePlan = async (plan: ZoningPlan) => {
     await savePlan(plan);
@@ -499,11 +439,6 @@ export default function AdminPage() {
   const handleDeletePlan = async (planId: string) => {
     await deletePlan(planId);
     refreshData();
-  };
-
-  const handleLogout = () => {
-    setAdminAuthenticated(false);
-    setAuthenticated(false);
   };
 
   const filteredPlans = plans.filter(
@@ -528,12 +463,7 @@ export default function AdminPage() {
             <p className="text-xs text-foreground-muted">{'העלה תב"ע — המערכת לומדת ומשתמשת בנתונים'}</p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <a href="/" className="text-xs text-foreground-muted hover:text-accent transition-colors px-3 py-1.5 rounded-lg hover:bg-[rgba(255,255,255,0.04)]">חזרה לאתר</a>
-          <button onClick={handleLogout} className="p-2 hover:bg-[rgba(255,255,255,0.04)] rounded-lg text-foreground-muted hover:text-red-400 transition-colors">
-            <LogOut className="w-4 h-4" />
-          </button>
-        </div>
+        <a href="/" className="text-xs text-foreground-muted hover:text-accent transition-colors px-3 py-1.5 rounded-lg hover:bg-[rgba(255,255,255,0.04)]">חזרה לאתר</a>
       </div>
 
       {/* Knowledge base stats */}
