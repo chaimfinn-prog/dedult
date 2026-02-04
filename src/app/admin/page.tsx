@@ -624,6 +624,8 @@ export default function AdminPage() {
   const [showLearn, setShowLearn] = useState(false);
   const [expandedPlan, setExpandedPlan] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const addressImportRef = useRef<HTMLInputElement>(null);
+  const [isImportingAddresses, setIsImportingAddresses] = useState(false);
 
   const refreshData = useCallback(() => {
     setPlans(getAllPlans());
@@ -640,6 +642,53 @@ export default function AdminPage() {
   const handleSaveAddr = (addr: AddressMapping) => { saveCustomAddress(addr); setShowForm(false); setEditingAddr(null); refreshData(); };
   const handleDeleteAddr = (address: string) => { if (!customAddrs.has(address)) return; deleteCustomAddress(address); refreshData(); };
   const handleLogout = () => { setAdminAuthenticated(false); setAuthenticated(false); };
+  const handleImportAddresses = async (file: File) => {
+    setIsImportingAddresses(true);
+    try {
+      const text = await file.text();
+      const rows = text.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+      if (rows.length === 0) return;
+
+      const header = rows[0].split(',').map((c) => c.trim().toLowerCase());
+      const dataRows = rows.slice(1);
+      const findIndex = (key: string) => header.indexOf(key);
+
+      const addressIdx = findIndex('address');
+      const blockIdx = findIndex('block');
+      const parcelIdx = findIndex('parcel');
+      const plotSizeIdx = findIndex('plotsize');
+      const existingAreaIdx = findIndex('existingarea');
+      const existingFloorsIdx = findIndex('existingfloors');
+      const existingUnitsIdx = findIndex('existingunits');
+      const neighborhoodIdx = findIndex('neighborhood');
+
+      dataRows.forEach((row) => {
+        const cols = row.split(',').map((c) => c.trim());
+        const address = cols[addressIdx] || '';
+        if (!address) return;
+        const mapping: AddressMapping = {
+          address,
+          block: cols[blockIdx] || '',
+          parcel: cols[parcelIdx] || '',
+          planId: plans[0]?.id || '',
+          neighborhood: cols[neighborhoodIdx] || '',
+          avgPricePerSqm: 0,
+          constructionCostPerSqm: 0,
+          plotSize: Number(cols[plotSizeIdx] || 0),
+          plotWidth: 0,
+          plotDepth: 0,
+          existingArea: Number(cols[existingAreaIdx] || 0),
+          existingFloors: Number(cols[existingFloorsIdx] || 0),
+          existingUnits: Number(cols[existingUnitsIdx] || 0),
+        };
+        saveCustomAddress(mapping);
+      });
+      refreshData();
+    } finally {
+      setIsImportingAddresses(false);
+      if (addressImportRef.current) addressImportRef.current.value = '';
+    }
+  };
 
   const learnedPlans = getCustomPlans();
   const filteredPlans = plans.filter((p) => !searchTerm || p.planNumber.includes(searchTerm) || p.name.includes(searchTerm) || (p.city && p.city.includes(searchTerm)));
@@ -859,6 +908,27 @@ export default function AdminPage() {
                   <button onClick={() => { setShowForm(true); setEditingAddr(null); }} className="btn-primary flex items-center gap-2 px-4">
                     <Plus className="w-4 h-4" />הוסף
                   </button>
+                  <input
+                    ref={addressImportRef}
+                    type="file"
+                    accept=".csv"
+                    className="hidden"
+                    onChange={(event) => {
+                      const file = event.target.files?.[0];
+                      if (file) void handleImportAddresses(file);
+                    }}
+                  />
+                  <button
+                    onClick={() => addressImportRef.current?.click()}
+                    className="btn-secondary flex items-center gap-2 px-4"
+                    disabled={isImportingAddresses}
+                  >
+                    <Upload className="w-4 h-4" />
+                    {isImportingAddresses ? 'מייבא כתובות...' : 'ייבוא CSV כתובות'}
+                  </button>
+                </div>
+                <div className="text-[10px] text-foreground-muted mb-3">
+                  פורמט CSV: address,block,parcel,plotSize,existingArea,existingFloors,existingUnits,neighborhood
                 </div>
 
                 {filteredAddresses.length === 0 && <div className="db-card p-8 text-center text-foreground-muted">אין כתובות תואמות</div>}

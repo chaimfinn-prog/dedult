@@ -13,9 +13,11 @@
 // ============================================================
 
 const MAPI_GEOCODE_URL =
+  process.env.MAPI_GEOCODE_URL ??
   'https://es.govmap.gov.il/TldSearch/api/DetailsByQuery';
 
 const MAPI_PARCEL_URL =
+  process.env.MAPI_PARCEL_URL ??
   'https://ags.govmap.gov.il/Gis/ArcGIS/rest/services/Parcels/MapServer/0/query';
 
 export interface ParcelResult {
@@ -137,6 +139,7 @@ export async function getParcelByAddress(
 // ============================================================
 
 const IPLAN_API_URL =
+  process.env.IPLAN_API_URL ??
   'https://ags.iplan.gov.il/arcgisiplan/rest/services/PlanningPublic/Tachtioth/MapServer/0/query';
 
 export interface PlanDocument {
@@ -224,7 +227,7 @@ export async function getApprovedPlans(
 //    Current built state from last approved permit
 // ============================================================
 
-const RISHUI_BASE_URL = 'https://www.rishuizamin.co.il';
+const RISHUI_BASE_URL = process.env.RISHUI_BASE_URL ?? 'https://www.rishuizamin.co.il';
 
 export interface PermitData {
   permitNumber: string;
