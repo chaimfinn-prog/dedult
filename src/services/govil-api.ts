@@ -22,6 +22,45 @@ const MAPI_PARCEL_URL =
 
 const GOVMAP_API_TOKEN = process.env.GOVMAP_API_TOKEN;
 
+const CACHE_TTL_MS = 1000 * 60 * 60; // 1 hour
+const MAX_CACHE_ENTRIES = 500;
+
+type CacheEntry<T> = { value: T; expiresAt: number };
+const geocodeCache = new Map<string, CacheEntry<{ x: number; y: number; address: string; municipality: string }>>();
+const parcelCache = new Map<string, CacheEntry<ParcelResult>>();
+
+function getCache<T>(cache: Map<string, CacheEntry<T>>, key: string): T | null {
+  const entry = cache.get(key);
+  if (!entry) return null;
+  if (Date.now() > entry.expiresAt) {
+    cache.delete(key);
+    return null;
+  }
+  return entry.value;
+}
+
+function setCache<T>(cache: Map<string, CacheEntry<T>>, key: string, value: T) {
+  if (cache.size >= MAX_CACHE_ENTRIES) {
+    const firstKey = cache.keys().next().value;
+    if (firstKey) cache.delete(firstKey);
+  }
+  cache.set(key, { value, expiresAt: Date.now() + CACHE_TTL_MS });
+}
+
+async function fetchWithRetry(url: string, init?: RequestInit, retries = 2): Promise<Response> {
+  let lastError: unknown;
+  for (let attempt = 0; attempt <= retries; attempt += 1) {
+    try {
+      const response = await fetch(url, init);
+      if (response.ok) return response;
+      lastError = new Error(`HTTP ${response.status}`);
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  throw lastError;
+}
+
 export interface ParcelResult {
   block: string;       // גוש
   parcel: string;      // חלקה
@@ -44,8 +83,10 @@ export async function geocodeAddress(address: string): Promise<{
   address: string;
   municipality: string;
 } | null> {
+  const cached = getCache(geocodeCache, address);
+  if (cached) return cached;
   try {
-    const response = await fetch(MAPI_GEOCODE_URL, {
+    const response = await fetchWithRetry(MAPI_GEOCODE_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -62,12 +103,14 @@ export async function geocodeAddress(address: string): Promise<{
     if (!data?.ResultLyr?.length) return null;
 
     const result = data.ResultLyr[0];
-    return {
+    const resultPayload = {
       x: result.X,
       y: result.Y,
       address: result.ResultLbl || address,
       municipality: result.Setl || '',
     };
+    setCache(geocodeCache, address, resultPayload);
+    return resultPayload;
   } catch {
     console.error('[MAPI] Geocode failed for:', address);
     return null;
@@ -82,6 +125,9 @@ export async function getParcelByCoordinates(
   x: number,
   y: number
 ): Promise<ParcelResult | null> {
+  const cacheKey = `${x}:${y}`;
+  const cached = getCache(parcelCache, cacheKey);
+  if (cached) return cached;
   try {
     const params = new URLSearchParams({
       f: 'json',
@@ -95,14 +141,14 @@ export async function getParcelByCoordinates(
       params.set('token', GOVMAP_API_TOKEN);
     }
 
-    const response = await fetch(`${MAPI_PARCEL_URL}?${params}`);
+    const response = await fetchWithRetry(`${MAPI_PARCEL_URL}?${params}`);
     if (!response.ok) return null;
 
     const data = await response.json();
     if (!data?.features?.length) return null;
 
     const attr = data.features[0].attributes;
-    return {
+    const parcelResult: ParcelResult = {
       block: String(attr.GUSH_NUM),
       parcel: String(attr.PARCEL),
       subParcel: attr.SUB_PARCEL ? String(attr.SUB_PARCEL) : undefined,
@@ -114,6 +160,8 @@ export async function getParcelByCoordinates(
       municipality: '',
       source: 'mapi_gis',
     };
+    setCache(parcelCache, cacheKey, parcelResult);
+    return parcelResult;
   } catch {
     console.error('[MAPI] Parcel query failed');
     return null;
@@ -195,7 +243,7 @@ export async function getApprovedPlans(
     }
 
     const searchParams = new URLSearchParams(params);
-    const response = await fetch(`${IPLAN_API_URL}?${searchParams}`);
+    const response = await fetchWithRetry(`${IPLAN_API_URL}?${searchParams}`);
     if (!response.ok) return [];
 
     const data = await response.json();
@@ -255,12 +303,10 @@ export async function getExistingPermits(
 ): Promise<PermitData | null> {
   try {
     // Rishui Zamin API - search by block/parcel
-    const response = await fetch(
+    const response = await fetchWithRetry(
       `${RISHUI_BASE_URL}/api/permits/search?gush=${block}&helka=${parcel}`,
       { headers: { Accept: 'application/json' } }
     );
-
-    if (!response.ok) return null;
 
     const data = await response.json();
     if (!data?.permits?.length) return null;
