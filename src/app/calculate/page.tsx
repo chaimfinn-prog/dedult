@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Ruler, Building2, Search, ArrowLeft, ChevronDown,
+  Ruler, Building2, Search,
   AlertTriangle, CheckCircle2, Calculator, MapPin,
   TrendingUp, Layers, Box, ArrowRight, Zap,
 } from 'lucide-react';
@@ -185,14 +185,14 @@ export default function CalculatePage() {
     if (city.length >= 2 && !selectedPlan) {
       findPlansByLocation(city).then((matches) => {
         if (matches.length === 1) {
-          const detailed = matches.find((plan) => plan.planKind === 'detailed');
+          const detailed = matches.find((plan) => plan.planKind === 'detailed' && plan.status === 'active');
           if (detailed) setSelectedPlan(detailed);
         }
       });
     }
   }, [city, selectedPlan]);
 
-  const detailedPlans = plans.filter((p) => p.planKind === 'detailed');
+  const detailedPlans = plans.filter((p) => p.planKind === 'detailed' && p.status === 'active');
 
   const filteredPlans = detailedPlans.filter(
     (p) => !planSearch || p.planNumber.includes(planSearch) || p.name.includes(planSearch) || (p.city && p.city.includes(planSearch))
@@ -380,7 +380,7 @@ export default function CalculatePage() {
             </div>
           </div>
           <div className="text-xs text-foreground-muted">
-            {detailedPlans.length > 0 ? `${detailedPlans.length} תב"ע מפורטות במערכת` : 'אין תב"עות מפורטות — העלה תב"ע דרך /admin'}
+            {detailedPlans.length > 0 ? `${detailedPlans.length} תב"ע מפורטות במערכת` : 'אין תב"עות מפורטות — ממתין לסנכרון'}
           </div>
         </div>
       </div>
@@ -391,11 +391,8 @@ export default function CalculatePage() {
             <AlertTriangle className="w-12 h-12 text-gold mx-auto mb-3 opacity-60" />
             <h2 className="text-lg font-semibold mb-2">{'אין תב"עות מפורטות במערכת'}</h2>
             <p className="text-sm text-foreground-muted mb-4">
-              {'המערכת לא למדה תב"ע מפורטת. גש לפאנל הניהול והעלה מסמכי תכנית מפורטת.'}
+              {'המערכת ממתינה לסנכרון תב"עות מפורטות מאושרות.'}
             </p>
-            <a href="/admin" className="btn-primary inline-flex items-center gap-2">
-              <ArrowLeft className="w-4 h-4" />{'לפאנל ניהול'}
-            </a>
           </div>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-4">
@@ -408,7 +405,7 @@ export default function CalculatePage() {
                   {'1. בחר תכנית'}
                 </h3>
                 <p className="text-[11px] text-foreground-muted">
-                  {'מציגים רק תב"עות מפורטות שמאפשרות היתר בנייה.'}
+                  {'מציגים רק תב"עות מפורטות מאושרות שמאפשרות היתר בנייה.'}
                 </p>
 
                 {selectedPlan ? (
