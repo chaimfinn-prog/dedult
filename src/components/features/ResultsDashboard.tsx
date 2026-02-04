@@ -382,6 +382,7 @@ function AuditTrailSection({ steps }: { steps: AuditStep[] }) {
     mapi_gis: 'מפ"י',
     iplan_api: 'iplan',
     rishui_zamin: 'רישוי זמין',
+    raanana_gis: 'GIS רעננה',
     local_db: 'מאגר מקומי',
     calculation: 'מנוע חישוב',
   };

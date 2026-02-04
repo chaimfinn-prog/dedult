@@ -210,7 +210,7 @@ export interface AuditStep {
   subtitle: string;
   data: Record<string, string | number>;
   source: string;
-  sourceType: 'mapi_gis' | 'iplan_api' | 'rishui_zamin' | 'local_db' | 'calculation';
+  sourceType: 'mapi_gis' | 'iplan_api' | 'rishui_zamin' | 'raanana_gis' | 'local_db' | 'calculation';
   citations?: SourceCitation[];
 }
 
