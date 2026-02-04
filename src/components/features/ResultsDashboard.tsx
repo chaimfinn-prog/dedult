@@ -28,7 +28,7 @@ import { zoningTypeLabels } from '@/types';
 import type { AuditStep } from '@/types';
 import { Building3D } from './Building3D';
 import { ProfitSlider } from './ProfitSlider';
-import { DeveloperCalculator } from './DeveloperCalculator';
+import { DeveloperDashboard } from './DeveloperDashboard';
 
 function formatNumber(n: number): string {
   return new Intl.NumberFormat('he-IL').format(n);
@@ -40,7 +40,11 @@ export function ResultsDashboard() {
   const { result, reset, userPath } = useZoning();
   if (!result) return null;
 
-  const { property, zoningPlan, calculations, financial, urbanRenewalEligibility, envelope, auditTrail, developerReport } = result;
+  const { property, zoningPlan, calculations, financial, urbanRenewalEligibility, envelope, auditTrail } = result;
+
+  if (userPath === 'developer') {
+    return <DeveloperDashboard result={result} onReset={reset} />;
+  }
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.5 }} className="space-y-6">
@@ -324,12 +328,6 @@ export function ResultsDashboard() {
             </motion.div>
           )}
 
-          {/* ========== Developer Economic Report (Full Feasibility) ========== */}
-          {userPath === 'developer' && developerReport && (
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.7 }} className="db-card p-4">
-              <DeveloperCalculator report={developerReport} />
-            </motion.div>
-          )}
         </div>
 
         {/* Right column */}
