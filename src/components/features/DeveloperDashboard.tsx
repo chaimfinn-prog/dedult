@@ -110,7 +110,7 @@ export function DeveloperDashboard({ result, onReset }: DeveloperDashboardProps)
           <div>
             <div className="flex items-center gap-2 text-sm text-accent-light">
               <TrendingUp className="w-4 h-4" />
-              <span>דו"ח יזם - כדאיות כלכלית</span>
+              <span>{'דו"ח יזם - כדאיות כלכלית'}</span>
             </div>
             <h2 className="text-3xl md:text-4xl font-bold mt-2 text-gradient">
               {formatNumber(calculations.additionalBuildableArea)} {'מ"ר'} תוספת בנייה
@@ -147,7 +147,7 @@ export function DeveloperDashboard({ result, onReset }: DeveloperDashboardProps)
               </div>
               <div className="absolute bottom-3 left-3 text-[10px] text-foreground-muted flex items-center gap-2">
                 <Radar className="w-3.5 h-3.5 text-accent" />
-                RADAR // סורק מגרש + תב"ע מאושרת
+                {'RADAR // סורק מגרש + תב"ע מאושרת'}
               </div>
             </div>
           </div>
@@ -178,7 +178,7 @@ export function DeveloperDashboard({ result, onReset }: DeveloperDashboardProps)
           <div className="db-card p-5">
             <h3 className="text-sm font-semibold flex items-center gap-2 mb-4">
               <FileText className="w-4 h-4 text-accent" />
-              תב"ע חלה + נתוני בסיס
+              {'תב"ע חלה + נתוני בסיס'}
             </h3>
             <div className="grid md:grid-cols-2 gap-3">
               <InfoCard label="ייעוד קרקע" value={zoningTypeLabels[zoningPlan.zoningType]} icon={<Layers className="w-3.5 h-3.5" />} />

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useEffect, ReactNode } from 'react';
 
 interface ThemeContextType {
   theme: 'dark';
@@ -11,10 +11,7 @@ interface ThemeContextType {
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [mounted, setMounted] = useState(false);
-
   useEffect(() => {
-    setMounted(true);
     // Deepblocks-style: always dark mode
     document.documentElement.classList.remove('light');
     document.documentElement.classList.add('dark');
@@ -22,11 +19,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   return (
     <ThemeContext.Provider value={{ theme: 'dark', toggleTheme: () => {}, setTheme: () => {} }}>
-      {!mounted ? (
-        <div style={{ visibility: 'hidden' }}>{children}</div>
-      ) : (
-        children
-      )}
+      {children}
     </ThemeContext.Provider>
   );
 }

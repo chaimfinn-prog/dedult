@@ -301,13 +301,13 @@ export function ZoningProvider({ children }: { children: ReactNode }) {
       }
     } catch { /* fallback */ }
 
-    let effectiveBuiltArea = permitsFromApi && permitData?.totalBuiltArea
+    const effectiveBuiltArea = permitsFromApi && permitData?.totalBuiltArea
       ? permitData.totalBuiltArea
       : gisData?.builtArea || currentBuiltArea;
-    let effectiveFloors = permitsFromApi && permitData?.floors
+    const effectiveFloors = permitsFromApi && permitData?.floors
       ? permitData.floors
       : gisData?.floors || currentFloors;
-    let effectiveUnits = permitsFromApi && permitData?.units
+    const effectiveUnits = permitsFromApi && permitData?.units
       ? permitData.units
       : gisData?.units || mapping.existingUnits;
 

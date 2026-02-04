@@ -49,7 +49,7 @@ export function Building3D({ floors, currentBuiltArea, maxBuildableArea, maxFloo
   }
 
   // Draw a face (polygon) given 4 3D points
-  function face(pts: [number, number, number][], fill: string, stroke: string, opacity = 1) {
+  function face(pts: [number, number, number][]) {
     const projected = pts.map(([x, y, z]) => iso(x, y, z));
     return `M ${projected.map(([px, py]) => `${px},${py}`).join(' L ')} Z`;
   }
@@ -149,8 +149,7 @@ export function Building3D({ floors, currentBuiltArea, maxBuildableArea, maxFloo
         {/* Ground plane */}
         <path
           d={face(
-            [[-180, -180, 0], [180, -180, 0], [180, 180, 0], [-180, 180, 0]],
-            '', ''
+            [[-180, -180, 0], [180, -180, 0], [180, 180, 0], [-180, 180, 0]]
           )}
           fill="url(#groundGrad)"
           stroke="none"
@@ -170,16 +169,13 @@ export function Building3D({ floors, currentBuiltArea, maxBuildableArea, maxFloo
           .filter(b => b.y < 0 || b.x < -50)
           .map((b, i) => {
             const topFace = face(
-              [[b.x, b.y, b.h], [b.x + b.w, b.y, b.h], [b.x + b.w, b.y + b.d, b.h], [b.x, b.y + b.d, b.h]],
-              '', ''
+              [[b.x, b.y, b.h], [b.x + b.w, b.y, b.h], [b.x + b.w, b.y + b.d, b.h], [b.x, b.y + b.d, b.h]]
             );
             const rightFace = face(
-              [[b.x + b.w, b.y, 0], [b.x + b.w, b.y, b.h], [b.x + b.w, b.y + b.d, b.h], [b.x + b.w, b.y + b.d, 0]],
-              '', ''
+              [[b.x + b.w, b.y, 0], [b.x + b.w, b.y, b.h], [b.x + b.w, b.y + b.d, b.h], [b.x + b.w, b.y + b.d, 0]]
             );
             const frontFace = face(
-              [[b.x, b.y + b.d, 0], [b.x + b.w, b.y + b.d, 0], [b.x + b.w, b.y + b.d, b.h], [b.x, b.y + b.d, b.h]],
-              '', ''
+              [[b.x, b.y + b.d, 0], [b.x + b.w, b.y + b.d, 0], [b.x + b.w, b.y + b.d, b.h], [b.x, b.y + b.d, b.h]]
             );
             return (
               <g key={`ctx-b-${i}`} opacity="0.4">
@@ -193,8 +189,7 @@ export function Building3D({ floors, currentBuiltArea, maxBuildableArea, maxFloo
         {/* Plot boundary - green dashed */}
         <path
           d={face(
-            [[-plotW/2, -plotD/2, 0], [plotW/2, -plotD/2, 0], [plotW/2, plotD/2, 0], [-plotW/2, plotD/2, 0]],
-            '', ''
+            [[-plotW/2, -plotD/2, 0], [plotW/2, -plotD/2, 0], [plotW/2, plotD/2, 0], [-plotW/2, plotD/2, 0]]
           )}
           fill="rgba(74,222,128,0.08)"
           stroke={GREEN_MAIN}
@@ -229,16 +224,13 @@ export function Building3D({ floors, currentBuiltArea, maxBuildableArea, maxFloo
           const hd = bD / 2;
 
           const topFace = face(
-            [[-hw, -hd, z1], [hw, -hd, z1], [hw, hd, z1], [-hw, hd, z1]],
-            '', ''
+            [[-hw, -hd, z1], [hw, -hd, z1], [hw, hd, z1], [-hw, hd, z1]]
           );
           const rightFace = face(
-            [[hw, -hd, z0], [hw, -hd, z1], [hw, hd, z1], [hw, hd, z0]],
-            '', ''
+            [[hw, -hd, z0], [hw, -hd, z1], [hw, hd, z1], [hw, hd, z0]]
           );
           const frontFace = face(
-            [[-hw, hd, z0], [hw, hd, z0], [hw, hd, z1], [-hw, hd, z1]],
-            '', ''
+            [[-hw, hd, z0], [hw, hd, z0], [hw, hd, z1], [-hw, hd, z1]]
           );
 
           // Windows on front face
@@ -304,16 +296,13 @@ export function Building3D({ floors, currentBuiltArea, maxBuildableArea, maxFloo
           .filter(b => b.y >= 0 && b.x >= -50)
           .map((b, i) => {
             const topFace = face(
-              [[b.x, b.y, b.h], [b.x + b.w, b.y, b.h], [b.x + b.w, b.y + b.d, b.h], [b.x, b.y + b.d, b.h]],
-              '', ''
+              [[b.x, b.y, b.h], [b.x + b.w, b.y, b.h], [b.x + b.w, b.y + b.d, b.h], [b.x, b.y + b.d, b.h]]
             );
             const rightFace = face(
-              [[b.x + b.w, b.y, 0], [b.x + b.w, b.y, b.h], [b.x + b.w, b.y + b.d, b.h], [b.x + b.w, b.y + b.d, 0]],
-              '', ''
+              [[b.x + b.w, b.y, 0], [b.x + b.w, b.y, b.h], [b.x + b.w, b.y + b.d, b.h], [b.x + b.w, b.y + b.d, 0]]
             );
             const frontFace = face(
-              [[b.x, b.y + b.d, 0], [b.x + b.w, b.y + b.d, 0], [b.x + b.w, b.y + b.d, b.h], [b.x, b.y + b.d, b.h]],
-              '', ''
+              [[b.x, b.y + b.d, 0], [b.x + b.w, b.y + b.d, 0], [b.x + b.w, b.y + b.d, b.h], [b.x, b.y + b.d, b.h]]
             );
             return (
               <g key={`ctx-f-${i}`} opacity="0.35">

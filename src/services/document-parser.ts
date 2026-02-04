@@ -51,9 +51,14 @@ export async function extractTextFromPdf(file: File): Promise<PdfPage[]> {
       try {
         const page = await pdf.getPage(i);
         const content = await page.getTextContent();
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const text = content.items
-          .map((item: any) => (item.str || ''))
+          .map((item) => {
+            if (typeof item === 'object' && item && 'str' in item) {
+              const candidate = item as { str?: unknown };
+              return typeof candidate.str === 'string' ? candidate.str : '';
+            }
+            return '';
+          })
           .join(' ')
           .replace(/\s+/g, ' ')
           .trim();

@@ -1,12 +1,13 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef } from 'react';
+import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Shield, Lock, LogOut, Plus, Trash2, Edit3, Save, X,
   FileText, MapPin, Upload, Building2, ChevronDown, ChevronUp,
-  Download, Check, AlertTriangle, Search, Cpu, CheckCircle2,
-  XCircle, Loader2, Sparkles, RefreshCw, Database, BookOpen,
+  AlertTriangle, Search, Cpu, CheckCircle2,
+  Loader2, Sparkles, RefreshCw, Database, BookOpen,
 } from 'lucide-react';
 import { ZoningPlan, ZoningType } from '@/types';
 import { AddressMapping } from '@/data/zoning-plans';
@@ -24,14 +25,10 @@ import {
   getAllAddresses,
   getDocuments,
   saveDocument,
-  deleteDocument,
   DocumentEntry,
   ExtractedPlanData,
-  documentTypeLabels,
   generateId,
-  fileToBase64,
   createPlanFromExtractedData,
-  autoSavePlanFromDocument,
 } from '@/services/admin-storage';
 import { parseDocument, type ParsedDocument, type ParsedField } from '@/services/document-parser';
 
@@ -614,13 +611,13 @@ function AddressForm({
 // ── Main Admin Page ──────────────────────────────────────────
 
 export default function AdminPage() {
-  const [authenticated, setAuthenticated] = useState(false);
+  const [authenticated, setAuthenticated] = useState(() => isAdminAuthenticated());
   const [tab, setTab] = useState<AdminTab>('learn');
-  const [plans, setPlans] = useState<ZoningPlan[]>([]);
-  const [addresses, setAddresses] = useState<AddressMapping[]>([]);
-  const [documents, setDocuments] = useState<DocumentEntry[]>([]);
-  const [customPlanIds, setCustomPlanIds] = useState<Set<string>>(new Set());
-  const [customAddrs, setCustomAddrs] = useState<Set<string>>(new Set());
+  const [plans, setPlans] = useState<ZoningPlan[]>(() => (isAdminAuthenticated() ? getAllPlans() : []));
+  const [addresses, setAddresses] = useState<AddressMapping[]>(() => (isAdminAuthenticated() ? getAllAddresses() : []));
+  const [documents, setDocuments] = useState<DocumentEntry[]>(() => (isAdminAuthenticated() ? getDocuments() : []));
+  const [customPlanIds, setCustomPlanIds] = useState<Set<string>>(() => new Set(isAdminAuthenticated() ? getCustomPlans().map((p) => p.id) : []));
+  const [customAddrs, setCustomAddrs] = useState<Set<string>>(() => new Set(isAdminAuthenticated() ? getCustomAddresses().map((a) => a.address) : []));
   const [editingPlan, setEditingPlan] = useState<ZoningPlan | null>(null);
   const [editingAddr, setEditingAddr] = useState<AddressMapping | null>(null);
   const [showForm, setShowForm] = useState(false);
@@ -636,21 +633,12 @@ export default function AdminPage() {
     setCustomAddrs(new Set(getCustomAddresses().map((a) => a.address)));
   }, []);
 
-  useEffect(() => {
-    if (isAdminAuthenticated()) setAuthenticated(true);
-  }, []);
-
-  useEffect(() => {
-    if (authenticated) refreshData();
-  }, [authenticated, refreshData]);
-
-  if (!authenticated) return <LoginScreen onLogin={() => setAuthenticated(true)} />;
+  if (!authenticated) return <LoginScreen onLogin={() => { setAuthenticated(true); refreshData(); }} />;
 
   const handleSavePlan = (plan: ZoningPlan) => { saveCustomPlan(plan); setShowForm(false); setEditingPlan(null); refreshData(); };
   const handleDeletePlan = (planId: string) => { if (!customPlanIds.has(planId)) return; deleteCustomPlan(planId); refreshData(); };
   const handleSaveAddr = (addr: AddressMapping) => { saveCustomAddress(addr); setShowForm(false); setEditingAddr(null); refreshData(); };
   const handleDeleteAddr = (address: string) => { if (!customAddrs.has(address)) return; deleteCustomAddress(address); refreshData(); };
-  const handleDeleteDoc = (docId: string) => { deleteDocument(docId); refreshData(); };
   const handleLogout = () => { setAdminAuthenticated(false); setAuthenticated(false); };
 
   const learnedPlans = getCustomPlans();
@@ -677,7 +665,7 @@ export default function AdminPage() {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <a href="/" className="text-xs text-foreground-muted hover:text-accent transition-colors px-3 py-1.5 rounded-lg hover:bg-[rgba(255,255,255,0.04)]">חזרה לאתר</a>
+          <Link href="/" className="text-xs text-foreground-muted hover:text-accent transition-colors px-3 py-1.5 rounded-lg hover:bg-[rgba(255,255,255,0.04)]">חזרה לאתר</Link>
           <button onClick={handleLogout} className="p-2 hover:bg-[rgba(255,255,255,0.04)] rounded-lg text-foreground-muted hover:text-red-400 transition-colors">
             <LogOut className="w-4 h-4" />
           </button>
