@@ -3,7 +3,7 @@ import './globals.css';
 
 export const metadata: Metadata = {
   title: 'Zchut.AI — Zoning Intelligence Brain',
-  description: 'מנוע ניתוח זכויות בנייה — העלה תב"ע, חשב זכויות, קבל הדמיית 3D Massing',
+  description: 'מנוע ניתוח זכויות בנייה — מבוסס תב"עות מפורטות מאושרות, חשב זכויות, קבל הדמיית 3D Massing',
   icons: { icon: '/favicon.ico' },
 };
 

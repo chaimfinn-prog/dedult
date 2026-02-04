@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import {
-  Building2, Calculator, Shield, Upload, ChevronLeft,
+  Building2, Calculator, Shield, ChevronLeft,
   Database, Cpu, Layers, Box,
 } from 'lucide-react';
 import { getPlanCount } from '@/services/db';
@@ -40,7 +40,7 @@ export default function Home() {
               {'מנוע ניתוח זכויות בנייה'}
             </h2>
             <p className="text-sm text-foreground-muted max-w-lg mx-auto mb-8 leading-relaxed">
-              {'המערכת לומדת מתוך מסמכי תב"ע שהוזנו. העלה PDF, המערכת מחלצת נתונים אוטומטית, ואז מחשבת זכויות בנייה על סמך מידות המגרש שלך.'}
+              {'המערכת לומדת מתב"עות מפורטות מאושרות בלבד. היא מחלצת נתונים אוטומטית ומחשבת זכויות בנייה על סמך מידות המגרש שלך.'}
             </p>
 
             {/* Stats */}
@@ -65,7 +65,7 @@ export default function Home() {
               >
                 <div className="flex items-center gap-2 justify-center text-sm text-gold">
                   <Database className="w-4 h-4" />
-                  <span>{'המערכת ריקה — העלה תב"ע ראשונה דרך פאנל הניהול'}</span>
+                  <span>{'המערכת ריקה — טרם נטענו תב"עות מפורטות מאושרות'}</span>
                 </div>
               </motion.div>
             )}
@@ -80,13 +80,13 @@ export default function Home() {
                 className="db-card p-6 hover:border-accent/30 transition-all group cursor-pointer text-right"
               >
                 <div className="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center mb-3 group-hover:bg-accent/20 transition-colors">
-                  <Upload className="w-5 h-5 text-accent" />
+                  <Database className="w-5 h-5 text-accent" />
                 </div>
                 <h3 className="font-semibold text-sm mb-1 flex items-center gap-1">
-                  {'הזנת תב"ע'}
+                  {'מאגר תב"עות'}
                   <ChevronLeft className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
                 </h3>
-                <p className="text-xs text-foreground-muted">{'העלה PDF — המערכת מחלצת אחוזי בנייה, קומות, תכסית וקווי בניין'}</p>
+                <p className="text-xs text-foreground-muted">{'עיון בתב"עות מפורטות מאושרות שמוזנות אוטומטית למערכת'}</p>
               </motion.a>
 
               <motion.a
@@ -134,11 +134,11 @@ export default function Home() {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-center text-xs">
             <div className="flex flex-col items-center gap-2">
               <div className="w-8 h-8 rounded-lg bg-accent/10 flex items-center justify-center">
-                <Upload className="w-4 h-4 text-accent" />
+                <Database className="w-4 h-4 text-accent" />
               </div>
               <div>
-                <div className="font-semibold">1. העלה</div>
-                <div className="text-foreground-muted">{'העלה PDF של תב"ע'}</div>
+                <div className="font-semibold">1. סנכרון</div>
+                <div className="text-foreground-muted">{'תב"עות מפורטות מאושרות'}</div>
               </div>
             </div>
             <div className="flex flex-col items-center gap-2">

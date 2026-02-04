@@ -74,6 +74,7 @@ function AutoIngestFlow({ onDone }: { onDone: () => void }) {
   const [city, setCity] = useState('');
   const [neighborhood, setNeighborhood] = useState('');
   const [zoningType, setZoningType] = useState<ZoningType>('residential_a');
+  const [planKind, setPlanKind] = useState<'detailed' | 'outline'>('detailed');
   const [saving, setSaving] = useState(false);
   const [savedName, setSavedName] = useState('');
 
@@ -230,6 +231,7 @@ function AutoIngestFlow({ onDone }: { onDone: () => void }) {
         city,
         neighborhood,
         zoningType,
+        planKind,
         rules: confirmedRules,
         documents: slots.filter(s => s.file).map(s => ({
           type: s.type,
@@ -260,6 +262,7 @@ function AutoIngestFlow({ onDone }: { onDone: () => void }) {
     setCity('');
     setNeighborhood('');
     setZoningType('residential_a');
+    setPlanKind('detailed');
     setSavedName('');
     setEditingRuleId(null);
   };
@@ -578,6 +581,13 @@ function AutoIngestFlow({ onDone }: { onDone: () => void }) {
                     <option value="industrial">תעשייה</option>
                   </select>
                 </div>
+                <div>
+                  <label className="text-xs text-foreground-muted">רמת תכנית</label>
+                  <select className="input-field w-full mt-1" value={planKind} onChange={(e) => setPlanKind(e.target.value as 'detailed' | 'outline')}>
+                    <option value="detailed">תב"ע מפורטת (להיתר)</option>
+                    <option value="outline">תכנית מתאר (ללא היתר)</option>
+                  </select>
+                </div>
               </div>
             </div>
 
@@ -658,6 +668,7 @@ function PlanForm({
       planNumber: '', name: '', city: '', neighborhood: '',
       approvalDate: new Date().toISOString().split('T')[0],
       status: 'active',
+      planKind: 'detailed',
       zoningType: 'residential_a' as ZoningType,
       buildingRights: {
         mainBuildingPercent: 0, serviceBuildingPercent: 0, totalBuildingPercent: 0,
@@ -708,6 +719,9 @@ function PlanForm({
             <option value="residential_a">{"מגורים א'"}</option><option value="residential_b">{"מגורים ב'"}</option><option value="residential_c">{"מגורים ג'"}</option>
             <option value="mixed_use">שימוש מעורב</option><option value="commercial">מסחרי</option>
           </select></div>
+          <div><label className="text-xs text-foreground-muted">רמת תכנית</label><select className="input-field w-full mt-1" value={form.planKind || 'detailed'} onChange={(e) => updateField('planKind', e.target.value)}>
+            <option value="detailed">תב"ע מפורטת (להיתר)</option><option value="outline">תכנית מתאר (ללא היתר)</option>
+          </select></div>
         </div>
       </div>
 
@@ -742,14 +756,8 @@ function PlanForm({
 
 // ── Main Admin Page ──────────────────────────────────────────
 
-type AdminTab = 'learn' | 'plans';
-
 export default function AdminPage() {
-  const [tab, setTab] = useState<AdminTab>('learn');
   const [plans, setPlans] = useState<ZoningPlan[]>([]);
-  const [showIngest, setShowIngest] = useState(false);
-  const [editingPlan, setEditingPlan] = useState<ZoningPlan | null>(null);
-  const [showForm, setShowForm] = useState(false);
   const [expandedPlan, setExpandedPlan] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -762,26 +770,9 @@ export default function AdminPage() {
     refreshData();
   }, []);
 
-  const handleSavePlan = async (plan: ZoningPlan) => {
-    await savePlan(plan);
-    setShowForm(false);
-    setEditingPlan(null);
-    refreshData();
-  };
-
-  const handleDeletePlan = async (planId: string) => {
-    await deletePlan(planId);
-    refreshData();
-  };
-
   const filteredPlans = plans.filter(
     (p) => !searchTerm || p.planNumber.includes(searchTerm) || p.name.includes(searchTerm) || (p.city && p.city.includes(searchTerm))
   );
-
-  const tabs: { key: AdminTab; label: string; icon: typeof Building2; count: number }[] = [
-    { key: 'learn', label: 'הזנת תב"ע', icon: BookOpen, count: plans.length },
-    { key: 'plans', label: 'תכניות במערכת', icon: Building2, count: plans.length },
-  ];
 
   return (
     <div className="min-h-screen p-4 max-w-4xl mx-auto">
@@ -793,7 +784,7 @@ export default function AdminPage() {
           </div>
           <div>
             <h1 className="text-lg font-bold">ניהול מערכת</h1>
-            <p className="text-xs text-foreground-muted">{'העלה תב"ע — המערכת מחלצת נוסחאות בנייה אוטומטית'}</p>
+            <p className="text-xs text-foreground-muted">{'מאגר תב"עות מפורטות מאושרות בלבד'}</p>
           </div>
         </div>
         <a href="/" className="text-xs text-foreground-muted hover:text-accent transition-colors px-3 py-1.5 rounded-lg hover:bg-[rgba(255,255,255,0.04)]">חזרה לאתר</a>
@@ -814,179 +805,94 @@ export default function AdminPage() {
         </div>
       )}
 
-      {/* Tabs */}
-      <div className="flex gap-1 mb-4 db-card p-1">
-        {tabs.map((t) => (
-          <button
-            key={t.key}
-            onClick={() => { setTab(t.key); setShowForm(false); setShowIngest(false); setSearchTerm(''); }}
-            className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-lg text-sm font-medium transition-all ${
-              tab === t.key ? 'bg-accent/10 text-accent' : 'text-foreground-muted hover:text-foreground hover:bg-[rgba(255,255,255,0.04)]'
-            }`}
-          >
-            <t.icon className="w-4 h-4" />
-            {t.label}
-            <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${tab === t.key ? 'bg-accent/20' : 'bg-[rgba(255,255,255,0.06)]'}`}>{t.count}</span>
-          </button>
-        ))}
+      {/* Content */}
+      <div className="db-card p-4 mb-4 border border-[rgba(59,130,246,0.2)]">
+        <div className="flex items-start gap-3">
+          <BookOpen className="w-5 h-5 text-accent mt-0.5" />
+          <div>
+            <h3 className="text-sm font-semibold text-accent mb-1">{'טעינת תב"עות'}</h3>
+            <p className="text-xs text-foreground-secondary">
+              {'טעינת תב"עות מתבצעת אוטומטית מתוך מאגר תב"עות מפורטות מאושרות. אין אפשרות להעלות קבצים ידנית.'}
+            </p>
+          </div>
+        </div>
       </div>
 
-      {/* Content */}
-      <AnimatePresence mode="wait">
-        {tab === 'learn' && (
-          <motion.div key="learn" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
-            {showIngest ? (
-              <AutoIngestFlow onDone={() => { setShowIngest(false); refreshData(); }} />
-            ) : (
-              <>
-                <button onClick={() => setShowIngest(true)} className="btn-primary w-full py-4 flex items-center justify-center gap-3 text-base">
-                  <Upload className="w-5 h-5" />{'העלה תב"ע חדשה למערכת'}
-                </button>
+      <div className="space-y-2">
+        <div className="flex gap-2 mb-4">
+          <div className="relative flex-1">
+            <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground-muted" />
+            <input className="input-field w-full pr-10" placeholder="חיפוש..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+          </div>
+        </div>
 
-                {plans.length === 0 && (
-                  <div className="db-card p-10 text-center">
-                    <BookOpen className="w-12 h-12 text-foreground-muted mx-auto mb-3 opacity-40" />
-                    <h3 className="text-base font-semibold mb-1">{'המערכת עדיין לא למדה תב"ע'}</h3>
-                    <p className="text-sm text-foreground-muted mb-4">
-                      {'לחץ "העלה תב"ע חדשה" כדי להעלות מסמכים. המערכת תנתח אותם ותחלץ נוסחאות בנייה.'}
-                    </p>
-                  </div>
-                )}
-
-                {plans.length > 0 && (
-                  <div className="space-y-2">
-                    <h3 className="text-sm font-semibold text-foreground-secondary flex items-center gap-2">
-                      <Database className="w-4 h-4" />
-                      {'תכניות שהמערכת למדה (' + plans.length + ')'}
-                    </h3>
-                    {plans.map((plan) => (
-                      <div key={plan.id} className="db-card p-3">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-3 flex-1 min-w-0">
-                            <div className="w-8 h-8 rounded-lg bg-[rgba(34,197,94,0.1)] flex items-center justify-center flex-shrink-0">
-                              <CheckCircle2 className="w-4 h-4 text-green" />
-                            </div>
-                            <div className="min-w-0">
-                              <div className="flex items-center gap-2">
-                                <span className="font-bold text-sm">{plan.planNumber || plan.name || 'ללא מספר'}</span>
-                                {plan.city && <span className="text-xs text-foreground-muted">{plan.city}</span>}
-                              </div>
-                              <p className="text-xs text-foreground-muted truncate">
-                                {plan.rules && plan.rules.length > 0
-                                  ? `${plan.rules.length} כללים | `
-                                  : ''}
-                                {plan.buildingRights.mainBuildingPercent > 0 && `עיקרי: ${plan.buildingRights.mainBuildingPercent}% | `}
-                                {plan.buildingRights.maxFloors > 0 && `${plan.buildingRights.maxFloors} קומות | `}
-                                {plan.buildingRights.landCoveragePercent > 0 && `תכסית: ${plan.buildingRights.landCoveragePercent}%`}
-                              </p>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-1 mr-2">
-                            <button onClick={() => { setTab('plans'); setEditingPlan(plan); setShowForm(true); }} className="p-1.5 hover:bg-[rgba(255,255,255,0.04)] rounded-lg text-foreground-muted hover:text-accent">
-                              <Edit3 className="w-3.5 h-3.5" />
-                            </button>
-                            <button onClick={() => handleDeletePlan(plan.id)} className="p-1.5 hover:bg-[rgba(255,255,255,0.04)] rounded-lg text-foreground-muted hover:text-red-400">
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </>
-            )}
-          </motion.div>
+        {filteredPlans.length === 0 && (
+          <div className="db-card p-8 text-center text-foreground-muted">
+            {plans.length === 0 ? 'אין תכניות במערכת. התב"עות ייטענו אוטומטית לאחר סנכרון.' : 'אין תכניות תואמות'}
+          </div>
         )}
 
-        {tab === 'plans' && (
-          <motion.div key="plans" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-2">
-            {showForm ? (
-              <PlanForm plan={editingPlan || undefined} onSave={handleSavePlan} onCancel={() => { setShowForm(false); setEditingPlan(null); }} />
-            ) : (
-              <>
-                <div className="flex gap-2 mb-4">
-                  <div className="relative flex-1">
-                    <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground-muted" />
-                    <input className="input-field w-full pr-10" placeholder="חיפוש..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
-                  </div>
-                  <button onClick={() => { setShowForm(true); setEditingPlan(null); }} className="btn-primary flex items-center gap-2 px-4">
-                    <Plus className="w-4 h-4" />הוסף
-                  </button>
-                </div>
-
-                {filteredPlans.length === 0 && (
-                  <div className="db-card p-8 text-center text-foreground-muted">
-                    {plans.length === 0 ? 'אין תכניות במערכת. העלה תב"ע בלשונית "הזנת תב"ע".' : 'אין תכניות תואמות'}
-                  </div>
-                )}
-
-                {filteredPlans.map((plan) => {
-                  const isExpanded = expandedPlan === plan.id;
-                  return (
-                    <div key={plan.id} className="db-card overflow-hidden">
-                      <div className="p-3 flex items-center justify-between cursor-pointer hover:bg-[rgba(255,255,255,0.02)] transition-colors" onClick={() => setExpandedPlan(isExpanded ? null : plan.id)}>
-                        <div className="flex items-center gap-3 flex-1 min-w-0">
-                          <div className="w-2 h-2 rounded-full bg-green" />
-                          <div className="min-w-0">
-                            <div className="flex items-center gap-2">
-                              <span className="font-bold text-sm">{plan.planNumber}</span>
-                              {plan.city && <span className="text-xs text-foreground-muted">{plan.city}</span>}
-                            </div>
-                            <p className="text-xs text-foreground-muted truncate">{plan.name}</p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2 mr-2">
-                          <span className="text-xs text-foreground-muted">
-                            {plan.rules?.length > 0 ? `${plan.rules.length} כללים` : `${plan.buildingRights.totalBuildingPercent}% | ${plan.buildingRights.maxFloors} קומות`}
-                          </span>
-                          {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                        </div>
-                      </div>
-                      {isExpanded && (
-                        <div className="border-t border-[rgba(255,255,255,0.06)] p-4 space-y-3">
-                          {/* Show rules if available */}
-                          {plan.rules && plan.rules.length > 0 ? (
-                            <div className="space-y-1">
-                              <h5 className="text-xs font-semibold text-foreground-secondary mb-1">{'כללי בנייה (נוסחאות)'}</h5>
-                              {plan.rules.map(r => (
-                                <div key={r.id} className="flex items-center justify-between text-xs p-2 rounded bg-[rgba(0,0,0,0.2)]">
-                                  <div className="flex items-center gap-2">
-                                    <CheckCircle2 className="w-3 h-3 text-green flex-shrink-0" />
-                                    <span className="text-foreground-muted">{ruleCategoryLabels[r.category]}:</span>
-                                    <span className="font-bold font-mono">{r.displayValue}</span>
-                                  </div>
-                                  <span className="text-[10px] text-foreground-muted font-mono">{r.formula}</span>
-                                </div>
-                              ))}
-                            </div>
-                          ) : (
-                            <div className="grid grid-cols-3 gap-3 text-xs">
-                              <div><span className="text-foreground-muted">עיר:</span> <span>{plan.city}</span></div>
-                              <div><span className="text-foreground-muted">שכונה:</span> <span>{plan.neighborhood}</span></div>
-                              <div><span className="text-foreground-muted">סטטוס:</span> <span>{plan.status}</span></div>
-                              <div><span className="text-foreground-muted">עיקרי:</span> <span>{plan.buildingRights.mainBuildingPercent}%</span></div>
-                              <div><span className="text-foreground-muted">שירות:</span> <span>{plan.buildingRights.serviceBuildingPercent}%</span></div>
-                              <div><span className="text-foreground-muted">גובה:</span> <span>{plan.buildingRights.maxHeight}{"מ'"}</span></div>
-                              <div><span className="text-foreground-muted">תכסית:</span> <span>{plan.buildingRights.landCoveragePercent}%</span></div>
-                              <div><span className="text-foreground-muted">קו קדמי:</span> <span>{plan.restrictions.frontSetback}{"מ'"}</span></div>
-                              <div><span className="text-foreground-muted">קו אחורי:</span> <span>{plan.restrictions.rearSetback}{"מ'"}</span></div>
-                            </div>
-                          )}
-                          <div className="flex gap-2 pt-2 border-t border-[rgba(255,255,255,0.06)]">
-                            <button onClick={(e) => { e.stopPropagation(); setEditingPlan(plan); setShowForm(true); }} className="flex items-center gap-1 text-xs text-accent hover:underline"><Edit3 className="w-3 h-3" /> עריכה</button>
-                            <button onClick={(e) => { e.stopPropagation(); handleDeletePlan(plan.id); }} className="flex items-center gap-1 text-xs text-red-400 hover:underline"><Trash2 className="w-3 h-3" /> מחיקה</button>
-                          </div>
-                        </div>
-                      )}
+        {filteredPlans.map((plan) => {
+          const isExpanded = expandedPlan === plan.id;
+          return (
+            <div key={plan.id} className="db-card overflow-hidden">
+              <div className="p-3 flex items-center justify-between cursor-pointer hover:bg-[rgba(255,255,255,0.02)] transition-colors" onClick={() => setExpandedPlan(isExpanded ? null : plan.id)}>
+                <div className="flex items-center gap-3 flex-1 min-w-0">
+                  <div className={`w-2 h-2 rounded-full ${plan.status === 'active' ? 'bg-green' : 'bg-gold'}`} />
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-sm">{plan.planNumber}</span>
+                      {plan.city && <span className="text-xs text-foreground-muted">{plan.city}</span>}
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-[rgba(255,255,255,0.06)] text-foreground-muted">
+                        {plan.planKind === 'detailed' ? 'מפורטת' : 'מתאר'}
+                      </span>
                     </div>
-                  );
-                })}
-              </>
-            )}
-          </motion.div>
-        )}
-      </AnimatePresence>
+                    <p className="text-xs text-foreground-muted truncate">{plan.name}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 mr-2">
+                  <span className="text-xs text-foreground-muted">
+                    {plan.rules?.length > 0 ? `${plan.rules.length} כללים` : `${plan.buildingRights.totalBuildingPercent}% | ${plan.buildingRights.maxFloors} קומות`}
+                  </span>
+                  {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                </div>
+              </div>
+              {isExpanded && (
+                <div className="border-t border-[rgba(255,255,255,0.06)] p-4 space-y-3">
+                  {/* Show rules if available */}
+                  {plan.rules && plan.rules.length > 0 ? (
+                    <div className="space-y-1">
+                      <h5 className="text-xs font-semibold text-foreground-secondary mb-1">{'כללי בנייה (נוסחאות)'}</h5>
+                      {plan.rules.map(r => (
+                        <div key={r.id} className="flex items-center justify-between text-xs p-2 rounded bg-[rgba(0,0,0,0.2)]">
+                          <div className="flex items-center gap-2">
+                            <CheckCircle2 className="w-3 h-3 text-green flex-shrink-0" />
+                            <span className="text-foreground-muted">{ruleCategoryLabels[r.category]}:</span>
+                            <span className="font-bold font-mono">{r.displayValue}</span>
+                          </div>
+                          <span className="text-[10px] text-foreground-muted font-mono">{r.formula}</span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-3 gap-3 text-xs">
+                      <div><span className="text-foreground-muted">עיר:</span> <span>{plan.city}</span></div>
+                      <div><span className="text-foreground-muted">שכונה:</span> <span>{plan.neighborhood}</span></div>
+                      <div><span className="text-foreground-muted">סטטוס:</span> <span>{plan.status}</span></div>
+                      <div><span className="text-foreground-muted">עיקרי:</span> <span>{plan.buildingRights.mainBuildingPercent}%</span></div>
+                      <div><span className="text-foreground-muted">שירות:</span> <span>{plan.buildingRights.serviceBuildingPercent}%</span></div>
+                      <div><span className="text-foreground-muted">גובה:</span> <span>{plan.buildingRights.maxHeight}{"מ'"}</span></div>
+                      <div><span className="text-foreground-muted">תכסית:</span> <span>{plan.buildingRights.landCoveragePercent}%</span></div>
+                      <div><span className="text-foreground-muted">קו קדמי:</span> <span>{plan.restrictions.frontSetback}{"מ'"}</span></div>
+                      <div><span className="text-foreground-muted">קו אחורי:</span> <span>{plan.restrictions.rearSetback}{"מ'"}</span></div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
 
       {/* Stats Footer */}
       <div className="mt-8 db-card p-4">
