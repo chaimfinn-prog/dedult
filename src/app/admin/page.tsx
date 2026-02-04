@@ -626,6 +626,7 @@ export default function AdminPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const addressImportRef = useRef<HTMLInputElement>(null);
   const [isImportingAddresses, setIsImportingAddresses] = useState(false);
+  const [verifyingAddress, setVerifyingAddress] = useState<string | null>(null);
 
   const refreshData = useCallback(() => {
     setPlans(getAllPlans());
@@ -687,6 +688,64 @@ export default function AdminPage() {
     } finally {
       setIsImportingAddresses(false);
       if (addressImportRef.current) addressImportRef.current.value = '';
+    }
+  };
+  const handleVerifyAddress = async (addr: AddressMapping) => {
+    setVerifyingAddress(addr.address);
+    try {
+      let nextMapping: AddressMapping = { ...addr };
+      const parcelRes = await fetch(`/api/parcel?address=${encodeURIComponent(addr.address)}`);
+      if (parcelRes.ok) {
+        const parcelData = await parcelRes.json();
+        if (parcelData.success && parcelData.data) {
+          nextMapping = {
+            ...nextMapping,
+            block: String(parcelData.data.block || nextMapping.block),
+            parcel: String(parcelData.data.parcel || nextMapping.parcel),
+            plotSize: Number(parcelData.data.area || nextMapping.plotSize),
+          };
+        }
+      }
+
+      const permitsRes = await fetch(`/api/permits?block=${nextMapping.block}&parcel=${nextMapping.parcel}`);
+      let verifiedSource: AddressMapping['verifiedSource'] | undefined;
+      if (permitsRes.ok) {
+        const permitData = await permitsRes.json();
+        if (permitData.success && permitData.data) {
+          nextMapping = {
+            ...nextMapping,
+            existingArea: Number(permitData.data.totalBuiltArea || nextMapping.existingArea),
+            existingFloors: Number(permitData.data.floors || nextMapping.existingFloors),
+            existingUnits: Number(permitData.data.units || nextMapping.existingUnits),
+          };
+          verifiedSource = permitData.source === 'rishui_zamin' ? 'rishui_zamin' : 'local_db';
+        }
+      }
+
+      const gisRes = await fetch(`/api/building-file?block=${nextMapping.block}&parcel=${nextMapping.parcel}`);
+      if (gisRes.ok) {
+        const gisData = await gisRes.json();
+        if (gisData.success && gisData.data && !verifiedSource) {
+          nextMapping = {
+            ...nextMapping,
+            existingArea: Number(gisData.data.builtArea || nextMapping.existingArea),
+            existingFloors: Number(gisData.data.floors || nextMapping.existingFloors),
+            existingUnits: Number(gisData.data.units || nextMapping.existingUnits),
+          };
+          verifiedSource = gisData.source === 'raanana_gis' ? 'raanana_gis' : 'local_db';
+        }
+      }
+
+      const verifiedAt = new Date().toISOString();
+      const mappingToSave: AddressMapping = {
+        ...nextMapping,
+        verifiedAt,
+        verifiedSource: verifiedSource ?? 'local_db',
+      };
+      saveCustomAddress(mappingToSave);
+      refreshData();
+    } finally {
+      setVerifyingAddress(null);
     }
   };
 
@@ -943,10 +1002,20 @@ export default function AdminPage() {
                             <div className="flex items-center gap-2">
                               <span className="font-medium text-sm">{addr.address}</span>
                               {isCustom && <span className="badge badge-accent text-[9px]">מותאם אישית</span>}
+                              {addr.verifiedSource && (
+                                <span className="badge badge-success text-[9px]">
+                                  אומת ({addr.verifiedSource})
+                                </span>
+                              )}
                             </div>
                             <p className="text-xs text-foreground-muted">
                               גוש {addr.block} חלקה {addr.parcel} | {addr.neighborhood} | {addr.plotSize} {"מ\"ר"}
                             </p>
+                            {addr.verifiedAt && (
+                              <p className="text-[10px] text-foreground-muted">
+                                עודכן: {new Date(addr.verifiedAt).toLocaleDateString('he-IL')}
+                              </p>
+                            )}
                           </div>
                         </div>
                         {isCustom && (
@@ -955,6 +1024,15 @@ export default function AdminPage() {
                             <button onClick={() => handleDeleteAddr(addr.address)} className="p-1.5 hover:bg-[rgba(255,255,255,0.04)] rounded-lg text-foreground-muted hover:text-red-400"><Trash2 className="w-3.5 h-3.5" /></button>
                           </div>
                         )}
+                      </div>
+                      <div className="mt-3 flex gap-2">
+                        <button
+                          onClick={() => handleVerifyAddress(addr)}
+                          className="btn-secondary text-xs"
+                          disabled={verifyingAddress === addr.address}
+                        >
+                          {verifyingAddress === addr.address ? 'מאמת נתונים...' : 'אמת נתונים'}
+                        </button>
                       </div>
                     </div>
                   );

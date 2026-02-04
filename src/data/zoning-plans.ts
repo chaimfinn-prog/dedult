@@ -393,6 +393,8 @@ export interface AddressMapping {
   existingArea: number;
   existingUnits: number;
   yearBuilt?: number;
+  verifiedAt?: string;
+  verifiedSource?: 'mapi_gis' | 'rishui_zamin' | 'raanana_gis' | 'local_db';
 }
 
 export const addressMappings: AddressMapping[] = [
