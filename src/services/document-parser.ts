@@ -4,7 +4,7 @@
  * Uses Hebrew regex patterns to identify building rights parameters.
  */
 
-import type { ExtractedPlanData } from './admin-storage';
+import type { ExtractedPlanData } from './db';
 
 // ── Types ─────────────────────────────────────────────────────
 
