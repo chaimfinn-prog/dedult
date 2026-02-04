@@ -255,38 +255,81 @@ export function ZoningProvider({ children }: { children: ReactNode }) {
     await delay(300);
 
     // ========== AUDIT Step 3: Existing Built State ==========
-    addLog('בודק מצב בנוי קיים (רישוי זמין)...', 'search');
+    addLog('בודק מצב בנוי קיים (רישוי זמין + GIS רעננה)...', 'search');
     await delay(500);
 
     let permitsFromApi = false;
+    let permitData: {
+      totalBuiltArea: number;
+      floors: number;
+      units: number;
+      permitNumber?: string;
+      permitDate?: string;
+    } | null = null;
     try {
       const res = await fetch(`/api/permits?block=${mapping.block}&parcel=${mapping.parcel}`);
       if (res.ok) {
         const apiData = await res.json();
-        if (apiData.success && apiData.source === 'rishui_zamin') {
-          permitsFromApi = true;
-          addLog(`[LIVE] רישוי זמין: ${apiData.data.totalBuiltArea} מ"ר בנוי, ${apiData.data.floors} קומות`, 'info');
+        if (apiData.success && apiData.data) {
+          permitData = apiData.data;
+          if (apiData.source === 'rishui_zamin') {
+            permitsFromApi = true;
+            addLog(`[LIVE] רישוי זמין: ${apiData.data.totalBuiltArea} מ"ר בנוי, ${apiData.data.floors} קומות`, 'info');
+          }
         }
       }
     } catch { /* fallback */ }
 
-    if (!permitsFromApi) {
-      addLog(`מצב קיים: ${currentBuiltArea} מ"ר, ${currentFloors} קומות (מאגר מקומי)`, 'info');
+    let gisFromApi = false;
+    let gisData: {
+      builtArea: number;
+      floors: number;
+      units: number;
+      fileNumber?: string;
+    } | null = null;
+    try {
+      const res = await fetch(`/api/building-file?block=${mapping.block}&parcel=${mapping.parcel}`);
+      if (res.ok) {
+        const apiData = await res.json();
+        if (apiData.success && apiData.data) {
+          gisData = apiData.data;
+          if (apiData.source === 'raanana_gis') {
+            gisFromApi = true;
+            addLog(`[LIVE] GIS רעננה: ${apiData.data.builtArea} מ"ר בנוי, ${apiData.data.floors} קומות`, 'info');
+          }
+        }
+      }
+    } catch { /* fallback */ }
+
+    let effectiveBuiltArea = permitsFromApi && permitData?.totalBuiltArea
+      ? permitData.totalBuiltArea
+      : gisData?.builtArea || currentBuiltArea;
+    let effectiveFloors = permitsFromApi && permitData?.floors
+      ? permitData.floors
+      : gisData?.floors || currentFloors;
+    let effectiveUnits = permitsFromApi && permitData?.units
+      ? permitData.units
+      : gisData?.units || mapping.existingUnits;
+
+    if (!permitsFromApi && !gisFromApi) {
+      addLog(`מצב קיים: ${effectiveBuiltArea} מ"ר, ${effectiveFloors} קומות (מאגר מקומי)`, 'info');
     }
     await delay(400);
 
     auditTrail.push({
       step: 3,
       title: 'מצב בנוי קיים',
-      subtitle: 'שטחים מאושרים בהיתר אחרון',
+      subtitle: 'הצלבה בין היתרים ו-GIS עירוני',
       data: {
-        'שטח בנוי': `${currentBuiltArea} מ"ר`,
-        'קומות': currentFloors,
-        'יח"ד': mapping.existingUnits,
+        'שטח בנוי (היתר)': permitData?.totalBuiltArea ? `${permitData.totalBuiltArea} מ"ר` : 'לא נמצא',
+        'קומות (היתר)': permitData?.floors ?? 'לא נמצא',
+        'תיק בניין (GIS)': gisData?.fileNumber || 'לא נמצא',
+        'שטח בנוי (GIS)': gisData?.builtArea ? `${gisData.builtArea} מ"ר` : 'לא נמצא',
+        'יח"ד': effectiveUnits,
         'שנת בנייה': mapping.yearBuilt || 'לא ידוע',
       },
-      source: 'ארכיון הנדסה / רישוי זמין',
-      sourceType: permitsFromApi ? 'rishui_zamin' : 'local_db',
+      source: permitsFromApi || gisFromApi ? 'ארכיון הנדסה / GIS רעננה' : 'מאגר מקומי',
+      sourceType: permitsFromApi ? 'rishui_zamin' : gisFromApi ? 'raanana_gis' : 'local_db',
     });
 
     // ========== TMA 38 Eligibility Check ==========
@@ -330,11 +373,11 @@ export function ZoningProvider({ children }: { children: ReactNode }) {
     addLog('מבצע חישובי שטחים ונפחים (Massing Study)...', 'calculate');
     await delay(800);
 
-    const calculations = calculateBuildingRights(plan, plotSize, currentBuiltArea, mapping, urbanCheck.eligible);
+    const calculations = calculateBuildingRights(plan, plotSize, effectiveBuiltArea, mapping, urbanCheck.eligible);
 
     addLog(`שטח בנייה מותר מכוח תב"ע (${plan.planNumber}): ${calculations.maxBuildableArea} מ"ר`, 'calculate');
     await delay(300);
-    addLog(`שטח בנוי קיים: ${calculations.currentBuiltArea} מ"ר (${mapping.existingUnits} יח"ד, ${currentFloors} קומות)`, 'calculate');
+    addLog(`שטח בנוי קיים: ${calculations.currentBuiltArea} מ"ר (${effectiveUnits} יח"ד, ${effectiveFloors} קומות)`, 'calculate');
     await delay(300);
     addLog(`פוטנציאל בנייה מכוח תב"ע: ${Math.max(0, calculations.maxBuildableArea - calculations.currentBuiltArea)} מ"ר`, 'calculate');
     await delay(300);
