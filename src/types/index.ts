@@ -113,6 +113,12 @@ export interface PropertySearch {
   plotDepth?: number;
   currentBuiltArea: number;
   currentFloors: number;
+  approvedBuiltArea?: number;
+  approvedFloors?: number;
+  approvedUnits?: number;
+  existingBuiltArea?: number;
+  existingFloors?: number;
+  existingUnits?: number;
 }
 
 export interface AnalysisResult {
@@ -127,6 +133,8 @@ export interface AnalysisResult {
 export interface BuildingCalculations {
   maxBuildableArea: number;
   currentBuiltArea: number;
+  approvedBuiltArea: number;
+  existingBuiltArea: number;
   additionalBuildableArea: number;
   mainAreaTotal: number;
   serviceAreaTotal: number;

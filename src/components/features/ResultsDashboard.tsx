@@ -127,7 +127,9 @@ export function ResultsDashboard() {
                 {property.plotWidth && property.plotDepth && (
                   <InfoRow label="מידות" value={`${property.plotWidth}×${property.plotDepth} מ'`} />
                 )}
-                <InfoRow label="שטח בנוי קיים" value={`${formatNumber(property.currentBuiltArea)} מ"ר`} />
+                <InfoRow label="שטח מאושר (היתר)" value={`${formatNumber(property.approvedBuiltArea ?? property.currentBuiltArea)} מ"ר`} />
+                <InfoRow label="שטח קיים (GIS)" value={`${formatNumber(property.existingBuiltArea ?? property.currentBuiltArea)} מ"ר`} />
+                <InfoRow label="שטח לניתוח" value={`${formatNumber(property.currentBuiltArea)} מ"ר`} />
                 <InfoRow label="קומות קיימות" value={String(property.currentFloors)} />
               </div>
               <div className="mt-4">
@@ -352,7 +354,7 @@ export function ResultsDashboard() {
               <h4 className="font-semibold text-xs text-foreground-muted mb-3">סיכום נתונים</h4>
               <div className="space-y-2.5">
                 <SummaryRow label="שטח מגרש" value={`${formatNumber(property.plotSize)} מ"ר`} />
-                <SummaryRow label="שטח בנוי קיים" value={`${formatNumber(calculations.currentBuiltArea)} מ"ר`} />
+                <SummaryRow label="שטח לניתוח" value={`${formatNumber(calculations.currentBuiltArea)} מ"ר`} />
                 <SummaryRow label={'מותר מכוח תב"ע'} value={`${formatNumber(calculations.maxBuildableArea)} מ"ר`} />
                 {urbanRenewalEligibility.tma38Eligible && (
                   <SummaryRow label={'תוספת תמ"א 38'} value={`${formatNumber(urbanRenewalEligibility.tmaAdditionalArea)} מ"ר`} />

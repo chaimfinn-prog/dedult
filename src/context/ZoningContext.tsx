@@ -301,18 +301,23 @@ export function ZoningProvider({ children }: { children: ReactNode }) {
       }
     } catch { /* fallback */ }
 
-    const effectiveBuiltArea = permitsFromApi && permitData?.totalBuiltArea
-      ? permitData.totalBuiltArea
-      : gisData?.builtArea || currentBuiltArea;
-    const effectiveFloors = permitsFromApi && permitData?.floors
-      ? permitData.floors
-      : gisData?.floors || currentFloors;
-    const effectiveUnits = permitsFromApi && permitData?.units
-      ? permitData.units
-      : gisData?.units || mapping.existingUnits;
+    const approvedBuiltArea = permitData?.totalBuiltArea ?? currentBuiltArea;
+    const approvedFloors = permitData?.floors ?? currentFloors;
+    const approvedUnits = permitData?.units ?? mapping.existingUnits;
+
+    const existingBuiltArea = gisData?.builtArea ?? currentBuiltArea;
+    const existingFloors = gisData?.floors ?? currentFloors;
+    const existingUnits = gisData?.units ?? mapping.existingUnits;
+
+    const effectiveBuiltArea = Math.max(approvedBuiltArea, existingBuiltArea, currentBuiltArea);
+    const effectiveFloors = Math.max(approvedFloors, existingFloors, currentFloors);
+    const effectiveUnits = Math.max(approvedUnits, existingUnits, mapping.existingUnits);
 
     if (!permitsFromApi && !gisFromApi) {
       addLog(`מצב קיים: ${effectiveBuiltArea} מ"ר, ${effectiveFloors} קומות (מאגר מקומי)`, 'info');
+    }
+    if (approvedBuiltArea && existingBuiltArea && Math.abs(approvedBuiltArea - existingBuiltArea) / approvedBuiltArea > 0.1) {
+      addLog(`פער בין היתר (${approvedBuiltArea} מ"ר) למצב קיים (${existingBuiltArea} מ"ר) - נדרש אימות`, 'warning');
     }
     await delay(400);
 
@@ -321,10 +326,11 @@ export function ZoningProvider({ children }: { children: ReactNode }) {
       title: 'מצב בנוי קיים',
       subtitle: 'הצלבה בין היתרים ו-GIS עירוני',
       data: {
-        'שטח בנוי (היתר)': permitData?.totalBuiltArea ? `${permitData.totalBuiltArea} מ"ר` : 'לא נמצא',
-        'קומות (היתר)': permitData?.floors ?? 'לא נמצא',
+        'שטח מאושר (היתר)': permitData?.totalBuiltArea ? `${permitData.totalBuiltArea} מ"ר` : 'לא נמצא',
+        'קומות מאושרות (היתר)': permitData?.floors ?? 'לא נמצא',
         'תיק בניין (GIS)': gisData?.fileNumber || 'לא נמצא',
-        'שטח בנוי (GIS)': gisData?.builtArea ? `${gisData.builtArea} מ"ר` : 'לא נמצא',
+        'שטח קיים (GIS)': gisData?.builtArea ? `${gisData.builtArea} מ"ר` : 'לא נמצא',
+        'שטח לניתוח': `${effectiveBuiltArea} מ"ר`,
         'יח"ד': effectiveUnits,
         'שנת בנייה': mapping.yearBuilt || 'לא ידוע',
       },
@@ -374,10 +380,13 @@ export function ZoningProvider({ children }: { children: ReactNode }) {
     await delay(800);
 
     const calculations = calculateBuildingRights(plan, plotSize, effectiveBuiltArea, mapping, urbanCheck.eligible);
+    calculations.approvedBuiltArea = approvedBuiltArea;
+    calculations.existingBuiltArea = existingBuiltArea;
 
     addLog(`שטח בנייה מותר מכוח תב"ע (${plan.planNumber}): ${calculations.maxBuildableArea} מ"ר`, 'calculate');
     await delay(300);
-    addLog(`שטח בנוי קיים: ${calculations.currentBuiltArea} מ"ר (${effectiveUnits} יח"ד, ${effectiveFloors} קומות)`, 'calculate');
+    addLog(`שטח מאושר (היתר): ${approvedBuiltArea} מ"ר | שטח קיים (GIS): ${existingBuiltArea} מ"ר`, 'calculate');
+    addLog(`שטח לניתוח: ${calculations.currentBuiltArea} מ"ר (${effectiveUnits} יח"ד, ${effectiveFloors} קומות)`, 'calculate');
     await delay(300);
     addLog(`פוטנציאל בנייה מכוח תב"ע: ${Math.max(0, calculations.maxBuildableArea - calculations.currentBuiltArea)} מ"ר`, 'calculate');
     await delay(300);
@@ -444,8 +453,8 @@ export function ZoningProvider({ children }: { children: ReactNode }) {
       subtitle: 'חישוב סופי כולל מעטפת בניין',
       data: {
         'זכויות מכוח תב"ע': `${calculations.maxBuildableArea} מ"ר`,
-        'שטח קיים': `${currentBuiltArea} מ"ר`,
-        'יתרה (מכוח תב"ע)': `${Math.max(0, calculations.maxBuildableArea - currentBuiltArea)} מ"ר`,
+        'שטח קיים': `${effectiveBuiltArea} מ"ר`,
+        'יתרה (מכוח תב"ע)': `${Math.max(0, calculations.maxBuildableArea - effectiveBuiltArea)} מ"ר`,
         'תוספת תמ"א': tma38Check.eligible ? `${calculations.floorBreakdown.find(f => f.floor === 'tma')?.totalArea || 0} מ"ר` : 'לא זכאי',
         'תוספת התחדשות': urbanCheck.eligible ? `${calculations.floorBreakdown.find(f => f.floor === 'urban_renewal')?.totalArea || 0} מ"ר` : 'לא זכאי',
         'סה"כ בנייה נוספת': `${calculations.additionalBuildableArea} מ"ר`,
@@ -487,7 +496,7 @@ export function ZoningProvider({ children }: { children: ReactNode }) {
       const costPerSqm = mapping.constructionCostPerSqm;
 
       // Area breakdown estimates
-      const demolitionArea = currentBuiltArea;
+      const demolitionArea = effectiveBuiltArea;
       const basementArea = calculations.basementArea;
       const residentialArea = Math.round(totalNewArea * 0.85);
       const commercialArea = plan.zoningType === 'mixed_use' ? Math.round(totalNewArea * 0.1) : 0;
@@ -678,8 +687,14 @@ export function ZoningProvider({ children }: { children: ReactNode }) {
         plotSize,
         plotWidth: mapping.plotWidth,
         plotDepth: mapping.plotDepth,
-        currentBuiltArea,
-        currentFloors,
+        currentBuiltArea: effectiveBuiltArea,
+        currentFloors: effectiveFloors,
+        approvedBuiltArea,
+        approvedFloors,
+        approvedUnits,
+        existingBuiltArea,
+        existingFloors,
+        existingUnits,
       },
       zoningPlan: plan,
       calculations,
@@ -788,6 +803,8 @@ function calculateBuildingRights(
   return {
     maxBuildableArea,
     currentBuiltArea,
+    approvedBuiltArea: currentBuiltArea,
+    existingBuiltArea: currentBuiltArea,
     additionalBuildableArea,
     mainAreaTotal,
     serviceAreaTotal,
