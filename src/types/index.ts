@@ -55,6 +55,7 @@ export interface BuildingRights {
   mainBuildingPercent: number;
   serviceBuildingPercent: number;
   totalBuildingPercent: number;
+  calculationMethod?: 'split' | 'total';
   maxFloors: number;
   maxHeight: number;
   maxUnits: number;

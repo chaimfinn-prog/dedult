@@ -724,9 +724,15 @@ function calculateBuildingRights(
   const rights = plan.buildingRights;
   const restrictions = plan.restrictions;
 
-  const mainAreaTotal = Math.round((rights.mainBuildingPercent / 100) * plotSize);
-  const serviceAreaTotal = Math.round((rights.serviceBuildingPercent / 100) * plotSize);
-  const maxBuildableArea = mainAreaTotal + serviceAreaTotal;
+  const totalAreaMethod = rights.calculationMethod === 'total';
+  const mainAreaTotal = totalAreaMethod
+    ? 0
+    : Math.round((rights.mainBuildingPercent / 100) * plotSize);
+  const serviceAreaTotal = totalAreaMethod
+    ? 0
+    : Math.round((rights.serviceBuildingPercent / 100) * plotSize);
+  const totalArea = Math.round((rights.totalBuildingPercent / 100) * plotSize);
+  const maxBuildableArea = totalAreaMethod ? totalArea : mainAreaTotal + serviceAreaTotal;
   const basementArea = Math.round((rights.basementPercent / 100) * plotSize);
   const rooftopArea = Math.round((rights.rooftopPercent / 100) * plotSize);
   const landCoverageArea = Math.round((restrictions.maxLandCoverage / 100) * plotSize);
