@@ -38,11 +38,11 @@ export default function Home() {
 
             <div className="flex flex-col md:flex-row items-center justify-center gap-3 mb-8">
               <a
-                href="/calculate"
+                href="#inputs"
                 className="db-card px-5 py-3 inline-flex items-center gap-2 text-sm font-semibold text-foreground-secondary hover:border-green/30 transition"
               >
                 <Calculator className="w-4 h-4 text-green" />
-                {'התחל צ׳ק-אפ חינם'}
+                {'צפה בקלטים של הצ׳ק-אפ'}
                 <ChevronLeft className="w-3 h-3" />
               </a>
               <a
@@ -155,7 +155,7 @@ export default function Home() {
       </div>
 
       {/* Inputs + Outputs */}
-      <div className="border-t border-[rgba(255,255,255,0.06)] p-6">
+      <div id="inputs" className="border-t border-[rgba(255,255,255,0.06)] p-6">
         <div className="max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="db-card p-6 text-right">
             <h3 className="text-sm font-semibold text-foreground-secondary mb-4">הקלט שאתה מזין</h3>
@@ -257,10 +257,10 @@ export default function Home() {
               </div>
             </div>
             <a
-              href="https://example.com"
+              href="mailto:contact@haim-checkup.co.il"
               className="inline-flex items-center gap-2 px-5 py-3 rounded-lg bg-red-500/20 border border-red-500/40 text-sm font-semibold text-red-200 hover:bg-red-500/30 transition"
             >
-              {'קבע פגישה ותשלום'}
+              {'קבע פגישה ותשלום במייל'}
               <ArrowUpRight className="w-4 h-4" />
             </a>
           </div>
