@@ -20,6 +20,7 @@ const planningOptions = [
 ];
 
 const defaultForm = {
+  address: '',
   projectType: 'pinui',
   tenantCount: 'under100',
   signatureStatus: 'noMajority',
@@ -39,6 +40,8 @@ function getConfidenceMessage(certainty: number) {
 
 export default function Home() {
   const [form, setForm] = useState(defaultForm);
+  const [heroAddress, setHeroAddress] = useState('');
+  const selectedPlanning = planningOptions.find((option) => option.value === form.planningStatus);
 
   const calculation = useMemo(() => {
     const planning = planningOptions.find((option) => option.value === form.planningStatus);
@@ -50,21 +53,26 @@ export default function Home() {
     const isPrePermit = planning.stage === 'pre';
     const hasOver100Tenants = form.tenantCount === 'over100';
     const hasFullSignatures = form.signatureStatus === 'full';
+    const adjustments: string[] = [];
 
     if (isPrePermit && hasOver100Tenants) {
       years += 8 / 12;
+      adjustments.push('עומס דיירים: +8 חודשים (מעל 100 דיירים לפני היתר)');
     }
 
     if (hasFullSignatures) {
       years = Math.max(0, years - 1);
+      adjustments.push('בונוס 100% חתימות: -1 שנה');
     }
 
     let certainty = 100;
     if (form.signatureStatus === 'noMajority') {
       certainty -= 30;
+      adjustments.push('אין רוב חוקי: -30% וודאות');
     }
     if (form.projectType === 'pinui' && form.planningStatus !== 'tabaApproved' && isPrePermit) {
       certainty -= 25;
+      adjustments.push('פינוי-בינוי ללא תב״ע מאושרת: -25% וודאות');
     }
 
     certainty = Math.max(0, Math.min(100, certainty));
@@ -77,6 +85,7 @@ export default function Home() {
       certainty,
       promiseDiff,
       message: getConfidenceMessage(certainty),
+      adjustments,
     };
   }, [form]);
 
@@ -132,11 +141,21 @@ export default function Home() {
               <div className="flex flex-col md:flex-row items-stretch gap-3 p-4">
                 <div className="flex-1 bg-white border border-gray-200 rounded-lg flex items-center px-4 py-3 text-sm text-gray-600">
                   <Search className="w-4 h-4 text-gray-400 ml-2" />
-                  <span>{'בחר סטטוס תכנוני, חתימות והבטחת יזם כדי לקבל פלט.'}</span>
+                  <input
+                    type="text"
+                    placeholder="כתובת הפרויקט (עיר/רחוב)"
+                    className="w-full bg-transparent outline-none text-gray-700 placeholder:text-gray-400"
+                    value={heroAddress}
+                    onChange={(event) => setHeroAddress(event.target.value)}
+                  />
                 </div>
                 <a
                   href="#calculator"
-                  className="bg-blue-600 text-white rounded-lg px-5 py-3 text-sm font-semibold inline-flex items-center justify-center gap-2"
+                  className={`bg-blue-600 text-white rounded-lg px-5 py-3 text-sm font-semibold inline-flex items-center justify-center gap-2 ${heroAddress ? '' : 'opacity-60 pointer-events-none'}`}
+                  onClick={() => {
+                    if (!heroAddress) return;
+                    setForm((prev) => ({ ...prev, address: heroAddress.trim() }));
+                  }}
                 >
                   {'התחל בדיקה'}
                   <ChevronLeft className="w-4 h-4" />
@@ -227,6 +246,17 @@ export default function Home() {
               </label>
 
               <label className="flex flex-col gap-2 md:col-span-2">
+                <span className="text-foreground-muted">כתובת הפרויקט</span>
+                <input
+                  type="text"
+                  placeholder="לדוגמה: תל אביב, רחוב העלייה 10"
+                  className="db-card px-3 py-2 bg-transparent border border-[rgba(255,255,255,0.1)]"
+                  value={form.address}
+                  onChange={(event) => setForm({ ...form, address: event.target.value })}
+                />
+              </label>
+
+              <label className="flex flex-col gap-2 md:col-span-2">
                 <span className="text-foreground-muted">הבטחת היזם (בשנים)</span>
                 <input
                   type="number"
@@ -246,6 +276,10 @@ export default function Home() {
             {calculation && (
               <div className="space-y-4">
                 <div className="flex items-center justify-between text-sm">
+                  <span className="text-foreground-muted">כתובת</span>
+                  <span className="font-semibold text-foreground-secondary">{form.address || 'לא הוזנה כתובת'}</span>
+                </div>
+                <div className="flex items-center justify-between text-sm">
                   <span className="text-foreground-muted">זמן ריאלי למפתח</span>
                   <span className="text-lg font-semibold text-green">{calculation.years} שנים</span>
                 </div>
@@ -262,6 +296,17 @@ export default function Home() {
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-foreground-muted">מדד הוודאות של חיים</span>
                   <span className="font-semibold text-foreground-secondary">{calculation.certainty}%</span>
+                </div>
+                <div className="border-t border-[rgba(255,255,255,0.08)] pt-4">
+                  <div className="text-sm font-semibold text-foreground-secondary mb-2">המתודולוגיה בפועל</div>
+                  <ul className="space-y-2 text-sm text-foreground-muted">
+                    <li>{`בסיס: ${selectedPlanning?.label ?? 'שלב לא ידוע'} (${selectedPlanning?.baseYears ?? ''} שנים) + 3 שנות בנייה כלולות`}</li>
+                    {calculation.adjustments.length > 0 ? (
+                      calculation.adjustments.map((item) => <li key={item}>{item}</li>)
+                    ) : (
+                      <li>אין התאמות נוספות לפי הנתונים שהוזנו.</li>
+                    )}
+                  </ul>
                 </div>
                 <p className="text-sm text-foreground-muted leading-relaxed border-t border-[rgba(255,255,255,0.08)] pt-4">
                   {calculation.message}
