@@ -2,8 +2,8 @@ import type { Metadata, Viewport } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Zchut.AI — Zoning Intelligence Brain',
-  description: 'מנוע ניתוח זכויות בנייה — העלה תב"ע, חשב זכויות, קבל הדמיית 3D Massing',
+  title: 'הצ׳ק-אפ של חיים — מחשבון היתכנות להתחדשות עירונית',
+  description: 'ניתוח אנליטי של פרויקטי התחדשות עירונית: לו״ז אמיתי למפתח, מדד וודאות וציון סיכון',
   icons: { icon: '/favicon.ico' },
 };
 
