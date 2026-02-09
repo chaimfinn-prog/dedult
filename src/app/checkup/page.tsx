@@ -5,7 +5,8 @@ import { useSearchParams } from 'next/navigation';
 import {
   Activity, Building2, CalendarDays,
   ChevronLeft, ClipboardList, AlertTriangle, ArrowRight, Loader2,
-  Shield, TrendingUp, FileText, User, Briefcase,
+  Shield, TrendingUp, FileText, User, Briefcase, MapPin,
+  ExternalLink, CheckCircle2, Clock, Search, XCircle, Info,
 } from 'lucide-react';
 
 // --- Constants ---
@@ -19,13 +20,55 @@ const planningOptions = [
 ];
 
 const SCAN_STEPS = [
-  { label: 'אימות נתוני גוש וחלקה', icon: 'search' },
-  { label: 'סריקת החלטות ועדה מקומית/מחוזית', icon: 'file' },
-  { label: 'בדיקת איתנות פיננסית של היזם', icon: 'shield' },
-  { label: 'ניתוח תקן 21 ורווחיות פרויקט', icon: 'chart' },
-  { label: 'חישוב מקדמי סיכון מצטברים', icon: 'calc' },
-  { label: 'עיבוד דוח סופי', icon: 'report' },
+  { label: 'אימות נתוני גוש וחלקה' },
+  { label: 'סריקת מאגר תוכניות מינהל התכנון' },
+  { label: 'אימות סטטוס תכנוני (XPLAN)' },
+  { label: 'בדיקת איתנות פיננסית של היזם' },
+  { label: 'ניתוח תקן 21 ורווחיות פרויקט' },
+  { label: 'חישוב מקדמי סיכון מצטברים' },
+  { label: 'עיבוד דוח סופי' },
 ];
+
+// --- Types ---
+
+interface PlanningRecord {
+  id: number;
+  complexNumber: string;
+  city: string;
+  complexName: string;
+  existingUnits: number;
+  addedUnits: number;
+  proposedUnits: number;
+  declarationDate: string;
+  planNumber: string;
+  mavatLink: string;
+  govmapLink: string;
+  totalPermits: number;
+  track: string;
+  approvalYear: string;
+  inExecution: string;
+  status: string;
+}
+
+interface DeveloperResult {
+  name: string;
+  tier: string;
+  tierLabel: string;
+  summary: string;
+  specialties: string[];
+  projectCount: string;
+  rating: string;
+  madadLink: string;
+  website: string | null;
+}
+
+interface DeveloperResponse {
+  query: string;
+  found: boolean;
+  results: DeveloperResult[];
+  source: string;
+  duns100Link: string;
+}
 
 // --- Helpers ---
 
@@ -37,6 +80,20 @@ function getRiskLevel(certainty: number): { label: string; color: string; colorV
 
 function formatCurrency(n: number): string {
   return new Intl.NumberFormat('he-IL', { style: 'currency', currency: 'ILS', maximumFractionDigits: 0 }).format(n);
+}
+
+function getStatusIcon(status: string) {
+  const s = status.toLowerCase();
+  if (s.includes('מאושרת') || s.includes('אישור') || s.includes('במימוש')) return <CheckCircle2 className="w-4 h-4 text-green flex-shrink-0" />;
+  if (s.includes('רישוי') || s.includes('היתר') || s.includes('הפקדה')) return <Clock className="w-4 h-4 text-gold flex-shrink-0" />;
+  return <Info className="w-4 h-4 text-accent flex-shrink-0" />;
+}
+
+function getStatusColor(status: string) {
+  const s = status.toLowerCase();
+  if (s.includes('מאושרת') || s.includes('אישור') || s.includes('במימוש')) return 'var(--green)';
+  if (s.includes('רישוי') || s.includes('היתר') || s.includes('הפקדה')) return 'var(--gold)';
+  return 'var(--accent)';
 }
 
 // --- Suspense Wrapper ---
@@ -74,8 +131,42 @@ function CheckupContent() {
   const [scanStepIndex, setScanStepIndex] = useState(0);
   const [showResults, setShowResults] = useState(false);
 
+  // Planning & Developer verification state
+  const [planningData, setPlanningData] = useState<PlanningRecord[]>([]);
+  const [planningLoading, setPlanningLoading] = useState(false);
+  const [developerData, setDeveloperData] = useState<DeveloperResponse | null>(null);
+  const [developerLoading, setDeveloperLoading] = useState(false);
+
   const updateField = useCallback((field: string, value: string) => {
     setForm((prev) => ({ ...prev, [field]: value }));
+  }, []);
+
+  // Fetch planning data
+  const fetchPlanningData = useCallback(async (query: string) => {
+    if (!query.trim()) return;
+    setPlanningLoading(true);
+    try {
+      const res = await fetch(`/api/planning?q=${encodeURIComponent(query.trim())}`);
+      if (res.ok) {
+        const data = await res.json();
+        setPlanningData(data.records ?? []);
+      }
+    } catch { /* silent */ }
+    setPlanningLoading(false);
+  }, []);
+
+  // Fetch developer data
+  const fetchDeveloperData = useCallback(async (query: string) => {
+    if (!query.trim()) return;
+    setDeveloperLoading(true);
+    try {
+      const res = await fetch(`/api/developer?q=${encodeURIComponent(query.trim())}`);
+      if (res.ok) {
+        const data = await res.json();
+        setDeveloperData(data);
+      }
+    } catch { /* silent */ }
+    setDeveloperLoading(false);
   }, []);
 
   // Scanning animation
@@ -100,7 +191,14 @@ function CheckupContent() {
 
   const handleCalculate = () => {
     setShowResults(false);
+    setPlanningData([]);
+    setDeveloperData(null);
     setIsScanning(true);
+
+    // Trigger API fetches in parallel
+    const searchQuery = form.projectName || form.address || '';
+    if (searchQuery) fetchPlanningData(searchQuery);
+    if (form.developerName) fetchDeveloperData(form.developerName);
   };
 
   // --- Core Algorithm ---
@@ -255,7 +353,7 @@ function CheckupContent() {
               </div>
 
               {/* Planning Status */}
-              <SelectField label="סטטוס תכנוני" value={form.planningStatus} onChange={(v) => updateField('planningStatus', v)} options={planningOptions.map((o) => ({ value: o.value, label: o.label }))} />
+              <SelectField label="סטטוס תכנוני (לפי דיווח היזם)" value={form.planningStatus} onChange={(v) => updateField('planningStatus', v)} options={planningOptions.map((o) => ({ value: o.value, label: o.label }))} />
 
               {/* Signatures */}
               <SelectField label="סטטוס חתימות" value={form.signatureStatus} onChange={(v) => updateField('signatureStatus', v)} options={[
@@ -393,13 +491,31 @@ function CheckupContent() {
                 )}
               </div>
 
-              {/* 2. Risk Analysis */}
+              {/* 2. Planning Status Verification */}
+              <PlanningVerificationSection
+                planningData={planningData}
+                planningLoading={planningLoading}
+                address={form.address}
+                projectName={form.projectName}
+                onSearch={fetchPlanningData}
+                reportedStatus={planningOptions.find(o => o.value === form.planningStatus)?.label ?? ''}
+              />
+
+              {/* 3. Developer Profile */}
+              <DeveloperProfileSection
+                developerData={developerData}
+                developerLoading={developerLoading}
+                developerName={form.developerName}
+                onSearch={fetchDeveloperData}
+              />
+
+              {/* 4. Risk Analysis */}
               <div className="db-card p-5">
                 <SectionTitle icon={<AlertTriangle className="w-4 h-4 text-gold" />} title="RISK ANALYSIS" subtitle="ניתוח סיכונים" />
                 <div className="space-y-4 mt-4 text-sm">
 
                   <div>
-                    <div className="text-xs font-semibold text-foreground-secondary mb-1">{'סטטוס סטטוטורי'}</div>
+                    <div className="text-xs font-semibold text-foreground-secondary mb-1">{'סטטוס סטטוטורי (לפי דיווח)'}</div>
                     <p className="text-xs text-foreground-muted leading-relaxed">{calculation.planningDesc}</p>
                   </div>
 
@@ -419,16 +535,6 @@ function CheckupContent() {
                     )}
                   </div>
 
-                  {form.developerName && (
-                    <div>
-                      <div className="text-xs font-semibold text-foreground-secondary mb-1">{'הערת יזם'}</div>
-                      <div className="db-card p-3 text-xs text-foreground-muted leading-relaxed">
-                        {'הוזן היזם: '}<span className="font-semibold text-foreground-secondary">{form.developerName}</span>{'. '}
-                        {'במסגרת עבודתי השוטפת אני מקיים קשרים עם החברות המובילות בשוק ומכיר את איתנותן הפיננסית. ניתוח פרטני על יכולות הביצוע של יזם זה יינתן בפגישה.'}
-                      </div>
-                    </div>
-                  )}
-
                   {calculation.risks.length > 0 && (
                     <div className="pt-3 border-t border-[var(--border)] space-y-1.5">
                       <div className="text-[10px] text-foreground-muted uppercase tracking-wider font-medium">{'גורמי סיכון שזוהו'}</div>
@@ -442,7 +548,7 @@ function CheckupContent() {
                 </div>
               </div>
 
-              {/* 3. Financial Overview */}
+              {/* 5. Financial Overview */}
               <div className="db-card p-5">
                 <SectionTitle icon={<TrendingUp className="w-4 h-4 text-green" />} title="FINANCIAL OVERVIEW" subtitle="ניתוח כלכלי" />
                 <div className="grid grid-cols-2 gap-4 mt-4">
@@ -468,7 +574,7 @@ function CheckupContent() {
                 )}
               </div>
 
-              {/* 4. Professional Verdict */}
+              {/* 6. Professional Verdict */}
               <div className="db-card p-5">
                 <SectionTitle icon={<FileText className="w-4 h-4 text-foreground-muted" />} title="PROFESSIONAL VERDICT" subtitle="סיכום המומחה" />
                 <div className="mt-4 p-4 rounded-lg border" style={{ borderColor: calculation.risk.colorVar, background: `color-mix(in srgb, ${calculation.risk.colorVar} 5%, transparent)` }}>
@@ -527,6 +633,280 @@ function CheckupContent() {
   );
 }
 
+// =========================================
+// Planning Verification Section
+// =========================================
+
+function PlanningVerificationSection({ planningData, planningLoading, address, projectName, onSearch, reportedStatus }: {
+  planningData: PlanningRecord[];
+  planningLoading: boolean;
+  address: string;
+  projectName: string;
+  onSearch: (q: string) => void;
+  reportedStatus: string;
+}) {
+  const [customSearch, setCustomSearch] = useState('');
+
+  const handleCustomSearch = () => {
+    if (customSearch.trim()) onSearch(customSearch.trim());
+  };
+
+  return (
+    <div className="db-card p-5">
+      <SectionTitle icon={<MapPin className="w-4 h-4 text-accent" />} title="PLANNING STATUS VERIFICATION" subtitle="אימות סטטוס תכנוני" />
+
+      <div className="mt-3 mb-4">
+        <div className="text-[10px] text-foreground-muted uppercase tracking-wider mb-1">{'סטטוס שדווח על ידי היזם/מתווך'}</div>
+        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium" style={{ background: 'var(--bg-tertiary)', color: 'var(--fg-secondary)' }}>
+          <Info className="w-3 h-3 text-accent" />
+          {reportedStatus}
+        </div>
+      </div>
+
+      {/* Search bar for custom planning lookup */}
+      <div className="flex gap-2 mb-4">
+        <div className="flex-1 flex items-center gap-2 px-3 py-2 rounded-lg" style={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border)' }}>
+          <Search className="w-3.5 h-3.5 text-foreground-muted flex-shrink-0" />
+          <input
+            type="text"
+            className="w-full bg-transparent border-none outline-none text-xs text-foreground text-right placeholder:text-[var(--fg-dim)]"
+            placeholder="חפש לפי עיר, שכונה או שם מתחם..."
+            value={customSearch}
+            onChange={(e) => setCustomSearch(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleCustomSearch()}
+          />
+        </div>
+        <button
+          onClick={handleCustomSearch}
+          className="px-3 py-2 rounded-lg text-xs font-medium border-0 cursor-pointer"
+          style={{ background: 'var(--accent)', color: '#fff' }}
+        >
+          {'חפש'}
+        </button>
+      </div>
+
+      {planningLoading && (
+        <div className="flex items-center justify-center gap-2 py-6 text-xs text-foreground-muted">
+          <Loader2 className="w-4 h-4 animate-spin" />
+          {'מחפש במאגר מינהל התכנון...'}
+        </div>
+      )}
+
+      {!planningLoading && planningData.length === 0 && (
+        <div className="py-6 text-center">
+          <XCircle className="w-8 h-8 text-foreground-muted opacity-30 mx-auto mb-2" />
+          <p className="text-xs text-foreground-muted mb-2">{'לא נמצאו תוכניות התחדשות עירונית מוכרזות עבור חיפוש זה.'}</p>
+          <p className="text-[10px] text-foreground-muted">{'ניתן לחפש ידנית לפי שם עיר או שכונה'}</p>
+          <div className="flex justify-center gap-2 mt-3">
+            <ExternalLinkButton href={`https://ags.iplan.gov.il/xplan/`} label="XPLAN קווים כחולים" />
+            <ExternalLinkButton href="https://mavat.iplan.gov.il/SV3" label="מידע תכנוני (מבא״ת)" />
+          </div>
+        </div>
+      )}
+
+      {!planningLoading && planningData.length > 0 && (
+        <div className="space-y-3">
+          <div className="text-[10px] text-green font-medium uppercase tracking-wider flex items-center gap-1.5">
+            <CheckCircle2 className="w-3 h-3" />
+            {'נמצאו '}{planningData.length}{' תוכניות רלוונטיות במאגר מינהל התכנון'}
+          </div>
+
+          {planningData.slice(0, 5).map((plan, i) => (
+            <div key={plan.id || i} className="rounded-lg p-4" style={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border)' }}>
+              <div className="flex items-start justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  {getStatusIcon(plan.status)}
+                  <div>
+                    <div className="text-xs font-semibold text-foreground">{plan.complexName || plan.city}</div>
+                    <div className="text-[10px] text-foreground-muted">{plan.city}{plan.planNumber ? ` | תוכנית ${plan.planNumber}` : ''}</div>
+                  </div>
+                </div>
+                <div className="text-left">
+                  <div className="inline-block px-2 py-0.5 rounded text-[10px] font-medium" style={{ background: `color-mix(in srgb, ${getStatusColor(plan.status)} 15%, transparent)`, color: getStatusColor(plan.status) }}>
+                    {plan.status}
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-3">
+                <MiniStat label='דירות קיימות' value={String(plan.existingUnits)} />
+                <MiniStat label='דירות חדשות' value={String(plan.proposedUnits)} />
+                <MiniStat label='שנת אישור' value={plan.approvalYear || '\u2014'} />
+                <MiniStat label='מסלול' value={plan.track || '\u2014'} />
+              </div>
+
+              {plan.inExecution && (
+                <div className="mt-2 text-[10px] flex items-center gap-1.5">
+                  {plan.inExecution === 'כן' ? (
+                    <><CheckCircle2 className="w-3 h-3 text-green" /><span className="text-green font-medium">{'בביצוע'}</span></>
+                  ) : (
+                    <><Clock className="w-3 h-3 text-foreground-muted" /><span className="text-foreground-muted">{'טרם בביצוע'}</span></>
+                  )}
+                </div>
+              )}
+
+              <div className="flex gap-2 mt-3 pt-2 border-t border-[var(--border)]">
+                {plan.mavatLink && <ExternalLinkButton href={plan.mavatLink} label="מידע תכנוני" />}
+                {plan.govmapLink && <ExternalLinkButton href={plan.govmapLink} label="GovMap" />}
+              </div>
+            </div>
+          ))}
+
+          {planningData.length > 5 && (
+            <p className="text-[10px] text-foreground-muted text-center">
+              {'ו-'}{planningData.length - 5}{' תוכניות נוספות. '}
+              <a href="https://mavat.iplan.gov.il/SV3" target="_blank" rel="noopener noreferrer" className="text-accent hover:underline">{'צפה בכל התוכניות במבא״ת'}</a>
+            </p>
+          )}
+
+          <div className="flex justify-center gap-2 mt-2">
+            <ExternalLinkButton href="https://ags.iplan.gov.il/xplan/" label="XPLAN קווים כחולים" />
+            <ExternalLinkButton href="https://mavat.iplan.gov.il/SV3" label="מידע תכנוני (מבא״ת)" />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// =========================================
+// Developer Profile Section
+// =========================================
+
+function DeveloperProfileSection({ developerData, developerLoading, developerName, onSearch }: {
+  developerData: DeveloperResponse | null;
+  developerLoading: boolean;
+  developerName: string;
+  onSearch: (q: string) => void;
+}) {
+  const [customSearch, setCustomSearch] = useState('');
+
+  if (!developerName && !developerData) return null;
+
+  const handleCustomSearch = () => {
+    if (customSearch.trim()) onSearch(customSearch.trim());
+  };
+
+  return (
+    <div className="db-card p-5">
+      <SectionTitle icon={<Building2 className="w-4 h-4 text-green" />} title="DEVELOPER PROFILE" subtitle="פרופיל יזם" />
+
+      {/* Search bar */}
+      <div className="flex gap-2 mt-3 mb-4">
+        <div className="flex-1 flex items-center gap-2 px-3 py-2 rounded-lg" style={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border)' }}>
+          <Search className="w-3.5 h-3.5 text-foreground-muted flex-shrink-0" />
+          <input
+            type="text"
+            className="w-full bg-transparent border-none outline-none text-xs text-foreground text-right placeholder:text-[var(--fg-dim)]"
+            placeholder="חפש יזם לפי שם..."
+            value={customSearch}
+            onChange={(e) => setCustomSearch(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleCustomSearch()}
+          />
+        </div>
+        <button
+          onClick={handleCustomSearch}
+          className="px-3 py-2 rounded-lg text-xs font-medium border-0 cursor-pointer"
+          style={{ background: 'var(--green)', color: '#fff' }}
+        >
+          {'חפש'}
+        </button>
+      </div>
+
+      {developerLoading && (
+        <div className="flex items-center justify-center gap-2 py-6 text-xs text-foreground-muted">
+          <Loader2 className="w-4 h-4 animate-spin" />
+          {'מחפש פרופיל יזם...'}
+        </div>
+      )}
+
+      {!developerLoading && developerData && !developerData.found && (
+        <div className="py-4">
+          <div className="rounded-lg p-4" style={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border)' }}>
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="w-5 h-5 text-gold flex-shrink-0 mt-0.5" />
+              <div>
+                <div className="text-xs font-semibold text-foreground mb-1">
+                  {'היזם '}<span className="text-gold">{developerName}</span>{' לא נמצא בדירוג ההתחדשות העירונית'}
+                </div>
+                <p className="text-[11px] text-foreground-muted leading-relaxed">
+                  {'יזם שאינו מופיע בדירוג עשוי להיות חברה חדשה, חברת בת, או חברה קטנה יחסית. '}
+                  {'מומלץ לבצע בדיקת איתנות פיננסית מעמיקה טרם חתימה על חוזה.'}
+                </p>
+              </div>
+            </div>
+          </div>
+          <div className="flex justify-center gap-2 mt-3">
+            <ExternalLinkButton href={developerData.duns100Link} label="Duns100 דירוג יזמים" />
+            <ExternalLinkButton href="https://madadithadshut.co.il/" label="מדד ההתחדשות העירונית" />
+          </div>
+        </div>
+      )}
+
+      {!developerLoading && developerData && developerData.found && (
+        <div className="space-y-3">
+          {developerData.results.map((dev, i) => (
+            <div key={i} className="rounded-lg p-4" style={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border)' }}>
+              <div className="flex items-start justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold" style={{
+                    background: dev.tier === 'A' ? 'color-mix(in srgb, var(--green) 20%, transparent)' : 'color-mix(in srgb, var(--accent) 20%, transparent)',
+                    color: dev.tier === 'A' ? 'var(--green)' : 'var(--accent)',
+                  }}>
+                    {dev.tier}
+                  </div>
+                  <div>
+                    <div className="text-sm font-bold text-foreground">{dev.name}</div>
+                    <div className="text-[10px] text-foreground-muted">{dev.tierLabel}</div>
+                  </div>
+                </div>
+                <div className="text-left">
+                  <div className="text-[10px] text-foreground-muted">{'פרויקטים'}</div>
+                  <div className="text-sm font-bold text-foreground font-mono">{dev.projectCount}</div>
+                </div>
+              </div>
+
+              <p className="text-xs text-foreground-muted leading-relaxed mt-2">{dev.summary}</p>
+
+              <div className="flex flex-wrap gap-1.5 mt-3">
+                {dev.specialties.map((s, j) => (
+                  <span key={j} className="px-2 py-0.5 rounded text-[10px] font-medium" style={{ background: 'color-mix(in srgb, var(--accent) 10%, transparent)', color: 'var(--accent)' }}>
+                    {s}
+                  </span>
+                ))}
+              </div>
+
+              <div className="flex gap-2 mt-3 pt-2 border-t border-[var(--border)]">
+                <ExternalLinkButton href={dev.madadLink} label="מדד ההתחדשות" />
+                {dev.website && <ExternalLinkButton href={dev.website} label="אתר החברה" />}
+              </div>
+            </div>
+          ))}
+
+          <div className="flex justify-center gap-2 mt-2">
+            <ExternalLinkButton href={developerData.duns100Link} label="Duns100 דירוג יזמים" />
+            <ExternalLinkButton href="https://madadithadshut.co.il/" label="מדד ההתחדשות העירונית" />
+          </div>
+        </div>
+      )}
+
+      {!developerLoading && !developerData && developerName && (
+        <div className="py-4 text-center">
+          <p className="text-xs text-foreground-muted">{'לא בוצע חיפוש עבור היזם '}<span className="font-semibold text-foreground-secondary">{developerName}</span></p>
+        </div>
+      )}
+
+      <div className="mt-3 pt-3 border-t border-[var(--border)]">
+        <p className="text-[10px] text-foreground-muted leading-relaxed">
+          {'מקור: מדד ההתחדשות העירונית (madadithadshut.co.il) ודירוג Duns100. '}
+          {'הנתונים המוצגים הם לצורך הכוונה כללית בלבד ואינם מהווים תחליף לבדיקת נאותות מקצועית.'}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+
 // --- Sub-Components ---
 
 function Field({ label, value, onChange, placeholder, type = 'text', suffix }: {
@@ -580,5 +960,29 @@ function MetricBox({ label, value, color }: { label: string; value: string; colo
       <div className="db-stat-label text-[10px]">{label}</div>
       <div className="db-stat-value text-lg" style={{ color }}>{value}</div>
     </div>
+  );
+}
+
+function MiniStat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="text-center px-2 py-1.5 rounded" style={{ background: 'rgba(255,255,255,0.03)' }}>
+      <div className="text-[9px] text-foreground-muted uppercase tracking-wider">{label}</div>
+      <div className="text-xs font-semibold text-foreground mt-0.5">{value}</div>
+    </div>
+  );
+}
+
+function ExternalLinkButton({ href, label }: { href: string; label: string }) {
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded text-[10px] font-medium transition-colors hover:opacity-80"
+      style={{ background: 'color-mix(in srgb, var(--accent) 10%, transparent)', color: 'var(--accent)' }}
+    >
+      <ExternalLink className="w-3 h-3" />
+      {label}
+    </a>
   );
 }

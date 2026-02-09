@@ -103,11 +103,13 @@ export default function Home() {
           </div>
 
           <div className="mt-8 flex items-center justify-center gap-8 text-xs text-foreground-muted font-medium tracking-widest uppercase">
-            <span>{'בדיקת תב"ע'}</span>
+            <span>{'אימות סטטוס תכנוני'}</span>
             <span className="w-1 h-1 rounded-full bg-[var(--fg-dim)]" />
-            <span>{'היסטוריית יזם'}</span>
+            <span>{'פרופיל יזם'}</span>
             <span className="w-1 h-1 rounded-full bg-[var(--fg-dim)]" />
-            <span>{'ניתוח חוזי'}</span>
+            <span>{'ניתוח סיכונים'}</span>
+            <span className="w-1 h-1 rounded-full bg-[var(--fg-dim)]" />
+            <span>{'ניתוח כלכלי'}</span>
           </div>
         </div>
       </div>
