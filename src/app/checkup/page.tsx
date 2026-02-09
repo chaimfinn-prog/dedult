@@ -11,13 +11,26 @@ import {
 
 // --- Constants ---
 
-const planningOptions = [
+const planningOptionsPinui = [
   { value: 'blueLine', label: 'קו כחול (בדיקת היתכנות)', baseYears: 8.5, stage: 'pre', desc: 'הפרויקט בשלב ראשוני של בדיקת היתכנות תכנונית. טרם הוגשה תוכנית למוסדות התכנון.' },
   { value: 'depositDiscussion', label: 'דיון להפקדה', baseYears: 7.5, stage: 'pre', desc: 'התוכנית הוגשה ונמצאת בדיון להפקדה בוועדה. שלב סטטוטורי פעיל אך ארוך.' },
   { value: 'tabaApproved', label: 'תב״ע מאושרת', baseYears: 7, stage: 'pre', desc: 'התב״ע אושרה. הסיכון התכנוני העקרוני הוסר, אך נותר פער רישוי משמעותי.' },
   { value: 'permitFiled', label: 'בקשה להיתר הוגשה/נקלטה', baseYears: 5.5, stage: 'permit', desc: 'בקשה להיתר בנייה הוגשה לוועדה המקומית. הפרויקט בשלב רישוי פעיל.' },
   { value: 'permitConditions', label: 'היתר בתנאים (החלטת ועדה)', baseYears: 4.5, stage: 'permit', desc: 'הוועדה אישרה היתר בתנאים. שלב מתקדם — נותר מילוי תנאים ותחילת ביצוע.' },
 ];
+
+// תמ"א 38/2 - no TBA needed, only permit stages
+const planningOptionsTama = [
+  { value: 'permitFiled', label: 'בקשה להיתר הוגשה/נקלטה', baseYears: 4, stage: 'permit', desc: 'בקשה להיתר בנייה הוגשה לוועדה המקומית במסלול תמ"א 38. הפרויקט בשלב רישוי פעיל.' },
+  { value: 'permitConditions', label: 'היתר בתנאים (החלטת ועדה)', baseYears: 3, stage: 'permit', desc: 'הוועדה אישרה היתר בתנאים. שלב מתקדם — נותר מילוי תנאים ותחילת ביצוע.' },
+  { value: 'permitIssued', label: 'הופק היתר בנייה', baseYears: 2.5, stage: 'permit', desc: 'היתר הבנייה הופק. הפרויקט מוכן לתחילת ביצוע — שלב מתקדם מאוד.' },
+];
+
+function getPlanningOptions(projectType: string) {
+  return projectType === 'tama' ? planningOptionsTama : planningOptionsPinui;
+}
+
+const allPlanningOptions = [...planningOptionsPinui, ...planningOptionsTama];
 
 const SCAN_STEPS = [
   { label: 'אימות נתוני גוש וחלקה' },
@@ -56,7 +69,10 @@ interface DeveloperResult {
   tierLabel: string;
   summary: string;
   specialties: string[];
-  projectCount: string;
+  totalProjects: number;
+  inConstruction: number;
+  delivered: number;
+  inPlanning: number;
   rating: string;
   madadLink: string;
   website: string | null;
@@ -138,7 +154,17 @@ function CheckupContent() {
   const [developerLoading, setDeveloperLoading] = useState(false);
 
   const updateField = useCallback((field: string, value: string) => {
-    setForm((prev) => ({ ...prev, [field]: value }));
+    setForm((prev) => {
+      const next = { ...prev, [field]: value };
+      // When switching project type, reset planning status to first valid option
+      if (field === 'projectType') {
+        const opts = getPlanningOptions(value);
+        if (!opts.find(o => o.value === prev.planningStatus)) {
+          next.planningStatus = opts[0].value;
+        }
+      }
+      return next;
+    });
   }, []);
 
   // Fetch planning data
@@ -203,7 +229,7 @@ function CheckupContent() {
 
   // --- Core Algorithm ---
   const calculation = useMemo(() => {
-    const planning = planningOptions.find((o) => o.value === form.planningStatus);
+    const planning = allPlanningOptions.find((o) => o.value === form.planningStatus);
     if (!planning) return null;
 
     let years = planning.baseYears;
@@ -301,10 +327,13 @@ function CheckupContent() {
               <span className="text-[10px] text-foreground-muted">by Haim Finn</span>
             </div>
           </div>
-          <a href="/" className="text-xs text-foreground-muted hover:text-foreground transition-colors flex items-center gap-1">
-            {'חזרה'}
-            <ArrowRight className="w-3 h-3" />
-          </a>
+          <div className="flex items-center gap-4">
+            <a href="/about" className="text-xs text-foreground-muted hover:text-foreground transition-colors">{'אודות'}</a>
+            <a href="/" className="text-xs text-foreground-muted hover:text-foreground transition-colors flex items-center gap-1">
+              {'חזרה'}
+              <ArrowRight className="w-3 h-3" />
+            </a>
+          </div>
         </div>
       </div>
 
@@ -319,6 +348,12 @@ function CheckupContent() {
             </div>
 
             <div className="space-y-3">
+              {/* Project Type FIRST */}
+              <SelectField label="סוג פרויקט" value={form.projectType} onChange={(v) => updateField('projectType', v)} options={[
+                { value: 'pinui', label: 'פינוי-בינוי' },
+                { value: 'tama', label: 'תמ״א 38/2' },
+              ]} />
+
               {/* Row: Developer + Project */}
               <div className="grid grid-cols-2 gap-3">
                 <Field label="שם היזם" value={form.developerName} onChange={(v) => updateField('developerName', v)} placeholder="לדוגמה: אזורים" />
@@ -340,20 +375,14 @@ function CheckupContent() {
                 <Field label='תוספת מ"ר מובטחת' value={form.sqmAddition} onChange={(v) => updateField('sqmAddition', v)} type="number" placeholder="12" />
               </div>
 
-              {/* Row: Type + Tenants */}
-              <div className="grid grid-cols-2 gap-3">
-                <SelectField label="סוג פרויקט" value={form.projectType} onChange={(v) => updateField('projectType', v)} options={[
-                  { value: 'pinui', label: 'פינוי-בינוי' },
-                  { value: 'tama', label: 'תמ״א 38/2' },
-                ]} />
-                <SelectField label="מספר דיירים" value={form.tenantCount} onChange={(v) => updateField('tenantCount', v)} options={[
-                  { value: 'under100', label: 'עד 100' },
-                  { value: 'over100', label: 'מעל 100' },
-                ]} />
-              </div>
+              {/* Tenants */}
+              <SelectField label="מספר דיירים" value={form.tenantCount} onChange={(v) => updateField('tenantCount', v)} options={[
+                { value: 'under100', label: 'עד 100' },
+                { value: 'over100', label: 'מעל 100' },
+              ]} />
 
-              {/* Planning Status */}
-              <SelectField label="סטטוס תכנוני (לפי דיווח היזם)" value={form.planningStatus} onChange={(v) => updateField('planningStatus', v)} options={planningOptions.map((o) => ({ value: o.value, label: o.label }))} />
+              {/* Planning Status - dynamic based on project type */}
+              <SelectField label={form.projectType === 'tama' ? 'שלב רישוי (תמ"א 38)' : 'סטטוס תכנוני (לפי דיווח היזם)'} value={form.planningStatus} onChange={(v) => updateField('planningStatus', v)} options={getPlanningOptions(form.projectType).map((o) => ({ value: o.value, label: o.label }))} />
 
               {/* Signatures */}
               <SelectField label="סטטוס חתימות" value={form.signatureStatus} onChange={(v) => updateField('signatureStatus', v)} options={[
@@ -498,7 +527,7 @@ function CheckupContent() {
                 address={form.address}
                 projectName={form.projectName}
                 onSearch={fetchPlanningData}
-                reportedStatus={planningOptions.find(o => o.value === form.planningStatus)?.label ?? ''}
+                reportedStatus={allPlanningOptions.find(o => o.value === form.planningStatus)?.label ?? ''}
               />
 
               {/* 3. Developer Profile */}
@@ -849,7 +878,7 @@ function DeveloperProfileSection({ developerData, developerLoading, developerNam
             <div key={i} className="rounded-lg p-4" style={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border)' }}>
               <div className="flex items-start justify-between mb-2">
                 <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold" style={{
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center text-sm font-black" style={{
                     background: dev.tier === 'A' ? 'color-mix(in srgb, var(--green) 20%, transparent)' : 'color-mix(in srgb, var(--accent) 20%, transparent)',
                     color: dev.tier === 'A' ? 'var(--green)' : 'var(--accent)',
                   }}>
@@ -860,13 +889,17 @@ function DeveloperProfileSection({ developerData, developerLoading, developerNam
                     <div className="text-[10px] text-foreground-muted">{dev.tierLabel}</div>
                   </div>
                 </div>
-                <div className="text-left">
-                  <div className="text-[10px] text-foreground-muted">{'פרויקטים'}</div>
-                  <div className="text-sm font-bold text-foreground font-mono">{dev.projectCount}</div>
-                </div>
               </div>
 
               <p className="text-xs text-foreground-muted leading-relaxed mt-2">{dev.summary}</p>
+
+              {/* Detailed stats grid */}
+              <div className="grid grid-cols-4 gap-2 mt-3">
+                <MiniStat label="סה״כ פרויקטים" value={String(dev.totalProjects)} />
+                <MiniStat label="בבנייה" value={String(dev.inConstruction)} />
+                <MiniStat label="נמסרו" value={String(dev.delivered)} />
+                <MiniStat label="בתכנון" value={String(dev.inPlanning)} />
+              </div>
 
               <div className="flex flex-wrap gap-1.5 mt-3">
                 {dev.specialties.map((s, j) => (

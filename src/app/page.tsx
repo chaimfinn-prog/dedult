@@ -50,9 +50,10 @@ export default function Home() {
               <span className="font-bold text-sm">THE REALITY CHECK</span>
             </div>
             <div className="flex items-center gap-4">
+              <a href="/about" className="text-xs text-foreground-muted hover:text-foreground transition-colors">{'אודות'}</a>
               <a href="/prices" className="text-xs text-foreground-muted hover:text-foreground transition-colors flex items-center gap-1">
                 <BarChart3 className="w-3.5 h-3.5" />
-                {'השוואת מחירים'}
+                {'מקורות מידע'}
               </a>
               <a href="/booking" className="text-xs text-foreground-muted hover:text-foreground transition-colors flex items-center gap-1">
                 <CalendarDays className="w-3.5 h-3.5" />
