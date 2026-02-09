@@ -1,99 +1,652 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Shield, Lock, LogOut, Plus, Trash2, Edit3, Save, X,
-  FileText, MapPin, Upload, Building2, ChevronDown, ChevronUp,
-  Eye, Download, Check, AlertTriangle, Search
+  Shield, Plus, Trash2, Edit3, Save, X,
+  Upload, Building2, ChevronDown, ChevronUp,
+  Search, Cpu, CheckCircle2,
+  Loader2, Database, BookOpen, AlertTriangle,
+  FileText, Check, Pencil, ArrowLeft,
 } from 'lucide-react';
-import { ZoningPlan, ZoningType } from '@/types';
-import { AddressMapping } from '@/data/zoning-plans';
+import type { ZoningPlan, ZoningType, ZoningRule, DocumentType, ZoningRuleCategory, RuleUnit } from '@/types';
+import { ruleCategoryLabels, documentTypeLabels, ruleUnitLabels } from '@/types';
 import {
-  verifyAdminPassword,
-  isAdminAuthenticated,
-  setAdminAuthenticated,
-  getCustomPlans,
-  saveCustomPlan,
-  deleteCustomPlan,
-  getAllPlans,
-  getCustomAddresses,
-  saveCustomAddress,
-  deleteCustomAddress,
-  getAllAddresses,
-  getDocuments,
-  saveDocument,
-  deleteDocument,
-  DocumentEntry,
-  documentTypeLabels,
-  generateId,
-  fileToBase64,
-} from '@/services/admin-storage';
+  getAllPlans, savePlan, deletePlan,
+  saveDocument, generateId, buildPlanFromExtraction,
+  type StoredDocument, type ExtractedPlanData,
+} from '@/services/db';
+import {
+  parseDocument,
+  mergeDocumentRules,
+  type ParsedDocumentResult,
+} from '@/services/document-parser';
 
-type AdminTab = 'plans' | 'addresses' | 'documents';
+// ── Document Upload Slot ────────────────────────────────────
 
-// ── Login Screen ─────────────────────────────────────────────
+interface DocSlot {
+  type: DocumentType;
+  label: string;
+  description: string;
+  file: File | null;
+  result: ParsedDocumentResult | null;
+  status: 'empty' | 'selected' | 'parsing' | 'done' | 'error';
+  error?: string;
+}
 
-function LoginScreen({ onLogin }: { onLogin: () => void }) {
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
+const INITIAL_SLOTS: DocSlot[] = [
+  {
+    type: 'takanon',
+    label: 'תקנון',
+    description: 'מסמך התקנון הראשי של התב"ע',
+    file: null, result: null, status: 'empty',
+  },
+  {
+    type: 'rights_table',
+    label: 'טבלת זכויות',
+    description: 'טבלת הזכויות (תבלת זכויות / נספח)',
+    file: null, result: null, status: 'empty',
+  },
+  {
+    type: 'annex',
+    label: 'נספח בינוי',
+    description: 'נספחי בינוי, תנאים מיוחדים',
+    file: null, result: null, status: 'empty',
+  },
+];
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (verifyAdminPassword(password)) {
-      setAdminAuthenticated(true);
-      onLogin();
-    } else {
-      setError('סיסמה שגויה');
-      setPassword('');
+// ── Auto-Ingest Upload + Verify Flow ────────────────────────
+
+type IngestStep = 'upload' | 'parsing' | 'verify' | 'metadata' | 'saved';
+
+function AutoIngestFlow({ onDone }: { onDone: () => void }) {
+  const fileRefs = useRef<(HTMLInputElement | null)[]>([null, null, null]);
+  const [step, setStep] = useState<IngestStep>('upload');
+  const [slots, setSlots] = useState<DocSlot[]>(INITIAL_SLOTS.map(s => ({ ...s })));
+  const [mergedRules, setMergedRules] = useState<ZoningRule[]>([]);
+  const [editingRuleId, setEditingRuleId] = useState<string | null>(null);
+  const [editValue, setEditValue] = useState('');
+  const [editFormula, setEditFormula] = useState('');
+
+  // Metadata
+  const [planNumber, setPlanNumber] = useState('');
+  const [planName, setPlanName] = useState('');
+  const [city, setCity] = useState('');
+  const [neighborhood, setNeighborhood] = useState('');
+  const [zoningType, setZoningType] = useState<ZoningType>('residential_a');
+  const [saving, setSaving] = useState(false);
+  const [savedName, setSavedName] = useState('');
+
+  const hasFiles = slots.some(s => s.file !== null);
+
+  const handleFileSelect = (index: number, e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setSlots(prev => {
+      const next = [...prev];
+      next[index] = { ...next[index], file, status: 'selected', result: null, error: undefined };
+      return next;
+    });
+  };
+
+  const removeFile = (index: number) => {
+    setSlots(prev => {
+      const next = [...prev];
+      next[index] = { ...INITIAL_SLOTS[index] };
+      return next;
+    });
+  };
+
+  const handleAnalyze = async () => {
+    setStep('parsing');
+    const updatedSlots = [...slots];
+    const results: ParsedDocumentResult[] = [];
+
+    for (let i = 0; i < updatedSlots.length; i++) {
+      const slot = updatedSlots[i];
+      if (!slot.file) continue;
+
+      updatedSlots[i] = { ...slot, status: 'parsing' };
+      setSlots([...updatedSlots]);
+
+      try {
+        const result = await parseDocument(slot.file, slot.type);
+        updatedSlots[i] = { ...updatedSlots[i], status: 'done', result };
+        results.push(result);
+      } catch (err) {
+        updatedSlots[i] = {
+          ...updatedSlots[i],
+          status: 'error',
+          error: err instanceof Error ? err.message : 'שגיאה בניתוח',
+        };
+      }
+      setSlots([...updatedSlots]);
+    }
+
+    // Merge rules from all documents
+    if (results.length > 0) {
+      const merged = mergeDocumentRules(results);
+      setMergedRules(merged.rules);
+
+      // Pre-fill metadata
+      if (merged.metadata.planNumber) setPlanNumber(merged.metadata.planNumber);
+      if (merged.metadata.planName) setPlanName(merged.metadata.planName);
+      if (merged.metadata.city) setCity(merged.metadata.city);
+      if (merged.metadata.neighborhood) setNeighborhood(merged.metadata.neighborhood);
+      if (merged.metadata.zoningType) setZoningType(merged.metadata.zoningType as ZoningType);
+    }
+
+    setStep('verify');
+  };
+
+  const toggleConfirm = (ruleId: string) => {
+    setMergedRules(prev => prev.map(r =>
+      r.id === ruleId ? { ...r, confirmed: !r.confirmed } : r
+    ));
+  };
+
+  const confirmAll = () => {
+    setMergedRules(prev => prev.map(r => ({ ...r, confirmed: true })));
+  };
+
+  const startEdit = (rule: ZoningRule) => {
+    setEditingRuleId(rule.id);
+    setEditValue(String(rule.rawNumber));
+    setEditFormula(rule.formula);
+  };
+
+  const saveEdit = (ruleId: string) => {
+    const newVal = parseFloat(editValue);
+    if (isNaN(newVal)) return;
+    setMergedRules(prev => prev.map(r => {
+      if (r.id !== ruleId) return r;
+      const updated = { ...r, rawNumber: newVal, formula: editFormula, confirmed: true };
+      // Update display value based on unit
+      if (r.unit === 'percent') updated.displayValue = `${newVal}%`;
+      else if (r.unit === 'meters') updated.displayValue = `${newVal} מ'`;
+      else if (r.unit === 'floors') updated.displayValue = `${newVal} קומות`;
+      else if (r.unit === 'units') updated.displayValue = `${newVal} יח"ד`;
+      else if (r.unit === 'sqm_per_unit') updated.displayValue = `${newVal} מ"ר ליח'`;
+      else if (r.unit === 'spaces') updated.displayValue = `${newVal} חניות ליח'`;
+      else if (r.unit === 'ratio') updated.displayValue = `${newVal}`;
+      else updated.displayValue = `${newVal}`;
+      return updated;
+    }));
+    setEditingRuleId(null);
+  };
+
+  const addManualRule = () => {
+    const newRule: ZoningRule = {
+      id: generateId('rule'),
+      category: 'other',
+      label: 'כלל חדש',
+      formula: '0',
+      displayValue: '0',
+      rawNumber: 0,
+      unit: 'percent',
+      source: {
+        documentType: 'takanon',
+        documentName: 'הזנה ידנית',
+        rawText: 'הוזן ידנית',
+        confidence: 100,
+      },
+      confirmed: false,
+    };
+    setMergedRules(prev => [...prev, newRule]);
+    startEdit(newRule);
+  };
+
+  const deleteRule = (ruleId: string) => {
+    setMergedRules(prev => prev.filter(r => r.id !== ruleId));
+  };
+
+  const proceedToMetadata = () => setStep('metadata');
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const confirmedRules = mergedRules.filter(r => r.confirmed);
+      const docNames = slots.filter(s => s.file).map(s => s.file!.name);
+
+      // Save documents
+      for (const slot of slots) {
+        if (!slot.file || !slot.result) continue;
+        const doc: StoredDocument = {
+          id: generateId('doc'),
+          name: slot.file.name,
+          planNumber,
+          type: slot.type,
+          uploadDate: new Date().toISOString().split('T')[0],
+          pageCount: slot.result.pages.length,
+          extractedRules: slot.result.rules,
+        };
+        await saveDocument(doc);
+      }
+
+      // Build and save plan
+      const data: ExtractedPlanData = {
+        planNumber,
+        planName,
+        city,
+        neighborhood,
+        zoningType,
+        rules: confirmedRules,
+        documents: slots.filter(s => s.file).map(s => ({
+          type: s.type,
+          name: s.file!.name,
+          uploadDate: new Date().toISOString().split('T')[0],
+          pageCount: s.result?.pages.length || 0,
+        })),
+      };
+
+      const plan = buildPlanFromExtraction(data, docNames);
+      await savePlan(plan);
+
+      setSavedName(planNumber || planName || 'תכנית חדשה');
+      setStep('saved');
+    } catch (err) {
+      console.error('Save error:', err);
+    } finally {
+      setSaving(false);
     }
   };
 
-  return (
-    <div className="min-h-screen flex items-center justify-center p-4">
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-sm"
-      >
-        <div className="glass-card p-8 rounded-2xl text-center">
-          <div className="w-16 h-16 rounded-2xl bg-accent/10 flex items-center justify-center mx-auto mb-4">
-            <Shield className="w-8 h-8 text-accent" />
-          </div>
-          <h1 className="text-xl font-bold text-foreground mb-1">ניהול מערכת</h1>
-          <p className="text-sm text-foreground-muted mb-6">Zchut.AI Admin Panel</p>
+  const reset = () => {
+    setStep('upload');
+    setSlots(INITIAL_SLOTS.map(s => ({ ...s })));
+    setMergedRules([]);
+    setPlanNumber('');
+    setPlanName('');
+    setCity('');
+    setNeighborhood('');
+    setZoningType('residential_a');
+    setSavedName('');
+    setEditingRuleId(null);
+  };
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="relative">
-              <Lock className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground-muted" />
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => { setPassword(e.target.value); setError(''); }}
-                placeholder="הזן סיסמה"
-                className="input-field w-full pr-10 text-center"
-                autoFocus
-              />
+  const confirmedCount = mergedRules.filter(r => r.confirmed).length;
+
+  return (
+    <div className="space-y-4">
+      <AnimatePresence mode="wait">
+        {/* ── Step 1: Upload Documents ── */}
+        {step === 'upload' && (
+          <motion.div key="upload" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-4">
+            <div className="db-card-accent p-4">
+              <div className="flex items-start gap-3">
+                <BookOpen className="w-5 h-5 text-accent flex-shrink-0 mt-0.5" />
+                <div>
+                  <h3 className="text-sm font-semibold text-accent mb-1">{'הזנת תב"ע אוטומטית'}</h3>
+                  <p className="text-xs text-foreground-secondary leading-relaxed">
+                    {'העלה מסמכי PDF — המערכת תנתח ותחלץ כללי בנייה כנוסחאות. לפחות מסמך אחד נדרש.'}
+                  </p>
+                </div>
+              </div>
             </div>
-            {error && (
-              <p className="text-red-400 text-sm">{error}</p>
-            )}
-            <button type="submit" className="btn-primary w-full">
-              כניסה
+
+            <div className="space-y-3">
+              {slots.map((slot, i) => (
+                <div key={slot.type} className={`db-card p-4 transition-all ${slot.file ? 'border border-[rgba(34,197,94,0.3)]' : ''}`}>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${slot.file ? 'bg-[rgba(34,197,94,0.1)]' : 'bg-[rgba(255,255,255,0.04)]'}`}>
+                        {slot.file ? (
+                          <CheckCircle2 className="w-5 h-5 text-green" />
+                        ) : (
+                          <FileText className="w-5 h-5 text-foreground-muted" />
+                        )}
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-semibold">{slot.label}</h4>
+                        {slot.file ? (
+                          <p className="text-xs text-green">{slot.file.name}</p>
+                        ) : (
+                          <p className="text-xs text-foreground-muted">{slot.description}</p>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {slot.file && (
+                        <button onClick={() => removeFile(i)} className="p-1.5 hover:bg-[rgba(255,255,255,0.04)] rounded-lg text-foreground-muted hover:text-red-400">
+                          <X className="w-4 h-4" />
+                        </button>
+                      )}
+                      <input
+                        ref={el => { fileRefs.current[i] = el; }}
+                        type="file"
+                        accept=".pdf"
+                        className="hidden"
+                        onChange={(e) => handleFileSelect(i, e)}
+                      />
+                      <button
+                        onClick={() => fileRefs.current[i]?.click()}
+                        className={`text-xs px-3 py-1.5 rounded-lg transition-colors ${slot.file ? 'text-foreground-muted hover:text-accent hover:bg-[rgba(255,255,255,0.04)]' : 'btn-primary'}`}
+                      >
+                        {slot.file ? 'החלף' : 'בחר PDF'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <button
+              onClick={handleAnalyze}
+              disabled={!hasFiles}
+              className="btn-green w-full py-4 flex items-center justify-center gap-2 text-base disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              <Cpu className="w-5 h-5" />
+              {'התחל ניתוח אוטומטי'}
             </button>
-          </form>
-        </div>
-      </motion.div>
+          </motion.div>
+        )}
+
+        {/* ── Step 2: Parsing ── */}
+        {step === 'parsing' && (
+          <motion.div key="parsing" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-4">
+            <div className="db-card p-6 text-center">
+              <div className="w-16 h-16 rounded-2xl bg-accent/10 flex items-center justify-center mx-auto mb-4">
+                <Cpu className="w-8 h-8 text-accent animate-pulse" />
+              </div>
+              <h3 className="text-lg font-bold mb-2">מנתח מסמכים...</h3>
+              <p className="text-xs text-foreground-muted mb-4">{'מחלץ טקסט, מזהה טבלאות, וממפה נוסחאות'}</p>
+            </div>
+
+            <div className="space-y-2">
+              {slots.map((slot) => {
+                if (!slot.file) return null;
+                return (
+                  <div key={slot.type} className="db-card p-3 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      {slot.status === 'parsing' && <Loader2 className="w-4 h-4 text-accent animate-spin" />}
+                      {slot.status === 'done' && <CheckCircle2 className="w-4 h-4 text-green" />}
+                      {slot.status === 'error' && <AlertTriangle className="w-4 h-4 text-gold" />}
+                      {slot.status === 'selected' && <FileText className="w-4 h-4 text-foreground-muted" />}
+                      <span className="text-sm">{slot.label}: {slot.file.name}</span>
+                    </div>
+                    <div className="text-xs text-foreground-muted">
+                      {slot.status === 'done' && slot.result && `${slot.result.rules.length} כללים`}
+                      {slot.status === 'error' && slot.error}
+                      {slot.status === 'parsing' && 'מנתח...'}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </motion.div>
+        )}
+
+        {/* ── Step 3: Verification Checklist ── */}
+        {step === 'verify' && (
+          <motion.div key="verify" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-4">
+            <div className="db-card p-4 border border-[rgba(59,130,246,0.2)]">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="w-5 h-5 text-accent" />
+                  <h3 className="text-sm font-bold text-accent">{'כללים שזוהו — אשר או ערוך'}</h3>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-foreground-muted">{confirmedCount}/{mergedRules.length} מאושרים</span>
+                  <button onClick={confirmAll} className="text-xs text-accent hover:underline">אשר הכל</button>
+                </div>
+              </div>
+              <p className="text-xs text-foreground-secondary">
+                {'המערכת מצאה את הכללים הבאים. לחץ על ✓ לאישור או על עריכה לשינוי.'}
+              </p>
+            </div>
+
+            {mergedRules.length === 0 && (
+              <div className="db-card p-8 text-center">
+                <AlertTriangle className="w-10 h-10 text-gold mx-auto mb-3 opacity-60" />
+                <h3 className="text-sm font-semibold mb-1">{'לא נמצאו כללים אוטומטית'}</h3>
+                <p className="text-xs text-foreground-muted mb-3">{'ניתן להוסיף כללים ידנית'}</p>
+              </div>
+            )}
+
+            <div className="space-y-2">
+              {mergedRules.map((rule) => {
+                const isEditing = editingRuleId === rule.id;
+                return (
+                  <div key={rule.id} className={`db-card p-3 transition-all ${rule.confirmed ? 'border border-[rgba(34,197,94,0.2)]' : ''}`}>
+                    {!isEditing ? (
+                      <div className="flex items-start gap-3">
+                        {/* Confirm checkbox */}
+                        <button
+                          onClick={() => toggleConfirm(rule.id)}
+                          className={`mt-0.5 w-5 h-5 rounded flex items-center justify-center flex-shrink-0 transition-colors ${rule.confirmed ? 'bg-green text-white' : 'border border-[rgba(255,255,255,0.2)] hover:border-green'}`}
+                        >
+                          {rule.confirmed && <Check className="w-3 h-3" />}
+                        </button>
+
+                        {/* Rule content */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-xs px-2 py-0.5 rounded-full bg-[rgba(255,255,255,0.06)] text-foreground-muted">
+                              {ruleCategoryLabels[rule.category]}
+                            </span>
+                            <span className="font-bold text-sm font-mono">{rule.displayValue}</span>
+                          </div>
+
+                          {/* Formula */}
+                          <div className="text-[10px] text-foreground-muted font-mono mb-1">
+                            {'נוסחה: '}{rule.formula}
+                          </div>
+
+                          {/* Source citation */}
+                          <div className="flex items-center gap-2 text-[10px] text-foreground-muted">
+                            <span className="px-1.5 py-0.5 rounded bg-[rgba(255,255,255,0.04)]">
+                              {documentTypeLabels[rule.source.documentType]}
+                            </span>
+                            {rule.source.pageNumber && <span>{'עמוד '}{rule.source.pageNumber}</span>}
+                            <span className="truncate max-w-[200px] opacity-60" title={rule.source.rawText}>
+                              {'"'}{rule.source.rawText}{'"'}
+                            </span>
+                            <span className="px-1 py-0.5 rounded bg-[rgba(255,255,255,0.04)]">{rule.source.confidence}%</span>
+                          </div>
+                        </div>
+
+                        {/* Actions */}
+                        <div className="flex items-center gap-1 flex-shrink-0">
+                          <button onClick={() => startEdit(rule)} className="p-1.5 hover:bg-[rgba(255,255,255,0.04)] rounded-lg text-foreground-muted hover:text-accent">
+                            <Pencil className="w-3.5 h-3.5" />
+                          </button>
+                          <button onClick={() => deleteRule(rule.id)} className="p-1.5 hover:bg-[rgba(255,255,255,0.04)] rounded-lg text-foreground-muted hover:text-red-400">
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      /* Inline edit mode */
+                      <div className="space-y-2">
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <label className="text-[10px] text-foreground-muted">קטגוריה</label>
+                            <select
+                              className="input-field w-full mt-0.5 text-xs"
+                              value={rule.category}
+                              onChange={(e) => {
+                                const cat = e.target.value as ZoningRuleCategory;
+                                setMergedRules(prev => prev.map(r =>
+                                  r.id === rule.id ? { ...r, category: cat, label: ruleCategoryLabels[cat] } : r
+                                ));
+                              }}
+                            >
+                              {Object.entries(ruleCategoryLabels).map(([k, v]) => (
+                                <option key={k} value={k}>{v}</option>
+                              ))}
+                            </select>
+                          </div>
+                          <div>
+                            <label className="text-[10px] text-foreground-muted">יחידה</label>
+                            <select
+                              className="input-field w-full mt-0.5 text-xs"
+                              value={rule.unit}
+                              onChange={(e) => {
+                                setMergedRules(prev => prev.map(r =>
+                                  r.id === rule.id ? { ...r, unit: e.target.value as RuleUnit } : r
+                                ));
+                              }}
+                            >
+                              {Object.entries(ruleUnitLabels).map(([k, v]) => (
+                                <option key={k} value={k}>{v || k}</option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <label className="text-[10px] text-foreground-muted">ערך</label>
+                            <input
+                              type="number"
+                              className="input-field w-full mt-0.5 text-xs"
+                              value={editValue}
+                              onChange={(e) => setEditValue(e.target.value)}
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[10px] text-foreground-muted">נוסחה</label>
+                            <input
+                              className="input-field w-full mt-0.5 text-xs font-mono"
+                              value={editFormula}
+                              onChange={(e) => setEditFormula(e.target.value)}
+                              dir="ltr"
+                            />
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          <button onClick={() => saveEdit(rule.id)} className="btn-green text-xs px-3 py-1.5 flex items-center gap-1">
+                            <Save className="w-3 h-3" />שמור
+                          </button>
+                          <button onClick={() => setEditingRuleId(null)} className="btn-secondary text-xs px-3 py-1.5">ביטול</button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            <button onClick={addManualRule} className="text-xs text-accent hover:underline flex items-center gap-1 mx-auto">
+              <Plus className="w-3 h-3" />{'הוסף כלל ידני'}
+            </button>
+
+            <button
+              onClick={proceedToMetadata}
+              disabled={confirmedCount === 0}
+              className="btn-primary w-full py-3 flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              {'המשך — פרטי תכנית (' + confirmedCount + ' כללים מאושרים)'}
+            </button>
+          </motion.div>
+        )}
+
+        {/* ── Step 4: Metadata ── */}
+        {step === 'metadata' && (
+          <motion.div key="metadata" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-4">
+            <div className="db-card p-4 space-y-3">
+              <h4 className="font-semibold text-sm flex items-center gap-2">
+                <Database className="w-4 h-4 text-accent" />
+                {'פרטי התכנית'}
+              </h4>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs text-foreground-muted">מספר תכנית</label>
+                  <input className="input-field w-full mt-1" value={planNumber} onChange={(e) => setPlanNumber(e.target.value)} placeholder="רע/3000" />
+                </div>
+                <div>
+                  <label className="text-xs text-foreground-muted">שם תכנית</label>
+                  <input className="input-field w-full mt-1" value={planName} onChange={(e) => setPlanName(e.target.value)} placeholder='תכנית מתאר...' />
+                </div>
+                <div>
+                  <label className="text-xs text-foreground-muted">עיר</label>
+                  <input className="input-field w-full mt-1" value={city} onChange={(e) => setCity(e.target.value)} placeholder="רעננה" />
+                </div>
+                <div>
+                  <label className="text-xs text-foreground-muted">שכונה</label>
+                  <input className="input-field w-full mt-1" value={neighborhood} onChange={(e) => setNeighborhood(e.target.value)} placeholder="נווה זמר" />
+                </div>
+                <div>
+                  <label className="text-xs text-foreground-muted">סוג ייעוד</label>
+                  <select className="input-field w-full mt-1" value={zoningType} onChange={(e) => setZoningType(e.target.value as ZoningType)}>
+                    <option value="residential_a">{"מגורים א'"}</option>
+                    <option value="residential_b">{"מגורים ב'"}</option>
+                    <option value="residential_c">{"מגורים ג'"}</option>
+                    <option value="mixed_use">שימוש מעורב</option>
+                    <option value="commercial">מסחרי</option>
+                    <option value="industrial">תעשייה</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {/* Summary of confirmed rules */}
+            <div className="db-card p-4">
+              <h4 className="font-semibold text-xs text-foreground-secondary mb-2">{confirmedCount} {'כללים מאושרים'}</h4>
+              <div className="grid grid-cols-2 gap-1">
+                {mergedRules.filter(r => r.confirmed).map(r => (
+                  <div key={r.id} className="text-[10px] flex items-center gap-1 p-1 rounded bg-[rgba(0,0,0,0.2)]">
+                    <CheckCircle2 className="w-2.5 h-2.5 text-green flex-shrink-0" />
+                    <span className="text-foreground-muted truncate">{ruleCategoryLabels[r.category]}:</span>
+                    <span className="font-mono font-bold">{r.displayValue}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex gap-3">
+              <button onClick={() => setStep('verify')} className="btn-secondary flex-1">
+                {'חזרה לעריכה'}
+              </button>
+              <button
+                onClick={handleSave}
+                disabled={saving}
+                className="btn-green flex-1 flex items-center justify-center gap-2"
+              >
+                {saving ? (
+                  <><Loader2 className="w-5 h-5 animate-spin" />{'שומר...'}</>
+                ) : (
+                  <><Save className="w-5 h-5" />{'שמור למערכת'}</>
+                )}
+              </button>
+            </div>
+          </motion.div>
+        )}
+
+        {/* ── Step 5: Saved ── */}
+        {step === 'saved' && (
+          <motion.div key="saved" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }}>
+            <div className="db-card p-8 text-center">
+              <div className="w-20 h-20 rounded-full bg-[rgba(34,197,94,0.1)] flex items-center justify-center mx-auto mb-4">
+                <CheckCircle2 className="w-10 h-10 text-green" />
+              </div>
+              <h3 className="text-xl font-bold text-green mb-2">{'התכנית נשמרה בהצלחה!'}</h3>
+              <p className="text-sm text-foreground-secondary mb-1">
+                {'תכנית "' + savedName + '" הוזנה עם ' + confirmedCount + ' כללי בנייה'}
+              </p>
+              <p className="text-xs text-foreground-muted mb-6">
+                {'המערכת תשתמש בנוסחאות שאושרו בחישוב זכויות בנייה.'}
+              </p>
+
+              <div className="flex gap-3">
+                <button onClick={reset} className="btn-primary flex-1 flex items-center justify-center gap-2">
+                  <Plus className="w-4 h-4" />{'העלה תב"ע נוספת'}
+                </button>
+                <button onClick={onDone} className="btn-secondary flex-1">{'סיום'}</button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
 
-// ── Plan Form ────────────────────────────────────────────────
+// ── Plan Editor Form ─────────────────────────────────────────
 
 function PlanForm({
-  plan,
-  onSave,
-  onCancel,
+  plan, onSave, onCancel,
 }: {
   plan?: ZoningPlan;
   onSave: (plan: ZoningPlan) => void;
@@ -102,40 +655,22 @@ function PlanForm({
   const [form, setForm] = useState<Partial<ZoningPlan>>(
     plan || {
       id: generateId('plan'),
-      planNumber: '',
-      name: '',
-      city: 'רעננה',
-      neighborhood: '',
+      planNumber: '', name: '', city: '', neighborhood: '',
       approvalDate: new Date().toISOString().split('T')[0],
       status: 'active',
       zoningType: 'residential_a' as ZoningType,
       buildingRights: {
-        mainBuildingPercent: 0,
-        serviceBuildingPercent: 0,
-        totalBuildingPercent: 0,
-        maxFloors: 0,
-        maxHeight: 0,
-        maxUnits: 0,
-        basementAllowed: true,
-        basementPercent: 0,
-        rooftopPercent: 0,
-        landCoveragePercent: 0,
-        floorAllocations: [],
-        citations: [],
+        mainBuildingPercent: 0, serviceBuildingPercent: 0, totalBuildingPercent: 0,
+        maxFloors: 0, maxHeight: 0, maxUnits: 0,
+        basementAllowed: true, basementPercent: 0, rooftopPercent: 0, landCoveragePercent: 0,
+        floorAllocations: [], citations: [],
       },
       restrictions: {
-        frontSetback: 0,
-        rearSetback: 0,
-        sideSetback: 0,
-        minParkingSpaces: 1.5,
-        minGreenAreaPercent: 30,
-        maxLandCoverage: 0,
+        frontSetback: 0, rearSetback: 0, sideSetback: 0,
+        minParkingSpaces: 1.5, minGreenAreaPercent: 30, maxLandCoverage: 0,
       },
-      sourceDocument: {
-        name: '',
-        url: '',
-        lastUpdated: new Date().toISOString().split('T')[0],
-      },
+      sourceDocument: { name: '', url: '', lastUpdated: new Date().toISOString().split('T')[0] },
+      rules: [],
     }
   );
 
@@ -143,792 +678,63 @@ function PlanForm({
     setForm((prev) => {
       const copy = JSON.parse(JSON.stringify(prev));
       const keys = path.split('.');
-      let obj = copy;
-      for (let i = 0; i < keys.length - 1; i++) {
-        obj = obj[keys[i]];
-      }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let obj: any = copy;
+      for (let i = 0; i < keys.length - 1; i++) obj = obj[keys[i]];
       obj[keys[keys.length - 1]] = value;
-      // Auto-calculate total
       if (path.startsWith('buildingRights.main') || path.startsWith('buildingRights.service')) {
         copy.buildingRights.totalBuildingPercent =
-          (copy.buildingRights.mainBuildingPercent || 0) +
-          (copy.buildingRights.serviceBuildingPercent || 0);
+          (copy.buildingRights.mainBuildingPercent || 0) + (copy.buildingRights.serviceBuildingPercent || 0);
       }
       return copy;
     });
   };
 
-  const handleSave = () => {
-    if (!form.planNumber || !form.name) return;
-    onSave(form as ZoningPlan);
-  };
-
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-bold text-foreground">
-          {plan ? 'עריכת תכנית' : 'הוספת תכנית חדשה'}
-        </h3>
-        <button onClick={onCancel} className="p-2 hover:bg-foreground/5 rounded-lg">
-          <X className="w-5 h-5" />
-        </button>
+        <h3 className="text-lg font-bold">{plan ? 'עריכת תכנית' : 'הוספת תכנית חדשה'}</h3>
+        <button onClick={onCancel} className="p-2 hover:bg-[rgba(255,255,255,0.04)] rounded-lg"><X className="w-5 h-5" /></button>
       </div>
 
-      {/* Basic Info */}
-      <div className="glass-card p-4 rounded-xl space-y-3">
-        <h4 className="font-semibold text-foreground text-sm">פרטי התכנית</h4>
+      <div className="db-card p-4 space-y-3">
+        <h4 className="font-semibold text-sm">פרטי התכנית</h4>
         <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="text-xs text-foreground-muted">מספר תכנית *</label>
-            <input
-              className="input-field w-full mt-1"
-              value={form.planNumber || ''}
-              onChange={(e) => updateField('planNumber', e.target.value)}
-              placeholder='רע/3000'
-            />
-          </div>
-          <div>
-            <label className="text-xs text-foreground-muted">שם התכנית *</label>
-            <input
-              className="input-field w-full mt-1"
-              value={form.name || ''}
-              onChange={(e) => updateField('name', e.target.value)}
-              placeholder='תכנית מתאר מקומית...'
-            />
-          </div>
-          <div>
-            <label className="text-xs text-foreground-muted">עיר</label>
-            <input
-              className="input-field w-full mt-1"
-              value={form.city || ''}
-              onChange={(e) => updateField('city', e.target.value)}
-            />
-          </div>
-          <div>
-            <label className="text-xs text-foreground-muted">שכונה</label>
-            <input
-              className="input-field w-full mt-1"
-              value={form.neighborhood || ''}
-              onChange={(e) => updateField('neighborhood', e.target.value)}
-            />
-          </div>
-          <div>
-            <label className="text-xs text-foreground-muted">תאריך אישור</label>
-            <input
-              type="date"
-              className="input-field w-full mt-1"
-              value={form.approvalDate || ''}
-              onChange={(e) => updateField('approvalDate', e.target.value)}
-            />
-          </div>
-          <div>
-            <label className="text-xs text-foreground-muted">סוג ייעוד</label>
-            <select
-              className="input-field w-full mt-1"
-              value={form.zoningType || 'residential_a'}
-              onChange={(e) => updateField('zoningType', e.target.value)}
-            >
-              <option value="residential_a">{"מגורים א'"}</option>
-              <option value="residential_b">{"מגורים ב'"}</option>
-              <option value="residential_c">{"מגורים ג'"}</option>
-              <option value="mixed_use">שימוש מעורב</option>
-              <option value="commercial">מסחרי</option>
-              <option value="industrial">תעשייה</option>
-              <option value="public">ציבורי</option>
-            </select>
-          </div>
+          <div><label className="text-xs text-foreground-muted">מספר תכנית</label><input className="input-field w-full mt-1" value={form.planNumber || ''} onChange={(e) => updateField('planNumber', e.target.value)} /></div>
+          <div><label className="text-xs text-foreground-muted">שם התכנית</label><input className="input-field w-full mt-1" value={form.name || ''} onChange={(e) => updateField('name', e.target.value)} /></div>
+          <div><label className="text-xs text-foreground-muted">עיר</label><input className="input-field w-full mt-1" value={form.city || ''} onChange={(e) => updateField('city', e.target.value)} /></div>
+          <div><label className="text-xs text-foreground-muted">שכונה</label><input className="input-field w-full mt-1" value={form.neighborhood || ''} onChange={(e) => updateField('neighborhood', e.target.value)} /></div>
+          <div><label className="text-xs text-foreground-muted">סוג ייעוד</label><select className="input-field w-full mt-1" value={form.zoningType || 'residential_a'} onChange={(e) => updateField('zoningType', e.target.value)}>
+            <option value="residential_a">{"מגורים א'"}</option><option value="residential_b">{"מגורים ב'"}</option><option value="residential_c">{"מגורים ג'"}</option>
+            <option value="mixed_use">שימוש מעורב</option><option value="commercial">מסחרי</option>
+          </select></div>
         </div>
       </div>
 
-      {/* Building Rights */}
-      <div className="glass-card p-4 rounded-xl space-y-3">
-        <h4 className="font-semibold text-foreground text-sm">זכויות בנייה</h4>
+      <div className="db-card p-4 space-y-3">
+        <h4 className="font-semibold text-sm">זכויות בנייה</h4>
         <div className="grid grid-cols-3 gap-3">
-          <div>
-            <label className="text-xs text-foreground-muted">אחוזי בנייה עיקריים %</label>
-            <input
-              type="number"
-              className="input-field w-full mt-1"
-              value={form.buildingRights?.mainBuildingPercent || ''}
-              onChange={(e) => updateField('buildingRights.mainBuildingPercent', parseFloat(e.target.value) || 0)}
-            />
-          </div>
-          <div>
-            <label className="text-xs text-foreground-muted">שטחי שירות %</label>
-            <input
-              type="number"
-              className="input-field w-full mt-1"
-              value={form.buildingRights?.serviceBuildingPercent || ''}
-              onChange={(e) => updateField('buildingRights.serviceBuildingPercent', parseFloat(e.target.value) || 0)}
-            />
-          </div>
-          <div>
-            <label className="text-xs text-foreground-muted">סה"כ %</label>
-            <input
-              type="number"
-              className="input-field w-full mt-1 opacity-60"
-              value={form.buildingRights?.totalBuildingPercent || ''}
-              readOnly
-            />
-          </div>
-          <div>
-            <label className="text-xs text-foreground-muted">קומות מרבי</label>
-            <input
-              type="number"
-              className="input-field w-full mt-1"
-              value={form.buildingRights?.maxFloors || ''}
-              onChange={(e) => updateField('buildingRights.maxFloors', parseInt(e.target.value) || 0)}
-            />
-          </div>
-          <div>
-            <label className="text-xs text-foreground-muted">{'גובה מרבי (מ\')'}</label>
-            <input
-              type="number"
-              className="input-field w-full mt-1"
-              value={form.buildingRights?.maxHeight || ''}
-              onChange={(e) => updateField('buildingRights.maxHeight', parseFloat(e.target.value) || 0)}
-            />
-          </div>
-          <div>
-            <label className="text-xs text-foreground-muted">{'יח"ד מרבי'}</label>
-            <input
-              type="number"
-              className="input-field w-full mt-1"
-              value={form.buildingRights?.maxUnits || ''}
-              onChange={(e) => updateField('buildingRights.maxUnits', parseInt(e.target.value) || 0)}
-            />
-          </div>
-          <div>
-            <label className="text-xs text-foreground-muted">תכסית %</label>
-            <input
-              type="number"
-              className="input-field w-full mt-1"
-              value={form.buildingRights?.landCoveragePercent || ''}
-              onChange={(e) => updateField('buildingRights.landCoveragePercent', parseFloat(e.target.value) || 0)}
-            />
-          </div>
-          <div>
-            <label className="text-xs text-foreground-muted">מרתף %</label>
-            <input
-              type="number"
-              className="input-field w-full mt-1"
-              value={form.buildingRights?.basementPercent || ''}
-              onChange={(e) => updateField('buildingRights.basementPercent', parseFloat(e.target.value) || 0)}
-            />
-          </div>
-          <div>
-            <label className="text-xs text-foreground-muted">גג %</label>
-            <input
-              type="number"
-              className="input-field w-full mt-1"
-              value={form.buildingRights?.rooftopPercent || ''}
-              onChange={(e) => updateField('buildingRights.rooftopPercent', parseFloat(e.target.value) || 0)}
-            />
-          </div>
+          <div><label className="text-xs text-foreground-muted">עיקרי %</label><input type="number" className="input-field w-full mt-1" value={form.buildingRights?.mainBuildingPercent || ''} onChange={(e) => updateField('buildingRights.mainBuildingPercent', parseFloat(e.target.value) || 0)} /></div>
+          <div><label className="text-xs text-foreground-muted">שירות %</label><input type="number" className="input-field w-full mt-1" value={form.buildingRights?.serviceBuildingPercent || ''} onChange={(e) => updateField('buildingRights.serviceBuildingPercent', parseFloat(e.target.value) || 0)} /></div>
+          <div><label className="text-xs text-foreground-muted">{'סה"כ %'}</label><input type="number" className="input-field w-full mt-1 opacity-60" value={form.buildingRights?.totalBuildingPercent || ''} readOnly /></div>
+          <div><label className="text-xs text-foreground-muted">קומות מרבי</label><input type="number" className="input-field w-full mt-1" value={form.buildingRights?.maxFloors || ''} onChange={(e) => updateField('buildingRights.maxFloors', parseInt(e.target.value) || 0)} /></div>
+          <div><label className="text-xs text-foreground-muted">{"גובה מרבי (מ')"}</label><input type="number" className="input-field w-full mt-1" value={form.buildingRights?.maxHeight || ''} onChange={(e) => updateField('buildingRights.maxHeight', parseFloat(e.target.value) || 0)} /></div>
+          <div><label className="text-xs text-foreground-muted">תכסית %</label><input type="number" className="input-field w-full mt-1" value={form.buildingRights?.landCoveragePercent || ''} onChange={(e) => updateField('buildingRights.landCoveragePercent', parseFloat(e.target.value) || 0)} /></div>
         </div>
       </div>
 
-      {/* Restrictions / Setbacks */}
-      <div className="glass-card p-4 rounded-xl space-y-3">
-        <h4 className="font-semibold text-foreground text-sm">{'מגבלות וקווי בניין (מטרים)'}</h4>
+      <div className="db-card p-4 space-y-3">
+        <h4 className="font-semibold text-sm">{'קווי בניין (מטרים)'}</h4>
         <div className="grid grid-cols-3 gap-3">
-          <div>
-            <label className="text-xs text-foreground-muted">קו בניין קדמי</label>
-            <input
-              type="number"
-              className="input-field w-full mt-1"
-              value={form.restrictions?.frontSetback || ''}
-              onChange={(e) => updateField('restrictions.frontSetback', parseFloat(e.target.value) || 0)}
-            />
-          </div>
-          <div>
-            <label className="text-xs text-foreground-muted">קו בניין אחורי</label>
-            <input
-              type="number"
-              className="input-field w-full mt-1"
-              value={form.restrictions?.rearSetback || ''}
-              onChange={(e) => updateField('restrictions.rearSetback', parseFloat(e.target.value) || 0)}
-            />
-          </div>
-          <div>
-            <label className="text-xs text-foreground-muted">קו בניין צידי</label>
-            <input
-              type="number"
-              className="input-field w-full mt-1"
-              value={form.restrictions?.sideSetback || ''}
-              onChange={(e) => updateField('restrictions.sideSetback', parseFloat(e.target.value) || 0)}
-            />
-          </div>
-          <div>
-            <label className="text-xs text-foreground-muted">חניות מינימום</label>
-            <input
-              type="number"
-              step="0.1"
-              className="input-field w-full mt-1"
-              value={form.restrictions?.minParkingSpaces || ''}
-              onChange={(e) => updateField('restrictions.minParkingSpaces', parseFloat(e.target.value) || 0)}
-            />
-          </div>
-          <div>
-            <label className="text-xs text-foreground-muted">שטח ירוק מינימום %</label>
-            <input
-              type="number"
-              className="input-field w-full mt-1"
-              value={form.restrictions?.minGreenAreaPercent || ''}
-              onChange={(e) => updateField('restrictions.minGreenAreaPercent', parseFloat(e.target.value) || 0)}
-            />
-          </div>
-          <div>
-            <label className="text-xs text-foreground-muted">תכסית מקסימלית %</label>
-            <input
-              type="number"
-              className="input-field w-full mt-1"
-              value={form.restrictions?.maxLandCoverage || ''}
-              onChange={(e) => updateField('restrictions.maxLandCoverage', parseFloat(e.target.value) || 0)}
-            />
-          </div>
-        </div>
-      </div>
-
-      {/* Source Document */}
-      <div className="glass-card p-4 rounded-xl space-y-3">
-        <h4 className="font-semibold text-foreground text-sm">מסמך מקור</h4>
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="text-xs text-foreground-muted">שם המסמך</label>
-            <input
-              className="input-field w-full mt-1"
-              value={form.sourceDocument?.name || ''}
-              onChange={(e) => updateField('sourceDocument.name', e.target.value)}
-              placeholder='תקנון תב"ע...'
-            />
-          </div>
-          <div>
-            <label className="text-xs text-foreground-muted">קישור (URL)</label>
-            <input
-              className="input-field w-full mt-1"
-              value={form.sourceDocument?.url || ''}
-              onChange={(e) => updateField('sourceDocument.url', e.target.value)}
-              placeholder="https://..."
-              dir="ltr"
-            />
-          </div>
+          <div><label className="text-xs text-foreground-muted">קדמי</label><input type="number" className="input-field w-full mt-1" value={form.restrictions?.frontSetback || ''} onChange={(e) => updateField('restrictions.frontSetback', parseFloat(e.target.value) || 0)} /></div>
+          <div><label className="text-xs text-foreground-muted">אחורי</label><input type="number" className="input-field w-full mt-1" value={form.restrictions?.rearSetback || ''} onChange={(e) => updateField('restrictions.rearSetback', parseFloat(e.target.value) || 0)} /></div>
+          <div><label className="text-xs text-foreground-muted">צידי</label><input type="number" className="input-field w-full mt-1" value={form.restrictions?.sideSetback || ''} onChange={(e) => updateField('restrictions.sideSetback', parseFloat(e.target.value) || 0)} /></div>
         </div>
       </div>
 
       <div className="flex gap-3">
-        <button onClick={handleSave} className="btn-primary flex-1 flex items-center justify-center gap-2">
-          <Save className="w-4 h-4" />
-          שמור תכנית
-        </button>
-        <button onClick={onCancel} className="btn-secondary flex-1">
-          ביטול
-        </button>
-      </div>
-    </div>
-  );
-}
-
-// ── Address Form ─────────────────────────────────────────────
-
-function AddressForm({
-  addr,
-  plans,
-  onSave,
-  onCancel,
-}: {
-  addr?: AddressMapping;
-  plans: ZoningPlan[];
-  onSave: (addr: AddressMapping) => void;
-  onCancel: () => void;
-}) {
-  const [form, setForm] = useState<Partial<AddressMapping>>(
-    addr || {
-      address: '',
-      block: '',
-      parcel: '',
-      planId: plans[0]?.id || '',
-      neighborhood: '',
-      avgPricePerSqm: 0,
-      constructionCostPerSqm: 8000,
-      plotSize: 0,
-      plotWidth: 0,
-      plotDepth: 0,
-      existingFloors: 0,
-      existingArea: 0,
-      existingUnits: 0,
-    }
-  );
-
-  const update = (key: keyof AddressMapping, value: string | number) => {
-    setForm((prev) => ({ ...prev, [key]: value }));
-  };
-
-  const handleSave = () => {
-    if (!form.address || !form.planId) return;
-    onSave(form as AddressMapping);
-  };
-
-  return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h3 className="text-lg font-bold text-foreground">
-          {addr ? 'עריכת כתובת' : 'הוספת כתובת חדשה'}
-        </h3>
-        <button onClick={onCancel} className="p-2 hover:bg-foreground/5 rounded-lg">
-          <X className="w-5 h-5" />
-        </button>
-      </div>
-
-      <div className="glass-card p-4 rounded-xl space-y-3">
-        <h4 className="font-semibold text-foreground text-sm">מיקום</h4>
-        <div className="grid grid-cols-2 gap-3">
-          <div className="col-span-2">
-            <label className="text-xs text-foreground-muted">כתובת מלאה *</label>
-            <input
-              className="input-field w-full mt-1"
-              value={form.address || ''}
-              onChange={(e) => update('address', e.target.value)}
-              placeholder="רחוב הרצל 15, רעננה"
-            />
-          </div>
-          <div>
-            <label className="text-xs text-foreground-muted">גוש</label>
-            <input
-              className="input-field w-full mt-1"
-              value={form.block || ''}
-              onChange={(e) => update('block', e.target.value)}
-              placeholder="6573"
-            />
-          </div>
-          <div>
-            <label className="text-xs text-foreground-muted">חלקה</label>
-            <input
-              className="input-field w-full mt-1"
-              value={form.parcel || ''}
-              onChange={(e) => update('parcel', e.target.value)}
-              placeholder="45"
-            />
-          </div>
-          <div>
-            <label className="text-xs text-foreground-muted">שכונה</label>
-            <input
-              className="input-field w-full mt-1"
-              value={form.neighborhood || ''}
-              onChange={(e) => update('neighborhood', e.target.value)}
-            />
-          </div>
-          <div>
-            <label className="text-xs text-foreground-muted">תכנית חלה *</label>
-            <select
-              className="input-field w-full mt-1"
-              value={form.planId || ''}
-              onChange={(e) => update('planId', e.target.value)}
-            >
-              {plans.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.planNumber} - {p.name}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-      </div>
-
-      <div className="glass-card p-4 rounded-xl space-y-3">
-        <h4 className="font-semibold text-foreground text-sm">נתוני מגרש</h4>
-        <div className="grid grid-cols-3 gap-3">
-          <div>
-            <label className="text-xs text-foreground-muted">{'שטח מגרש (מ"ר)'}</label>
-            <input
-              type="number"
-              className="input-field w-full mt-1"
-              value={form.plotSize || ''}
-              onChange={(e) => update('plotSize', parseFloat(e.target.value) || 0)}
-            />
-          </div>
-          <div>
-            <label className="text-xs text-foreground-muted">{'רוחב (מ\')'}</label>
-            <input
-              type="number"
-              className="input-field w-full mt-1"
-              value={form.plotWidth || ''}
-              onChange={(e) => update('plotWidth', parseFloat(e.target.value) || 0)}
-            />
-          </div>
-          <div>
-            <label className="text-xs text-foreground-muted">{'עומק (מ\')'}</label>
-            <input
-              type="number"
-              className="input-field w-full mt-1"
-              value={form.plotDepth || ''}
-              onChange={(e) => update('plotDepth', parseFloat(e.target.value) || 0)}
-            />
-          </div>
-        </div>
-      </div>
-
-      <div className="glass-card p-4 rounded-xl space-y-3">
-        <h4 className="font-semibold text-foreground text-sm">מצב קיים</h4>
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="text-xs text-foreground-muted">קומות קיימות</label>
-            <input
-              type="number"
-              className="input-field w-full mt-1"
-              value={form.existingFloors || ''}
-              onChange={(e) => update('existingFloors', parseInt(e.target.value) || 0)}
-            />
-          </div>
-          <div>
-            <label className="text-xs text-foreground-muted">{'שטח בנוי (מ"ר)'}</label>
-            <input
-              type="number"
-              className="input-field w-full mt-1"
-              value={form.existingArea || ''}
-              onChange={(e) => update('existingArea', parseFloat(e.target.value) || 0)}
-            />
-          </div>
-          <div>
-            <label className="text-xs text-foreground-muted">{'יח"ד קיימות'}</label>
-            <input
-              type="number"
-              className="input-field w-full mt-1"
-              value={form.existingUnits || ''}
-              onChange={(e) => update('existingUnits', parseInt(e.target.value) || 0)}
-            />
-          </div>
-          <div>
-            <label className="text-xs text-foreground-muted">שנת בנייה</label>
-            <input
-              type="number"
-              className="input-field w-full mt-1"
-              value={form.yearBuilt || ''}
-              onChange={(e) => update('yearBuilt', parseInt(e.target.value) || 0)}
-              placeholder="1975"
-            />
-          </div>
-        </div>
-      </div>
-
-      <div className="glass-card p-4 rounded-xl space-y-3">
-        <h4 className="font-semibold text-foreground text-sm">{'נתוני שוק (₪ למ"ר)'}</h4>
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="text-xs text-foreground-muted">{'מחיר ממוצע למ"ר'}</label>
-            <input
-              type="number"
-              className="input-field w-full mt-1"
-              value={form.avgPricePerSqm || ''}
-              onChange={(e) => update('avgPricePerSqm', parseInt(e.target.value) || 0)}
-              placeholder="40000"
-            />
-          </div>
-          <div>
-            <label className="text-xs text-foreground-muted">{'עלות בנייה למ"ר'}</label>
-            <input
-              type="number"
-              className="input-field w-full mt-1"
-              value={form.constructionCostPerSqm || ''}
-              onChange={(e) => update('constructionCostPerSqm', parseInt(e.target.value) || 0)}
-              placeholder="8000"
-            />
-          </div>
-        </div>
-      </div>
-
-      <div className="flex gap-3">
-        <button onClick={handleSave} className="btn-primary flex-1 flex items-center justify-center gap-2">
-          <Save className="w-4 h-4" />
-          שמור כתובת
-        </button>
-        <button onClick={onCancel} className="btn-secondary flex-1">
-          ביטול
-        </button>
-      </div>
-    </div>
-  );
-}
-
-// ── Document Upload ──────────────────────────────────────────
-
-function DocumentUpload({
-  doc,
-  onSave,
-  onCancel,
-}: {
-  doc?: DocumentEntry;
-  onSave: (doc: DocumentEntry) => void;
-  onCancel: () => void;
-}) {
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [form, setForm] = useState<Partial<DocumentEntry>>(
-    doc || {
-      id: generateId('doc'),
-      name: '',
-      planNumber: '',
-      type: 'takkanon',
-      description: '',
-      uploadDate: new Date().toISOString().split('T')[0],
-    }
-  );
-  const [fileName, setFileName] = useState<string>('');
-  const [uploading, setUploading] = useState(false);
-
-  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    setFileName(file.name);
-    setUploading(true);
-
-    try {
-      // For files under 5MB, store as base64
-      if (file.size < 5 * 1024 * 1024) {
-        const dataUrl = await fileToBase64(file);
-        setForm((prev) => ({
-          ...prev,
-          dataUrl,
-          fileSize: file.size,
-          name: prev?.name || file.name.replace(/\.[^.]+$/, ''),
-        }));
-      } else {
-        // Large files - just store metadata
-        setForm((prev) => ({
-          ...prev,
-          fileSize: file.size,
-          name: prev?.name || file.name.replace(/\.[^.]+$/, ''),
-        }));
-      }
-    } catch {
-      console.error('File read failed');
-    } finally {
-      setUploading(false);
-    }
-  };
-
-  const handleSave = () => {
-    if (!form.name || !form.planNumber) return;
-    onSave(form as DocumentEntry);
-  };
-
-  return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h3 className="text-lg font-bold text-foreground">
-          {doc ? 'עריכת מסמך' : 'העלאת מסמך חדש'}
-        </h3>
-        <button onClick={onCancel} className="p-2 hover:bg-foreground/5 rounded-lg">
-          <X className="w-5 h-5" />
-        </button>
-      </div>
-
-      {/* File Upload */}
-      <div
-        className="glass-card p-8 rounded-xl border-2 border-dashed border-foreground/20 text-center cursor-pointer hover:border-accent/50 transition-colors"
-        onClick={() => fileInputRef.current?.click()}
-      >
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
-          className="hidden"
-          onChange={handleFileSelect}
-        />
-        {uploading ? (
-          <div className="animate-pulse text-foreground-muted">מעלה...</div>
-        ) : fileName ? (
-          <div className="flex items-center justify-center gap-2 text-accent">
-            <Check className="w-5 h-5" />
-            <span className="text-sm">{fileName}</span>
-            {form.fileSize && (
-              <span className="text-xs text-foreground-muted">
-                ({(form.fileSize / 1024).toFixed(0)} KB)
-              </span>
-            )}
-          </div>
-        ) : (
-          <>
-            <Upload className="w-8 h-8 text-foreground-muted mx-auto mb-2" />
-            <p className="text-sm text-foreground-muted">
-              לחץ להעלאת קובץ (PDF, DOC, תמונה)
-            </p>
-            <p className="text-xs text-foreground-muted mt-1">עד 5MB</p>
-          </>
-        )}
-      </div>
-
-      {/* Document Info */}
-      <div className="glass-card p-4 rounded-xl space-y-3">
-        <h4 className="font-semibold text-foreground text-sm">פרטי המסמך</h4>
-        <div className="grid grid-cols-2 gap-3">
-          <div className="col-span-2">
-            <label className="text-xs text-foreground-muted">שם המסמך *</label>
-            <input
-              className="input-field w-full mt-1"
-              value={form.name || ''}
-              onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
-              placeholder='תקנון תב"ע רע/3000'
-            />
-          </div>
-          <div>
-            <label className="text-xs text-foreground-muted">מספר תכנית *</label>
-            <input
-              className="input-field w-full mt-1"
-              value={form.planNumber || ''}
-              onChange={(e) => setForm((p) => ({ ...p, planNumber: e.target.value }))}
-              placeholder="רע/3000"
-            />
-          </div>
-          <div>
-            <label className="text-xs text-foreground-muted">סוג מסמך</label>
-            <select
-              className="input-field w-full mt-1"
-              value={form.type || 'takkanon'}
-              onChange={(e) => setForm((p) => ({ ...p, type: e.target.value as DocumentEntry['type'] }))}
-            >
-              {Object.entries(documentTypeLabels).map(([key, label]) => (
-                <option key={key} value={key}>{label}</option>
-              ))}
-            </select>
-          </div>
-          <div className="col-span-2">
-            <label className="text-xs text-foreground-muted">תיאור</label>
-            <textarea
-              className="input-field w-full mt-1 h-20 resize-none"
-              value={form.description || ''}
-              onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))}
-              placeholder="תיאור קצר של המסמך..."
-            />
-          </div>
-          <div className="col-span-2">
-            <label className="text-xs text-foreground-muted">קישור חיצוני (אופציונלי)</label>
-            <input
-              className="input-field w-full mt-1"
-              value={form.externalUrl || ''}
-              onChange={(e) => setForm((p) => ({ ...p, externalUrl: e.target.value }))}
-              placeholder="https://mavat.iplan.gov.il/..."
-              dir="ltr"
-            />
-          </div>
-          <div>
-            <label className="text-xs text-foreground-muted">מספר עמודים</label>
-            <input
-              type="number"
-              className="input-field w-full mt-1"
-              value={form.pageCount || ''}
-              onChange={(e) => setForm((p) => ({ ...p, pageCount: parseInt(e.target.value) || 0 }))}
-            />
-          </div>
-        </div>
-      </div>
-
-      {/* Extracted Data (Manual Entry) */}
-      <div className="glass-card p-4 rounded-xl space-y-3">
-        <div className="flex items-center gap-2">
-          <h4 className="font-semibold text-foreground text-sm">נתונים מהמסמך (מילוי ידני)</h4>
-          <span className="text-[10px] px-2 py-0.5 rounded bg-accent/10 text-accent">אופציונלי</span>
-        </div>
-        <p className="text-xs text-foreground-muted">
-          מלא את הנתונים העיקריים מתוך המסמך. נתונים אלו ישמשו ליצירת תכנית אוטומטית.
-        </p>
-        <div className="grid grid-cols-3 gap-3">
-          <div>
-            <label className="text-xs text-foreground-muted">אחוזי בנייה עיקריים %</label>
-            <input
-              type="number"
-              className="input-field w-full mt-1"
-              value={form.extractedData?.mainBuildingPercent || ''}
-              onChange={(e) =>
-                setForm((p) => ({
-                  ...p,
-                  extractedData: {
-                    ...p?.extractedData,
-                    mainBuildingPercent: parseFloat(e.target.value) || 0,
-                  },
-                }))
-              }
-            />
-          </div>
-          <div>
-            <label className="text-xs text-foreground-muted">שטחי שירות %</label>
-            <input
-              type="number"
-              className="input-field w-full mt-1"
-              value={form.extractedData?.serviceBuildingPercent || ''}
-              onChange={(e) =>
-                setForm((p) => ({
-                  ...p,
-                  extractedData: {
-                    ...p?.extractedData,
-                    serviceBuildingPercent: parseFloat(e.target.value) || 0,
-                  },
-                }))
-              }
-            />
-          </div>
-          <div>
-            <label className="text-xs text-foreground-muted">קומות מרבי</label>
-            <input
-              type="number"
-              className="input-field w-full mt-1"
-              value={form.extractedData?.maxFloors || ''}
-              onChange={(e) =>
-                setForm((p) => ({
-                  ...p,
-                  extractedData: {
-                    ...p?.extractedData,
-                    maxFloors: parseInt(e.target.value) || 0,
-                  },
-                }))
-              }
-            />
-          </div>
-          <div>
-            <label className="text-xs text-foreground-muted">{'גובה מרבי (מ\')'}</label>
-            <input
-              type="number"
-              className="input-field w-full mt-1"
-              value={form.extractedData?.maxHeight || ''}
-              onChange={(e) =>
-                setForm((p) => ({
-                  ...p,
-                  extractedData: {
-                    ...p?.extractedData,
-                    maxHeight: parseFloat(e.target.value) || 0,
-                  },
-                }))
-              }
-            />
-          </div>
-          <div>
-            <label className="text-xs text-foreground-muted">תכסית %</label>
-            <input
-              type="number"
-              className="input-field w-full mt-1"
-              value={form.extractedData?.landCoveragePercent || ''}
-              onChange={(e) =>
-                setForm((p) => ({
-                  ...p,
-                  extractedData: {
-                    ...p?.extractedData,
-                    landCoveragePercent: parseFloat(e.target.value) || 0,
-                  },
-                }))
-              }
-            />
-          </div>
-        </div>
-      </div>
-
-      <div className="flex gap-3">
-        <button onClick={handleSave} className="btn-primary flex-1 flex items-center justify-center gap-2">
-          <Save className="w-4 h-4" />
-          שמור מסמך
-        </button>
-        <button onClick={onCancel} className="btn-secondary flex-1">
-          ביטול
-        </button>
+        <button onClick={() => onSave(form as ZoningPlan)} className="btn-primary flex-1 flex items-center justify-center gap-2"><Save className="w-4 h-4" />שמור תכנית</button>
+        <button onClick={onCancel} className="btn-secondary flex-1">ביטול</button>
       </div>
     </div>
   );
@@ -936,300 +742,241 @@ function DocumentUpload({
 
 // ── Main Admin Page ──────────────────────────────────────────
 
+type AdminTab = 'learn' | 'plans';
+
 export default function AdminPage() {
-  const [authenticated, setAuthenticated] = useState(false);
-  const [tab, setTab] = useState<AdminTab>('plans');
+  const [tab, setTab] = useState<AdminTab>('learn');
   const [plans, setPlans] = useState<ZoningPlan[]>([]);
-  const [addresses, setAddresses] = useState<AddressMapping[]>([]);
-  const [documents, setDocuments] = useState<DocumentEntry[]>([]);
-  const [customPlanIds, setCustomPlanIds] = useState<Set<string>>(new Set());
-  const [customAddrs, setCustomAddrs] = useState<Set<string>>(new Set());
+  const [showIngest, setShowIngest] = useState(false);
   const [editingPlan, setEditingPlan] = useState<ZoningPlan | null>(null);
-  const [editingAddr, setEditingAddr] = useState<AddressMapping | null>(null);
-  const [editingDoc, setEditingDoc] = useState<DocumentEntry | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [expandedPlan, setExpandedPlan] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
 
-  const refreshData = useCallback(() => {
-    setPlans(getAllPlans());
-    setAddresses(getAllAddresses());
-    setDocuments(getDocuments());
-    setCustomPlanIds(new Set(getCustomPlans().map((p) => p.id)));
-    setCustomAddrs(new Set(getCustomAddresses().map((a) => a.address)));
-  }, []);
+  const refreshData = async () => {
+    const p = await getAllPlans();
+    setPlans(p);
+  };
 
   useEffect(() => {
-    if (isAdminAuthenticated()) {
-      setAuthenticated(true);
-    }
+    refreshData();
   }, []);
 
-  useEffect(() => {
-    if (authenticated) refreshData();
-  }, [authenticated, refreshData]);
-
-  if (!authenticated) {
-    return <LoginScreen onLogin={() => setAuthenticated(true)} />;
-  }
-
-  const handleSavePlan = (plan: ZoningPlan) => {
-    saveCustomPlan(plan);
+  const handleSavePlan = async (plan: ZoningPlan) => {
+    await savePlan(plan);
     setShowForm(false);
     setEditingPlan(null);
     refreshData();
   };
 
-  const handleDeletePlan = (planId: string) => {
-    if (!customPlanIds.has(planId)) return;
-    deleteCustomPlan(planId);
+  const handleDeletePlan = async (planId: string) => {
+    await deletePlan(planId);
     refreshData();
-  };
-
-  const handleSaveAddr = (addr: AddressMapping) => {
-    saveCustomAddress(addr);
-    setShowForm(false);
-    setEditingAddr(null);
-    refreshData();
-  };
-
-  const handleDeleteAddr = (address: string) => {
-    if (!customAddrs.has(address)) return;
-    deleteCustomAddress(address);
-    refreshData();
-  };
-
-  const handleSaveDoc = (doc: DocumentEntry) => {
-    saveDocument(doc);
-    setShowForm(false);
-    setEditingDoc(null);
-    refreshData();
-  };
-
-  const handleDeleteDoc = (docId: string) => {
-    deleteDocument(docId);
-    refreshData();
-  };
-
-  const handleLogout = () => {
-    setAdminAuthenticated(false);
-    setAuthenticated(false);
   };
 
   const filteredPlans = plans.filter(
-    (p) =>
-      !searchTerm ||
-      p.planNumber.includes(searchTerm) ||
-      p.name.includes(searchTerm) ||
-      p.neighborhood.includes(searchTerm)
+    (p) => !searchTerm || p.planNumber.includes(searchTerm) || p.name.includes(searchTerm) || (p.city && p.city.includes(searchTerm))
   );
 
-  const filteredAddresses = addresses.filter(
-    (a) =>
-      !searchTerm ||
-      a.address.includes(searchTerm) ||
-      a.block.includes(searchTerm) ||
-      a.neighborhood.includes(searchTerm)
-  );
-
-  const filteredDocs = documents.filter(
-    (d) =>
-      !searchTerm ||
-      d.name.includes(searchTerm) ||
-      d.planNumber.includes(searchTerm)
-  );
-
-  const tabs: { key: AdminTab; label: string; icon: typeof FileText; count: number }[] = [
-    { key: 'plans', label: 'תכניות', icon: Building2, count: plans.length },
-    { key: 'addresses', label: 'כתובות', icon: MapPin, count: addresses.length },
-    { key: 'documents', label: 'מסמכים', icon: FileText, count: documents.length },
+  const tabs: { key: AdminTab; label: string; icon: typeof Building2; count: number }[] = [
+    { key: 'learn', label: 'הזנת תב"ע', icon: BookOpen, count: plans.length },
+    { key: 'plans', label: 'תכניות במערכת', icon: Building2, count: plans.length },
   ];
 
   return (
     <div className="min-h-screen p-4 max-w-4xl mx-auto">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center">
+          <div className="w-10 h-10 rounded-xl bg-[rgba(59,130,246,0.1)] flex items-center justify-center">
             <Shield className="w-5 h-5 text-accent" />
           </div>
           <div>
-            <h1 className="text-lg font-bold text-foreground">ניהול מערכת</h1>
-            <p className="text-xs text-foreground-muted">{'הוספת תב"עות, כתובות ומסמכים'}</p>
+            <h1 className="text-lg font-bold">ניהול מערכת</h1>
+            <p className="text-xs text-foreground-muted">{'העלה תב"ע — המערכת מחלצת נוסחאות בנייה אוטומטית'}</p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <a
-            href="/"
-            className="text-xs text-foreground-muted hover:text-accent transition-colors px-3 py-1.5 rounded-lg hover:bg-foreground/5"
-          >
-            חזרה לאתר
-          </a>
-          <button
-            onClick={handleLogout}
-            className="p-2 hover:bg-foreground/5 rounded-lg text-foreground-muted hover:text-red-400 transition-colors"
-          >
-            <LogOut className="w-4 h-4" />
-          </button>
-        </div>
+        <a href="/" className="text-xs text-foreground-muted hover:text-accent transition-colors px-3 py-1.5 rounded-lg hover:bg-[rgba(255,255,255,0.04)]">חזרה לאתר</a>
       </div>
 
+      {/* Knowledge base stats */}
+      {plans.length > 0 && (
+        <div className="db-card p-3 mb-4 border border-[rgba(34,197,94,0.2)]">
+          <div className="flex items-center gap-2">
+            <Database className="w-4 h-4 text-green" />
+            <span className="text-sm text-green font-medium">
+              {'המערכת למדה ' + plans.length + ' תכניות'}
+            </span>
+            <span className="text-xs text-foreground-muted">
+              {' | ערים: ' + [...new Set(plans.map(p => p.city).filter(Boolean))].join(', ')}
+            </span>
+          </div>
+        </div>
+      )}
+
       {/* Tabs */}
-      <div className="flex gap-1 mb-4 glass-card p-1 rounded-xl">
+      <div className="flex gap-1 mb-4 db-card p-1">
         {tabs.map((t) => (
           <button
             key={t.key}
-            onClick={() => { setTab(t.key); setShowForm(false); setSearchTerm(''); }}
+            onClick={() => { setTab(t.key); setShowForm(false); setShowIngest(false); setSearchTerm(''); }}
             className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-lg text-sm font-medium transition-all ${
-              tab === t.key
-                ? 'bg-accent/10 text-accent'
-                : 'text-foreground-muted hover:text-foreground hover:bg-foreground/5'
+              tab === t.key ? 'bg-accent/10 text-accent' : 'text-foreground-muted hover:text-foreground hover:bg-[rgba(255,255,255,0.04)]'
             }`}
           >
             <t.icon className="w-4 h-4" />
             {t.label}
-            <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${
-              tab === t.key ? 'bg-accent/20' : 'bg-foreground/10'
-            }`}>
-              {t.count}
-            </span>
+            <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${tab === t.key ? 'bg-accent/20' : 'bg-[rgba(255,255,255,0.06)]'}`}>{t.count}</span>
           </button>
         ))}
       </div>
 
-      {/* Search + Add */}
-      {!showForm && (
-        <div className="flex gap-2 mb-4">
-          <div className="relative flex-1">
-            <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground-muted" />
-            <input
-              className="input-field w-full pr-10"
-              placeholder="חיפוש..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
-          <button
-            onClick={() => { setShowForm(true); setEditingPlan(null); setEditingAddr(null); setEditingDoc(null); }}
-            className="btn-primary flex items-center gap-2 px-4"
-          >
-            <Plus className="w-4 h-4" />
-            הוסף
-          </button>
-        </div>
-      )}
-
       {/* Content */}
       <AnimatePresence mode="wait">
-        {showForm ? (
-          <motion.div
-            key="form"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-          >
-            {tab === 'plans' && (
-              <PlanForm
-                plan={editingPlan || undefined}
-                onSave={handleSavePlan}
-                onCancel={() => { setShowForm(false); setEditingPlan(null); }}
-              />
-            )}
-            {tab === 'addresses' && (
-              <AddressForm
-                addr={editingAddr || undefined}
-                plans={plans}
-                onSave={handleSaveAddr}
-                onCancel={() => { setShowForm(false); setEditingAddr(null); }}
-              />
-            )}
-            {tab === 'documents' && (
-              <DocumentUpload
-                doc={editingDoc || undefined}
-                onSave={handleSaveDoc}
-                onCancel={() => { setShowForm(false); setEditingDoc(null); }}
-              />
-            )}
-          </motion.div>
-        ) : (
-          <motion.div
-            key="list"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="space-y-2"
-          >
-            {/* Plans List */}
-            {tab === 'plans' && (
+        {tab === 'learn' && (
+          <motion.div key="learn" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
+            {showIngest ? (
+              <AutoIngestFlow onDone={() => { setShowIngest(false); refreshData(); }} />
+            ) : (
               <>
-                {filteredPlans.length === 0 && (
-                  <div className="glass-card p-8 rounded-xl text-center text-foreground-muted">
-                    אין תכניות תואמות
+                <button onClick={() => setShowIngest(true)} className="btn-primary w-full py-4 flex items-center justify-center gap-3 text-base">
+                  <Upload className="w-5 h-5" />{'העלה תב"ע חדשה למערכת'}
+                </button>
+
+                {plans.length === 0 && (
+                  <div className="db-card p-10 text-center">
+                    <BookOpen className="w-12 h-12 text-foreground-muted mx-auto mb-3 opacity-40" />
+                    <h3 className="text-base font-semibold mb-1">{'המערכת עדיין לא למדה תב"ע'}</h3>
+                    <p className="text-sm text-foreground-muted mb-4">
+                      {'לחץ "העלה תב"ע חדשה" כדי להעלות מסמכים. המערכת תנתח אותם ותחלץ נוסחאות בנייה.'}
+                    </p>
                   </div>
                 )}
+
+                {plans.length > 0 && (
+                  <div className="space-y-2">
+                    <h3 className="text-sm font-semibold text-foreground-secondary flex items-center gap-2">
+                      <Database className="w-4 h-4" />
+                      {'תכניות שהמערכת למדה (' + plans.length + ')'}
+                    </h3>
+                    {plans.map((plan) => (
+                      <div key={plan.id} className="db-card p-3">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3 flex-1 min-w-0">
+                            <div className="w-8 h-8 rounded-lg bg-[rgba(34,197,94,0.1)] flex items-center justify-center flex-shrink-0">
+                              <CheckCircle2 className="w-4 h-4 text-green" />
+                            </div>
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-2">
+                                <span className="font-bold text-sm">{plan.planNumber || plan.name || 'ללא מספר'}</span>
+                                {plan.city && <span className="text-xs text-foreground-muted">{plan.city}</span>}
+                              </div>
+                              <p className="text-xs text-foreground-muted truncate">
+                                {plan.rules && plan.rules.length > 0
+                                  ? `${plan.rules.length} כללים | `
+                                  : ''}
+                                {plan.buildingRights.mainBuildingPercent > 0 && `עיקרי: ${plan.buildingRights.mainBuildingPercent}% | `}
+                                {plan.buildingRights.maxFloors > 0 && `${plan.buildingRights.maxFloors} קומות | `}
+                                {plan.buildingRights.landCoveragePercent > 0 && `תכסית: ${plan.buildingRights.landCoveragePercent}%`}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-1 mr-2">
+                            <button onClick={() => { setTab('plans'); setEditingPlan(plan); setShowForm(true); }} className="p-1.5 hover:bg-[rgba(255,255,255,0.04)] rounded-lg text-foreground-muted hover:text-accent">
+                              <Edit3 className="w-3.5 h-3.5" />
+                            </button>
+                            <button onClick={() => handleDeletePlan(plan.id)} className="p-1.5 hover:bg-[rgba(255,255,255,0.04)] rounded-lg text-foreground-muted hover:text-red-400">
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+          </motion.div>
+        )}
+
+        {tab === 'plans' && (
+          <motion.div key="plans" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-2">
+            {showForm ? (
+              <PlanForm plan={editingPlan || undefined} onSave={handleSavePlan} onCancel={() => { setShowForm(false); setEditingPlan(null); }} />
+            ) : (
+              <>
+                <div className="flex gap-2 mb-4">
+                  <div className="relative flex-1">
+                    <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground-muted" />
+                    <input className="input-field w-full pr-10" placeholder="חיפוש..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+                  </div>
+                  <button onClick={() => { setShowForm(true); setEditingPlan(null); }} className="btn-primary flex items-center gap-2 px-4">
+                    <Plus className="w-4 h-4" />הוסף
+                  </button>
+                </div>
+
+                {filteredPlans.length === 0 && (
+                  <div className="db-card p-8 text-center text-foreground-muted">
+                    {plans.length === 0 ? 'אין תכניות במערכת. העלה תב"ע בלשונית "הזנת תב"ע".' : 'אין תכניות תואמות'}
+                  </div>
+                )}
+
                 {filteredPlans.map((plan) => {
-                  const isCustom = customPlanIds.has(plan.id);
                   const isExpanded = expandedPlan === plan.id;
                   return (
-                    <div key={plan.id} className="glass-card rounded-xl overflow-hidden">
-                      <div
-                        className="p-4 flex items-center justify-between cursor-pointer hover:bg-foreground/5 transition-colors"
-                        onClick={() => setExpandedPlan(isExpanded ? null : plan.id)}
-                      >
+                    <div key={plan.id} className="db-card overflow-hidden">
+                      <div className="p-3 flex items-center justify-between cursor-pointer hover:bg-[rgba(255,255,255,0.02)] transition-colors" onClick={() => setExpandedPlan(isExpanded ? null : plan.id)}>
                         <div className="flex items-center gap-3 flex-1 min-w-0">
-                          <div className={`w-2 h-2 rounded-full ${isCustom ? 'bg-accent' : 'bg-foreground/30'}`} />
+                          <div className="w-2 h-2 rounded-full bg-green" />
                           <div className="min-w-0">
                             <div className="flex items-center gap-2">
-                              <span className="font-bold text-foreground text-sm">{plan.planNumber}</span>
-                              {isCustom && (
-                                <span className="text-[9px] px-1.5 py-0.5 rounded bg-accent/10 text-accent">מותאם אישית</span>
-                              )}
+                              <span className="font-bold text-sm">{plan.planNumber}</span>
+                              {plan.city && <span className="text-xs text-foreground-muted">{plan.city}</span>}
                             </div>
                             <p className="text-xs text-foreground-muted truncate">{plan.name}</p>
                           </div>
                         </div>
                         <div className="flex items-center gap-2 mr-2">
                           <span className="text-xs text-foreground-muted">
-                            {plan.buildingRights.totalBuildingPercent}% | {plan.buildingRights.maxFloors} קומות
+                            {plan.rules?.length > 0 ? `${plan.rules.length} כללים` : `${plan.buildingRights.totalBuildingPercent}% | ${plan.buildingRights.maxFloors} קומות`}
                           </span>
                           {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                         </div>
                       </div>
                       {isExpanded && (
-                        <div className="border-t border-foreground/10 p-4 space-y-3">
-                          <div className="grid grid-cols-3 gap-3 text-xs">
-                            <div><span className="text-foreground-muted">עיר:</span> <span className="text-foreground">{plan.city}</span></div>
-                            <div><span className="text-foreground-muted">שכונה:</span> <span className="text-foreground">{plan.neighborhood}</span></div>
-                            <div><span className="text-foreground-muted">סטטוס:</span> <span className="text-foreground">{plan.status}</span></div>
-                            <div><span className="text-foreground-muted">עיקרי:</span> <span className="text-foreground">{plan.buildingRights.mainBuildingPercent}%</span></div>
-                            <div><span className="text-foreground-muted">שירות:</span> <span className="text-foreground">{plan.buildingRights.serviceBuildingPercent}%</span></div>
-                            <div><span className="text-foreground-muted">{'גובה:'}</span> <span className="text-foreground">{plan.buildingRights.maxHeight}{"מ'"}</span></div>
-                            <div><span className="text-foreground-muted">תכסית:</span> <span className="text-foreground">{plan.buildingRights.landCoveragePercent}%</span></div>
-                            <div><span className="text-foreground-muted">קו קדמי:</span> <span className="text-foreground">{plan.restrictions.frontSetback}{"מ'"}</span></div>
-                            <div><span className="text-foreground-muted">קו אחורי:</span> <span className="text-foreground">{plan.restrictions.rearSetback}{"מ'"}</span></div>
-                          </div>
-                          {isCustom && (
-                            <div className="flex gap-2 pt-2 border-t border-foreground/10">
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setEditingPlan(plan);
-                                  setShowForm(true);
-                                }}
-                                className="flex items-center gap-1 text-xs text-accent hover:underline"
-                              >
-                                <Edit3 className="w-3 h-3" /> עריכה
-                              </button>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleDeletePlan(plan.id);
-                                }}
-                                className="flex items-center gap-1 text-xs text-red-400 hover:underline"
-                              >
-                                <Trash2 className="w-3 h-3" /> מחיקה
-                              </button>
+                        <div className="border-t border-[rgba(255,255,255,0.06)] p-4 space-y-3">
+                          {/* Show rules if available */}
+                          {plan.rules && plan.rules.length > 0 ? (
+                            <div className="space-y-1">
+                              <h5 className="text-xs font-semibold text-foreground-secondary mb-1">{'כללי בנייה (נוסחאות)'}</h5>
+                              {plan.rules.map(r => (
+                                <div key={r.id} className="flex items-center justify-between text-xs p-2 rounded bg-[rgba(0,0,0,0.2)]">
+                                  <div className="flex items-center gap-2">
+                                    <CheckCircle2 className="w-3 h-3 text-green flex-shrink-0" />
+                                    <span className="text-foreground-muted">{ruleCategoryLabels[r.category]}:</span>
+                                    <span className="font-bold font-mono">{r.displayValue}</span>
+                                  </div>
+                                  <span className="text-[10px] text-foreground-muted font-mono">{r.formula}</span>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <div className="grid grid-cols-3 gap-3 text-xs">
+                              <div><span className="text-foreground-muted">עיר:</span> <span>{plan.city}</span></div>
+                              <div><span className="text-foreground-muted">שכונה:</span> <span>{plan.neighborhood}</span></div>
+                              <div><span className="text-foreground-muted">סטטוס:</span> <span>{plan.status}</span></div>
+                              <div><span className="text-foreground-muted">עיקרי:</span> <span>{plan.buildingRights.mainBuildingPercent}%</span></div>
+                              <div><span className="text-foreground-muted">שירות:</span> <span>{plan.buildingRights.serviceBuildingPercent}%</span></div>
+                              <div><span className="text-foreground-muted">גובה:</span> <span>{plan.buildingRights.maxHeight}{"מ'"}</span></div>
+                              <div><span className="text-foreground-muted">תכסית:</span> <span>{plan.buildingRights.landCoveragePercent}%</span></div>
+                              <div><span className="text-foreground-muted">קו קדמי:</span> <span>{plan.restrictions.frontSetback}{"מ'"}</span></div>
+                              <div><span className="text-foreground-muted">קו אחורי:</span> <span>{plan.restrictions.rearSetback}{"מ'"}</span></div>
                             </div>
                           )}
+                          <div className="flex gap-2 pt-2 border-t border-[rgba(255,255,255,0.06)]">
+                            <button onClick={(e) => { e.stopPropagation(); setEditingPlan(plan); setShowForm(true); }} className="flex items-center gap-1 text-xs text-accent hover:underline"><Edit3 className="w-3 h-3" /> עריכה</button>
+                            <button onClick={(e) => { e.stopPropagation(); handleDeletePlan(plan.id); }} className="flex items-center gap-1 text-xs text-red-400 hover:underline"><Trash2 className="w-3 h-3" /> מחיקה</button>
+                          </div>
                         </div>
                       )}
                     </div>
@@ -1237,147 +984,20 @@ export default function AdminPage() {
                 })}
               </>
             )}
-
-            {/* Addresses List */}
-            {tab === 'addresses' && (
-              <>
-                {filteredAddresses.length === 0 && (
-                  <div className="glass-card p-8 rounded-xl text-center text-foreground-muted">
-                    אין כתובות תואמות
-                  </div>
-                )}
-                {filteredAddresses.map((addr) => {
-                  const isCustom = customAddrs.has(addr.address);
-                  return (
-                    <div key={addr.address} className="glass-card p-4 rounded-xl">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3 flex-1 min-w-0">
-                          <MapPin className={`w-4 h-4 flex-shrink-0 ${isCustom ? 'text-accent' : 'text-foreground-muted'}`} />
-                          <div className="min-w-0">
-                            <div className="flex items-center gap-2">
-                              <span className="font-medium text-foreground text-sm">{addr.address}</span>
-                              {isCustom && (
-                                <span className="text-[9px] px-1.5 py-0.5 rounded bg-accent/10 text-accent">מותאם אישית</span>
-                              )}
-                            </div>
-                            <p className="text-xs text-foreground-muted">
-                              גוש {addr.block} חלקה {addr.parcel} | {addr.neighborhood} | {addr.plotSize} {"מ\"ר"}
-                              {addr.yearBuilt ? ` | ${addr.yearBuilt}` : ''}
-                            </p>
-                          </div>
-                        </div>
-                        {isCustom && (
-                          <div className="flex items-center gap-1 mr-2">
-                            <button
-                              onClick={() => { setEditingAddr(addr); setShowForm(true); }}
-                              className="p-1.5 hover:bg-foreground/5 rounded-lg text-foreground-muted hover:text-accent"
-                            >
-                              <Edit3 className="w-3.5 h-3.5" />
-                            </button>
-                            <button
-                              onClick={() => handleDeleteAddr(addr.address)}
-                              className="p-1.5 hover:bg-foreground/5 rounded-lg text-foreground-muted hover:text-red-400"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </>
-            )}
-
-            {/* Documents List */}
-            {tab === 'documents' && (
-              <>
-                {filteredDocs.length === 0 && (
-                  <div className="glass-card p-8 rounded-xl text-center text-foreground-muted">
-                    <FileText className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                    <p>{'אין מסמכים. לחץ "הוסף" כדי להעלות תב"ע או מסמך.'}</p>
-                  </div>
-                )}
-                {filteredDocs.map((doc) => (
-                  <div key={doc.id} className="glass-card p-4 rounded-xl">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3 flex-1 min-w-0">
-                        <div className="w-10 h-10 rounded-lg bg-accent/10 flex items-center justify-center flex-shrink-0">
-                          <FileText className="w-5 h-5 text-accent" />
-                        </div>
-                        <div className="min-w-0">
-                          <span className="font-medium text-foreground text-sm block truncate">{doc.name}</span>
-                          <p className="text-xs text-foreground-muted">
-                            {doc.planNumber} | {documentTypeLabels[doc.type]}
-                            {doc.pageCount ? ` | ${doc.pageCount} עמודים` : ''}
-                            {doc.fileSize ? ` | ${(doc.fileSize / 1024).toFixed(0)} KB` : ''}
-                          </p>
-                          {doc.description && (
-                            <p className="text-xs text-foreground-muted mt-0.5 truncate">{doc.description}</p>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-1 mr-2">
-                        {doc.dataUrl && (
-                          <a
-                            href={doc.dataUrl}
-                            download={`${doc.name}.pdf`}
-                            className="p-1.5 hover:bg-foreground/5 rounded-lg text-foreground-muted hover:text-accent"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <Download className="w-3.5 h-3.5" />
-                          </a>
-                        )}
-                        {doc.externalUrl && (
-                          <a
-                            href={doc.externalUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="p-1.5 hover:bg-foreground/5 rounded-lg text-foreground-muted hover:text-accent"
-                          >
-                            <Eye className="w-3.5 h-3.5" />
-                          </a>
-                        )}
-                        <button
-                          onClick={() => { setEditingDoc(doc); setShowForm(true); }}
-                          className="p-1.5 hover:bg-foreground/5 rounded-lg text-foreground-muted hover:text-accent"
-                        >
-                          <Edit3 className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          onClick={() => handleDeleteDoc(doc.id)}
-                          className="p-1.5 hover:bg-foreground/5 rounded-lg text-foreground-muted hover:text-red-400"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </>
-            )}
           </motion.div>
         )}
       </AnimatePresence>
 
       {/* Stats Footer */}
-      <div className="mt-8 glass-card p-4 rounded-xl">
-        <div className="flex items-center gap-2 mb-2">
-          <AlertTriangle className="w-4 h-4 text-amber-400" />
-          <span className="text-sm font-medium text-foreground">סטטיסטיקה</span>
-        </div>
-        <div className="grid grid-cols-3 gap-4 text-center text-xs">
+      <div className="mt-8 db-card p-4">
+        <div className="grid grid-cols-2 gap-4 text-center text-xs">
           <div>
-            <div className="text-lg font-bold text-foreground">{plans.length}</div>
-            <div className="text-foreground-muted">תכניות ({getCustomPlans().length} מותאמות)</div>
+            <div className="text-lg font-bold font-mono">{plans.length}</div>
+            <div className="text-foreground-muted">{'תכניות במערכת'}</div>
           </div>
           <div>
-            <div className="text-lg font-bold text-foreground">{addresses.length}</div>
-            <div className="text-foreground-muted">כתובות ({getCustomAddresses().length} מותאמות)</div>
-          </div>
-          <div>
-            <div className="text-lg font-bold text-foreground">{documents.length}</div>
-            <div className="text-foreground-muted">מסמכים</div>
+            <div className="text-lg font-bold font-mono">{[...new Set(plans.map(p => p.city).filter(Boolean))].length}</div>
+            <div className="text-foreground-muted">{'ערים'}</div>
           </div>
         </div>
       </div>
