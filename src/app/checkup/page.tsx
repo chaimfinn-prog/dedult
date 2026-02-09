@@ -182,14 +182,13 @@ function CheckupContent() {
     <div className="min-h-screen flex flex-col relative">
 
       {/* Background */}
-      <div className="fixed inset-0 z-0">
-        <div
-          className="absolute inset-0 bg-cover bg-center"
-          style={{ backgroundImage: `url('https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=2000&q=80')` }}
-        />
-        <div className="absolute inset-0" style={{ background: 'linear-gradient(180deg, rgba(13,17,23,0.95) 0%, rgba(13,17,23,0.88) 50%, rgba(13,17,23,0.95) 100%)' }} />
-        {/* Grid overlay */}
-        <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)', backgroundSize: '40px 40px' }} />
+      <div className="fixed inset-0 z-0 overflow-hidden">
+        <video autoPlay muted loop playsInline className="bg-video bg-cinematic" poster="https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=2000&q=80">
+          <source src="https://videos.pexels.com/video-files/3571264/3571264-hd_1920_1080_25fps.mp4" type="video/mp4" />
+        </video>
+        <div className="absolute inset-0 bg-cinematic bg-cover bg-center" style={{ backgroundImage: `url('https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=2000&q=80')` }} />
+        <div className="absolute inset-0 bg-overlay-dark" />
+        <div className="absolute inset-0 bg-grid" />
       </div>
 
       {/* Header */}
@@ -502,7 +501,7 @@ function CheckupContent() {
                     </div>
                   </div>
                   <a
-                    href={`mailto:contact@haim-checkup.co.il?subject=${encodeURIComponent('תיאום פגישה | ' + displayProjectName)}&body=${encodeURIComponent('שלום חיים,\nאני מעוניין לתאם פגישת ייעוץ לפרויקט: ' + displayProjectName + '\nכתובת: ' + form.address + '\n\nתודה.')}`}
+                    href="/booking"
                     className="btn-primary py-3 px-5 rounded-lg whitespace-nowrap text-sm flex items-center gap-2"
                   >
                     {'תיאום פגישה ותשלום'}
