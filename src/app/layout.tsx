@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'הצ׳ק-אפ של חיים — מחשבון היתכנות להתחדשות עירונית',
+  title: 'THE REALITY CHECK — בדיקת נאותות להתחדשות עירונית',
   description: 'ניתוח אנליטי של פרויקטי התחדשות עירונית: לו״ז אמיתי למפתח, מדד וודאות וציון סיכון',
   icons: { icon: '/favicon.ico' },
 };
