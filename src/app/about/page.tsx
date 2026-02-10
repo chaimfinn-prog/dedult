@@ -14,23 +14,23 @@ export default function AboutPage() {
   const t = (he: string, en: string) => lang === 'he' ? he : en;
 
   const CREDENTIALS = [
-    { icon: <Award className="w-5 h-5" />, title: t('שמאי מקרקעין מוסמך', 'Certified Real Estate Appraiser'), desc: t('מוסמך מטעם מועצת שמאי המקרקעין', 'Certified by the Real Estate Appraisers Council') },
-    { icon: <BookOpen className="w-5 h-5" />, title: t('כלכלן', 'Economist'), desc: t('תואר בכלכלה עם התמחות בנדל"ן', 'Degree in Economics specializing in Real Estate') },
-    { icon: <Building2 className="w-5 h-5" />, title: t('מנהל התחדשות עירונית', 'Urban Renewal Manager'), desc: t('ניסיון עשיר בליווי פרויקטי פינוי-בינוי ותמ"א 38', 'Extensive experience in Pinui-Binui & TAMA 38 projects') },
+    { icon: <Award className="w-5 h-5" />, title: t('שמאי מקרקעין מוסמך', 'Certified Real Estate Appraiser'), desc: t('מוסמך מטעם מועצת שמאי המקרקעין — ניסיון רב בהערכות שווי לפרויקטי התחדשות', 'Certified by the Appraisers Council — extensive renewal project valuation experience') },
+    { icon: <BookOpen className="w-5 h-5" />, title: t('כלכלן', 'Economist'), desc: t('התמחות בכלכלת נדל"ן וניתוח כדאיות עסקאות', 'Specializing in real estate economics and deal feasibility analysis') },
+    { icon: <Building2 className="w-5 h-5" />, title: t('ניהול התחדשות עירונית', 'Urban Renewal Management'), desc: t('ניסיון עשיר בליווי פרויקטי פינוי-בינוי ותמ"א 38', 'Extensive experience in Pinui-Binui & TAMA 38 projects') },
     { icon: <Shield className="w-5 h-5" />, title: t('בדיקות Due Diligence', 'Due Diligence Reviews'), desc: t('מאות בדיקות נאותות לרוכשי דירות בהתחדשות עירונית', 'Hundreds of due diligence reviews for urban renewal buyers') },
   ];
 
   const TEAM = [
-    { role: t('אדריכלים בכירים', 'Senior Architects'), desc: t('צוות אדריכלים מנוסה הבוחן את התוכניות האדריכליות, המפרטים הטכניים ואיכות התכנון של כל פרויקט.', 'Experienced team reviewing architectural plans, technical specifications and design quality.'), icon: <MapPin className="w-5 h-5" /> },
-    { role: t('מתווכים בכירים ומנוסים', 'Senior Real Estate Brokers'), desc: t('מתווכים עם ניסיון עשיר בשוק ההתחדשות העירונית, מכירים את השחקנים ויודעים לזהות עסקאות אמיתיות.', 'Brokers with deep knowledge of the renewal market, who know the players and can identify real deals.'), icon: <Users className="w-5 h-5" /> },
-    { role: t('יועצים משפטיים', 'Legal Advisors'), desc: t('עורכי דין המתמחים בחוזי התחדשות עירונית, הגנה על זכויות הדיירים וליווי משפטי מקצועי.', 'Lawyers specializing in renewal contracts, protecting tenant rights and professional legal guidance.'), icon: <Briefcase className="w-5 h-5" /> },
+    { role: t('אדריכלים בכירים', 'Senior Architects'), desc: t('צוות אדריכלים מנוסה הבוחן תוכניות אדריכליות, מפרטים טכניים ואיכות תכנון של כל פרויקט.', 'Experienced team reviewing architectural plans, specs and design quality.'), icon: <MapPin className="w-5 h-5" /> },
+    { role: t('מתווכים בכירים ומנוסים', 'Senior Real Estate Brokers'), desc: t('מתווכים עם ניסיון עשיר בשוק ההתחדשות, מכירים את השחקנים ויודעים לזהות עסקאות אמיתיות.', 'Brokers with deep renewal market knowledge — know the players and real deals.'), icon: <Users className="w-5 h-5" /> },
+    { role: t('יועצים משפטיים', 'Legal Advisors'), desc: t('עורכי דין המתמחים בחוזי התחדשות עירונית, הגנה על זכויות דיירים וליווי משפטי מקצועי.', 'Lawyers specializing in renewal contracts and tenant rights protection.'), icon: <Briefcase className="w-5 h-5" /> },
   ];
 
   const SERVICES = [
     t('בדיקת נאותות (Due Diligence) לרוכשי דירות בפרויקטי התחדשות', 'Due diligence for apartment buyers in renewal projects'),
     t('ניתוח חוזים מול יזמים — זיהוי סעיפים בעייתיים', 'Contract analysis vs. developers — identifying problematic clauses'),
     t('הערכת שווי נכסים לפני ואחרי התחדשות', 'Property valuation before and after renewal'),
-    t('אימות סטטוס תכנוני מול מוסדות התכנון', 'Planning status verification with planning authorities'),
+    t('אימות סטטוס תכנוני מול מוסדות התכנון', 'Planning status verification with authorities'),
     t('בדיקת איתנות פיננסית של יזמים', 'Developer financial stability checks'),
     t('ליווי דיירים בתהליכי משא ומתן מול יזמים', 'Tenant guidance in developer negotiations'),
     t('חוות דעת שמאיות לפרויקטי התחדשות', 'Appraisal opinions for renewal projects'),
@@ -69,17 +69,17 @@ export default function AboutPage() {
       </div>
 
       <div className="relative z-10 max-w-4xl mx-auto px-6 py-12 flex-1">
-        {/* Hero */}
+        {/* Hero — No name, just who we are */}
         <div className="text-center mb-12">
           <div className="w-28 h-28 rounded-full mx-auto mb-6 overflow-hidden border-3 flex items-center justify-center" style={{ borderColor: 'var(--accent)', background: 'linear-gradient(135deg, var(--accent) 0%, var(--accent-purple) 100%)' }}>
-            <span className="text-4xl font-black text-white">{t('ח״פ', 'HF')}</span>
+            <span className="text-4xl font-black text-white">{t('RC', 'RC')}</span>
           </div>
-          <h1 className="text-3xl md:text-4xl font-bold text-foreground mb-3">{t('חיים פיין', 'Haim Finn')}</h1>
-          <p className="text-lg text-accent font-semibold mb-2">{t('שמאי מקרקעין | כלכלן | מנהל התחדשות עירונית', 'Real Estate Appraiser | Economist | Urban Renewal Manager')}</p>
-          <p className="text-sm text-foreground-muted max-w-2xl mx-auto leading-relaxed">
+          <h1 className="text-3xl md:text-4xl font-bold text-foreground mb-3">{t('מי אנחנו', 'Who We Are')}</h1>
+          <p className="text-lg text-accent font-semibold mb-2">{t('שמאות מקרקעין | כלכלה | התחדשות עירונית', 'Real Estate Appraisal | Economics | Urban Renewal')}</p>
+          <p className="text-base text-foreground-muted max-w-2xl mx-auto leading-relaxed">
             {t(
-              'בעולם שבו כולם מוכרים חלומות, אני מביא את המציאות. עם ניסיון עשיר בשוק הנדל"ן הישראלי ובפרויקטי התחדשות עירונית, אני מספק ללקוחותיי תמונת מצב אמיתית — ללא אג\'נדות, ללא אינטרסים.',
-              'In a world where everyone sells dreams, I bring reality. With extensive experience in the Israeli real estate market and urban renewal projects, I provide clients with a true picture — no agendas, no hidden interests.'
+              'בעולם שבו כולם מוכרים חלומות, אנחנו מביאים את המציאות. עם ניסיון עשיר בשוק הנדל"ן הישראלי ובפרויקטי התחדשות עירונית, אנחנו מספקים ללקוחותינו תמונת מצב אמיתית — ללא אג\'נדות, ללא אינטרסים.',
+              'In a world where everyone sells dreams, we bring reality. With extensive experience in Israeli real estate and urban renewal, we provide clients with a true picture — no agendas, no hidden interests.'
             )}
           </p>
         </div>
@@ -102,8 +102,8 @@ export default function AboutPage() {
         {/* Team */}
         <div className="mb-10">
           <div className="text-center mb-6">
-            <h2 className="text-xl font-bold text-foreground mb-2">{t('הצוות שלי', 'My Team')}</h2>
-            <p className="text-sm text-foreground-muted">{t('אני עובד עם צוות מומחים בכירים ומנוסים שמביאים ידע רב-תחומי', 'I work with a senior team of experts bringing multi-disciplinary knowledge')}</p>
+            <h2 className="text-xl font-bold text-foreground mb-2">{t('הצוות', 'The Team')}</h2>
+            <p className="text-sm text-foreground-muted">{t('צוות מומחים בכירים ומנוסים עם ידע רב-תחומי', 'Senior experts with multi-disciplinary knowledge')}</p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {TEAM.map((tm, i) => (
@@ -136,11 +136,11 @@ export default function AboutPage() {
 
         {/* Contact + CTA */}
         <div className="db-card-accent p-6 text-center">
-          <h2 className="text-xl font-bold text-foreground mb-3">{t('בואו נדבר', 'Let\'s Talk')}</h2>
+          <h2 className="text-xl font-bold text-foreground mb-3">{t('בואו נדבר', "Let's Talk")}</h2>
           <p className="text-sm text-foreground-muted mb-6 max-w-md mx-auto">
             {t(
               'פגישת ייעוץ ממוקדת של 45 דקות, בה ננתח את הפרויקט שלכם לעומק — חוזה, מפרט, יזם ותכנון.',
-              'A focused 45-minute consultation where we analyze your project in depth — contract, specs, developer and planning.'
+              'A focused 45-minute consultation analyzing your project in depth — contract, specs, developer and planning.'
             )}
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-6">
@@ -150,18 +150,14 @@ export default function AboutPage() {
             </div>
             <div className="flex items-center gap-2 text-sm text-foreground-muted">
               <Mail className="w-4 h-4 text-green" />
-              <span>contact@haim-checkup.co.il</span>
+              <span>contact@therealitycheck.co.il</span>
             </div>
           </div>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-            <a href="/booking" className="btn-primary py-3 px-8 rounded-lg text-sm flex items-center gap-2">
-              <CalendarDays className="w-4 h-4" />
-              {t('קביעת פגישת ייעוץ', 'Book Consultation')}
-              <ChevronLeft className="w-4 h-4" />
-            </a>
-            <a href="/checkup" className="btn-secondary py-3 px-8 rounded-lg text-sm flex items-center gap-2">
+            <a href="/checkup" className="btn-primary py-3 px-8 rounded-lg text-sm flex items-center gap-2">
               <Shield className="w-4 h-4" />
               {t('הפק דוח Reality Check', 'Generate Reality Check')}
+              <ChevronLeft className="w-4 h-4" />
             </a>
           </div>
         </div>
@@ -171,7 +167,7 @@ export default function AboutPage() {
       <div className="relative z-10 border-t border-[var(--border)] p-3 text-center text-[10px] text-foreground-muted mt-auto" style={{ background: 'rgba(13,17,23,0.9)' }}>
         <span>THE REALITY CHECK</span>
         <span className="opacity-30 mx-2">|</span>
-        <span>{t('חיים פיין — שמאי מקרקעין, כלכלן', 'Haim Finn — Real Estate Appraiser, Economist')}</span>
+        <span>{t('שמאות מקרקעין | כלכלה | התחדשות עירונית', 'Real Estate Appraisal | Economics | Urban Renewal')}</span>
       </div>
     </div>
   );
