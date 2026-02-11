@@ -2,7 +2,14 @@ import { NextRequest, NextResponse } from 'next/server';
 import { Resend } from 'resend';
 import { getDb } from '@/lib/firebase';
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+// Lazy-init so build doesn't fail when env var is missing
+let _resend: Resend | null = null;
+function getResend() {
+  if (!_resend && process.env.RESEND_API_KEY) {
+    _resend = new Resend(process.env.RESEND_API_KEY);
+  }
+  return _resend;
+}
 const NOTIFY_EMAIL = process.env.NOTIFY_EMAIL || 'contact@therealitycheck.co.il';
 
 export async function POST(req: NextRequest) {
@@ -85,7 +92,8 @@ export async function POST(req: NextRequest) {
 
     lines.push(`<hr/><p style="color:#999;font-size:12px;">Timestamp: ${timestamp}</p>`);
 
-    if (process.env.RESEND_API_KEY) {
+    const resend = getResend();
+    if (resend) {
       try {
         await resend.emails.send({
           from: 'THE REALITY CHECK <noreply@therealitycheck.co.il>',
