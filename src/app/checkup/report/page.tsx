@@ -595,15 +595,20 @@ export default function ReportPage() {
               </div>
             </div>
 
-            {/* Cal.com Booking Placeholder */}
-            <div className="rounded-2xl p-6 text-center" style={GLASS_GREEN}>
-              <CalendarDays className="w-8 h-8 mx-auto mb-3" style={{ color: 'var(--green)' }} />
-              <h3 className="text-base font-bold mb-2" style={{ color: '#1a5c2a' }}>{t('קביעת פגישת ייעוץ', 'Schedule Consultation')}</h3>
-              <p className="text-sm mb-4" style={{ color: '#2d6b3f' }}>{t('45 דקות ניתוח מעמיק עם המומחים שלנו', '45 min deep analysis with our experts')}</p>
-              {/* Replace with Cal.com iframe when link is provided */}
-              <a href="/booking" className="inline-flex items-center gap-2 py-3 px-8 rounded-lg text-sm font-bold border-0 cursor-pointer" style={{ background: 'var(--green)', color: '#fff' }}>
-                <CalendarDays className="w-4 h-4" />{t('קבע פגישה', 'Book Meeting')}
-              </a>
+            {/* Cal.com Booking Widget */}
+            <div className="rounded-2xl p-6" style={GLASS_GREEN}>
+              <div className="text-center mb-4">
+                <CalendarDays className="w-8 h-8 mx-auto mb-3" style={{ color: 'var(--green)' }} />
+                <h3 className="text-base font-bold mb-2" style={{ color: '#1a5c2a' }}>{t('קביעת פגישת ייעוץ', 'Schedule Consultation')}</h3>
+                <p className="text-sm" style={{ color: '#2d6b3f' }}>{t('45 דקות ניתוח מעמיק עם המומחים שלנו', '45 min deep analysis with our experts')}</p>
+              </div>
+              <div className="rounded-xl overflow-hidden" style={{ background: '#fff', minHeight: '400px' }}>
+                <iframe
+                  src="https://cal.com/chaim-finn-xbxkhk?embed=true&theme=light"
+                  style={{ width: '100%', height: '600px', border: 'none' }}
+                  title="Schedule Consultation"
+                />
+              </div>
             </div>
 
             {/* THREE CTAs */}

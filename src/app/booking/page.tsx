@@ -142,6 +142,25 @@ export default function BookingPage() {
           </p>
         </div>
 
+        {/* Cal.com Embedded Widget */}
+        <div className="db-card p-6 mb-8">
+          <div className="text-center mb-4">
+            <h2 className="text-lg font-bold text-foreground mb-1">{t('קבע פגישה ישירות', 'Book Directly')}</h2>
+            <p className="text-xs text-foreground-muted">{t('בחר מועד נוח מהיומן', 'Choose a convenient time from the calendar')}</p>
+          </div>
+          <div className="rounded-xl overflow-hidden" style={{ background: '#fff', minHeight: '400px' }}>
+            <iframe
+              src="https://cal.com/chaim-finn-xbxkhk?embed=true&theme=light"
+              style={{ width: '100%', height: '600px', border: 'none' }}
+              title="Schedule Consultation"
+            />
+          </div>
+        </div>
+
+        <div className="text-center mb-6">
+          <p className="text-xs text-foreground-muted">{t('— או שלח פרטים ונחזור אליך —', '— or send your details and we\'ll contact you —')}</p>
+        </div>
+
         {step === 'calendar' && (
           <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
             {/* Calendar */}
