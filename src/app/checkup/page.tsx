@@ -177,6 +177,7 @@ function CheckupContent() {
             <SelectField label={t('סוג פרויקט', 'Project Type')} value={form.projectType} onChange={(v) => updateField('projectType', v)} options={[
               { value: 'pinui', label: t('פינוי-בינוי', 'Pinui-Binui') },
               { value: 'tama', label: t('תמ״א 38/2 (הריסה ובנייה)', 'TAMA 38/2 (Demolition & Build)') },
+              { value: 'agri', label: t('קרקע חקלאית', 'Agricultural Land') },
             ]} />
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
