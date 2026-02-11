@@ -1,8 +1,9 @@
 'use client';
 
 import {
-  Building2, ArrowRight, Award, Users, Briefcase, Shield, BookOpen,
-  ChevronLeft, CalendarDays, MapPin, Phone, Mail, Globe,
+  Building2, ArrowRight, Shield, Globe, Users, Briefcase,
+  Award, BookOpen, MapPin, Eye, Scale, HardHat, Phone, Mail,
+  ChevronLeft, CalendarDays,
 } from 'lucide-react';
 import { useLang } from '@/lib/i18n';
 
@@ -13,27 +14,43 @@ export default function AboutPage() {
   const { lang, toggle } = useLang();
   const t = (he: string, en: string) => lang === 'he' ? he : en;
 
-  const CREDENTIALS = [
-    { icon: <Award className="w-5 h-5" />, title: t('שמאי מקרקעין מוסמך', 'Certified Real Estate Appraiser'), desc: t('מוסמך מטעם מועצת שמאי המקרקעין — ניסיון רב בהערכות שווי לפרויקטי התחדשות', 'Certified by the Appraisers Council — extensive renewal project valuation experience') },
-    { icon: <BookOpen className="w-5 h-5" />, title: t('כלכלן', 'Economist'), desc: t('התמחות בכלכלת נדל"ן וניתוח כדאיות עסקאות', 'Specializing in real estate economics and deal feasibility analysis') },
-    { icon: <Building2 className="w-5 h-5" />, title: t('ניהול התחדשות עירונית', 'Urban Renewal Management'), desc: t('ניסיון עשיר בליווי פרויקטי פינוי-בינוי ותמ"א 38', 'Extensive experience in Pinui-Binui & TAMA 38 projects') },
-    { icon: <Shield className="w-5 h-5" />, title: t('בדיקות Due Diligence', 'Due Diligence Reviews'), desc: t('מאות בדיקות נאותות לרוכשי דירות בהתחדשות עירונית', 'Hundreds of due diligence reviews for urban renewal buyers') },
-  ];
-
-  const TEAM = [
-    { role: t('אדריכלים בכירים', 'Senior Architects'), desc: t('צוות אדריכלים מנוסה הבוחן תוכניות אדריכליות, מפרטים טכניים ואיכות תכנון של כל פרויקט.', 'Experienced team reviewing architectural plans, specs and design quality.'), icon: <MapPin className="w-5 h-5" /> },
-    { role: t('מתווכים בכירים ומנוסים', 'Senior Real Estate Brokers'), desc: t('מתווכים עם ניסיון עשיר בשוק ההתחדשות, מכירים את השחקנים ויודעים לזהות עסקאות אמיתיות.', 'Brokers with deep renewal market knowledge — know the players and real deals.'), icon: <Users className="w-5 h-5" /> },
-    { role: t('יועצים משפטיים', 'Legal Advisors'), desc: t('עורכי דין המתמחים בחוזי התחדשות עירונית, הגנה על זכויות דיירים וליווי משפטי מקצועי.', 'Lawyers specializing in renewal contracts and tenant rights protection.'), icon: <Briefcase className="w-5 h-5" /> },
-  ];
-
-  const SERVICES = [
-    t('בדיקת נאותות (Due Diligence) לרוכשי דירות בפרויקטי התחדשות', 'Due diligence for apartment buyers in renewal projects'),
-    t('ניתוח חוזים מול יזמים — זיהוי סעיפים בעייתיים', 'Contract analysis vs. developers — identifying problematic clauses'),
-    t('הערכת שווי נכסים לפני ואחרי התחדשות', 'Property valuation before and after renewal'),
-    t('אימות סטטוס תכנוני מול מוסדות התכנון', 'Planning status verification with authorities'),
-    t('בדיקת איתנות פיננסית של יזמים', 'Developer financial stability checks'),
-    t('ליווי דיירים בתהליכי משא ומתן מול יזמים', 'Tenant guidance in developer negotiations'),
-    t('חוות דעת שמאיות לפרויקטי התחדשות', 'Appraisal opinions for renewal projects'),
+  const TEAM_SECTIONS = [
+    {
+      icon: <Award className="w-6 h-6" />,
+      title: t('שמאי מקרקעין וכלכלנים בכירים', 'Senior Appraisers & Economists'),
+      desc: t(
+        'העיניים הכלכליות של הפרויקט. מומחים בניתוח דוחות אפס, תקני שמאות מחמירים (תקינה 21), וזיהוי "בורות" תקציביים שיזמים נוטים להסתיר. אנחנו יודעים כמה הדירה שווה באמת — היום, ובעוד עשור.',
+        'The economic eyes of the project. Experts in feasibility reports, strict appraisal standards (Standard 21), and identifying budget traps developers hide. We know what the apartment is really worth — today and in a decade.'
+      ),
+      color: 'var(--accent)',
+    },
+    {
+      icon: <HardHat className="w-6 h-6" />,
+      title: t('אדריכלים ומתכנני ערים', 'Architects & Urban Planners'),
+      desc: t(
+        'האנשים שרואים דרך הקירות. אדריכלים בכירים שבוחנים את היתכנות התכנון מעבר להדמיות היפות. אנחנו מזהים מראש כשלים תכנוניים, חריגות בנייה פוטנציאליות ובעיות רישוי שיכולות לתקוע פרויקט שנים בוועדות.',
+        'The people who see through walls. Senior architects examining planning feasibility beyond beautiful renders. We identify planning failures, potential building violations, and licensing issues that can stall projects for years.'
+      ),
+      color: 'var(--green)',
+    },
+    {
+      icon: <Scale className="w-6 h-6" />,
+      title: t('משפטנים מומחי התחדשות עירונית', 'Urban Renewal Legal Experts'),
+      desc: t(
+        'השכפ"ץ המשפטי שלכם. עורכי דין שחיים את בתי המשפט ואת האותיות הקטנות בחוזי המכר והפינוי-בינוי. אנחנו מזהים את הסעיפים הדרקוניים ומבטיחים שהזכויות שלכם מוגנות בברזל, לא רק על הנייר.',
+        'Your legal armor. Lawyers who live in courtrooms and fine print of sale and renewal contracts. We identify draconian clauses and ensure your rights are protected in steel, not just on paper.'
+      ),
+      color: 'var(--gold)',
+    },
+    {
+      icon: <Eye className="w-6 h-6" />,
+      title: t('אנשי שטח ומתווכים ותיקים', 'Field Experts & Senior Brokers'),
+      desc: t(
+        'החיבור למציאות. בעוד שהדוחות מדברים במספרים, אנשי השטח שלנו מכירים את הרחוב. אנחנו יודעים איזה יזם באמת מסיים פרויקטים, איזה בניין הוא "מוקש", ומה באמת קורה בשטח כשהדחפורים עולים (או לא עולים) על הקרקע.',
+        'The reality connection. While reports speak in numbers, our field agents know the street. We know which developer actually finishes projects, which building is a "landmine", and what really happens when bulldozers arrive (or don\'t).'
+      ),
+      color: 'var(--teal)',
+    },
   ];
 
   return (
@@ -54,7 +71,7 @@ export default function AboutPage() {
           <div className="flex items-center gap-3">
             <Building2 className="w-4 h-4 text-green" />
             <span className="font-bold text-sm">THE REALITY CHECK</span>
-            <span className="text-foreground-muted text-xs">{t('| אודות', '| About')}</span>
+            <span className="text-foreground-muted text-xs">{t('| הנבחרת', '| The Team')}</span>
           </div>
           <div className="flex items-center gap-4">
             <button onClick={toggle} className="flex items-center gap-1 text-xs text-foreground-muted hover:text-foreground transition-colors cursor-pointer bg-transparent border-0">
@@ -69,96 +86,113 @@ export default function AboutPage() {
       </div>
 
       <div className="relative z-10 max-w-4xl mx-auto px-6 py-12 flex-1">
-        {/* Hero — No name, just who we are */}
+
+        {/* Hero */}
         <div className="text-center mb-12">
           <div className="w-28 h-28 rounded-full mx-auto mb-6 overflow-hidden border-3 flex items-center justify-center" style={{ borderColor: 'var(--accent)', background: 'linear-gradient(135deg, var(--accent) 0%, var(--accent-purple) 100%)' }}>
-            <span className="text-4xl font-black text-white">{t('RC', 'RC')}</span>
+            <span className="text-3xl font-black text-white">RC</span>
           </div>
-          <h1 className="text-3xl md:text-4xl font-bold text-foreground mb-3">{t('מי אנחנו', 'Who We Are')}</h1>
-          <p className="text-lg text-accent font-semibold mb-2">{t('שמאות מקרקעין | כלכלה | התחדשות עירונית', 'Real Estate Appraisal | Economics | Urban Renewal')}</p>
-          <p className="text-base text-foreground-muted max-w-2xl mx-auto leading-relaxed">
-            {t(
-              'בעולם שבו כולם מוכרים חלומות, אנחנו מביאים את המציאות. עם ניסיון עשיר בשוק הנדל"ן הישראלי ובפרויקטי התחדשות עירונית, אנחנו מספקים ללקוחותינו תמונת מצב אמיתית — ללא אג\'נדות, ללא אינטרסים.',
-              'In a world where everyone sells dreams, we bring reality. With extensive experience in Israeli real estate and urban renewal, we provide clients with a true picture — no agendas, no hidden interests.'
-            )}
-          </p>
+          <div className="text-xs font-bold text-accent uppercase tracking-[0.2em] mb-3">THE REALITY CHECK</div>
+          <h1 className="text-3xl md:text-4xl font-bold text-foreground mb-2">{t('הנבחרת', 'The Task Force')}</h1>
+          <p className="text-base text-accent font-semibold mb-4">{t('השורה התחתונה של עולם הנדל"ן', 'The Bottom Line of Real Estate')}</p>
         </div>
 
-        {/* Credentials */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-10">
-          {CREDENTIALS.map((c, i) => (
-            <div key={i} className="db-card p-5 flex items-start gap-4">
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: 'color-mix(in srgb, var(--accent) 15%, transparent)', color: 'var(--accent)' }}>
-                {c.icon}
-              </div>
-              <div>
-                <h3 className="text-sm font-bold text-foreground mb-0.5">{c.title}</h3>
-                <p className="text-xs text-foreground-muted leading-relaxed">{c.desc}</p>
-              </div>
-            </div>
-          ))}
+        {/* Who We Are */}
+        <div className="db-card p-8 mb-8">
+          <h2 className="text-xl font-bold text-foreground mb-4">{t('מי אנחנו?', 'Who Are We?')}</h2>
+          <div className="space-y-4 text-base text-foreground-secondary leading-relaxed">
+            <p>
+              {t(
+                'בעולם שמונע מאינטרסים, עמלות והבטחות שיווקיות, הקמנו את The Reality Check מתוך תחושת שליחות אמיתית וצורך בוער בשטח. ראינו יותר מדי רוכשים, משקיעים ובעלי דירות הולכים שבי אחרי מצגות נוצצות, כשהפער בינן לבין המציאות התכנונית והכלכלית הוא עצום — ולעיתים הרסני.',
+                'In a world driven by commissions and marketing promises, we founded The Reality Check from a genuine sense of mission. We\'ve seen too many buyers and investors captivated by flashy presentations, when the gap between them and planning/economic reality is enormous — and sometimes devastating.'
+              )}
+            </p>
+            <p>
+              {t(
+                'אנחנו לא "יועצים" רגילים. אנחנו איחוד כוחות נדיר של בכירי המומחים במשק הישראלי. חיברנו סביב שולחן אחד את השמות המנוסים ביותר: שמאי מקרקעין, אדריכלים, עורכי דין, כלכלנים ומתווכי-שטח ותיקים. כל אחד מאיתנו חי ונושם את התחום שלו עשרות שנים, וכולנו התאגדנו למטרה אחת: לנטרל את רעשי הרקע, לפרק את המוקשים, ולתת לכם את האמת הטהורה — גם כשהיא לא נעימה.',
+                'We\'re not ordinary "consultants." We\'re a rare union of Israel\'s top experts. We\'ve brought the most experienced names around one table: appraisers, architects, lawyers, economists and veteran field brokers. Each of us has lived and breathed our field for decades, united for one purpose: to cut through the noise, defuse the landmines, and give you the pure truth — even when it\'s uncomfortable.'
+              )}
+            </p>
+            <p className="text-foreground font-semibold">
+              {t(
+                'זה בדמנו. אנחנו כאן כדי לוודא שאף אחד לא יקנה חלום וישאר עם שברון לב.',
+                'It\'s in our blood. We\'re here to make sure nobody buys a dream and ends up heartbroken.'
+              )}
+            </p>
+          </div>
         </div>
 
-        {/* Team */}
-        <div className="mb-10">
+        {/* Professional Power */}
+        <div className="mb-8">
           <div className="text-center mb-6">
-            <h2 className="text-xl font-bold text-foreground mb-2">{t('הצוות', 'The Team')}</h2>
-            <p className="text-sm text-foreground-muted">{t('צוות מומחים בכירים ומנוסים עם ידע רב-תחומי', 'Senior experts with multi-disciplinary knowledge')}</p>
+            <h2 className="text-xl font-bold text-foreground mb-2">{t('הכוח המקצועי שלנו', 'Our Professional Power')}</h2>
+            <p className="text-sm text-foreground-muted">
+              {t(
+                'הצוות שלנו מורכב מאנשי מקצוע שבדקו, ליוו ואישרו פרויקטים בהיקפים של מיליארדי שקלים. הניסיון המצטבר שלנו הוא תעודת הביטוח שלכם.',
+                'Our team consists of professionals who reviewed, managed and approved projects worth billions. Our combined experience is your insurance policy.'
+              )}
+            </p>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {TEAM.map((tm, i) => (
-              <div key={i} className="db-card p-5 text-center">
-                <div className="w-12 h-12 rounded-xl flex items-center justify-center mx-auto mb-3" style={{ background: 'color-mix(in srgb, var(--green) 15%, transparent)', color: 'var(--green)' }}>
-                  {tm.icon}
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            {TEAM_SECTIONS.map((section, i) => (
+              <div key={i} className="db-card p-6">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0"
+                    style={{ background: `color-mix(in srgb, ${section.color} 15%, transparent)`, color: section.color }}>
+                    {section.icon}
+                  </div>
+                  <h3 className="text-sm font-bold text-foreground">{section.title}</h3>
                 </div>
-                <h3 className="text-sm font-bold text-foreground mb-1">{tm.role}</h3>
-                <p className="text-xs text-foreground-muted leading-relaxed">{tm.desc}</p>
+                <p className="text-sm text-foreground-muted leading-relaxed">{section.desc}</p>
               </div>
             ))}
           </div>
         </div>
 
-        {/* Services */}
-        <div className="db-card p-6 mb-10">
+        {/* Motivation */}
+        <div className="db-card-accent p-8 mb-8">
           <h2 className="text-lg font-bold text-foreground mb-4 flex items-center gap-2">
-            <Briefcase className="w-5 h-5 text-accent" />
-            {t('שירותים מקצועיים', 'Professional Services')}
+            <Shield className="w-5 h-5 text-accent" />
+            {t('המניע שלנו', 'Our Motivation')}
           </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-            {SERVICES.map((s, i) => (
-              <div key={i} className="flex items-center gap-3 py-2 text-sm text-foreground-secondary">
-                <span className="w-2 h-2 rounded-full bg-green flex-shrink-0" />
-                {s}
-              </div>
-            ))}
+          <div className="text-base text-foreground-secondary leading-relaxed space-y-3">
+            <p>
+              {t(
+                'אנחנו לא מוכרים דירות. אנחנו לא משווקים פרויקטים. אנחנו לא מקבלים עמלות מיזמים. הנאמנות שלנו היא אליכם בלבד.',
+                'We don\'t sell apartments. We don\'t market projects. We don\'t take commissions from developers. Our loyalty is to you alone.'
+              )}
+            </p>
+            <p>
+              {t(
+                'השילוב בין הידע השמאי, החדות המשפטית והראייה האדריכלית, מאפשר לנו לתת לכם את המוצר היקר ביותר בשוק הנדל"ן של היום: וודאות.',
+                'The combination of appraisal knowledge, legal precision and architectural vision allows us to give you the most valuable product in today\'s real estate market: certainty.'
+              )}
+            </p>
           </div>
         </div>
 
-        {/* Contact + CTA */}
-        <div className="db-card-accent p-6 text-center">
-          <h2 className="text-xl font-bold text-foreground mb-3">{t('בואו נדבר', "Let's Talk")}</h2>
-          <p className="text-sm text-foreground-muted mb-6 max-w-md mx-auto">
-            {t(
-              'פגישת ייעוץ ממוקדת של 45 דקות, בה ננתח את הפרויקט שלכם לעומק — חוזה, מפרט, יזם ותכנון.',
-              'A focused 45-minute consultation analyzing your project in depth — contract, specs, developer and planning.'
-            )}
-          </p>
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-6">
-            <div className="flex items-center gap-2 text-sm text-foreground-muted">
-              <Phone className="w-4 h-4 text-green" />
-              <span>{t('ליצירת קשר ישיר', 'Direct Contact')}</span>
-            </div>
-            <div className="flex items-center gap-2 text-sm text-foreground-muted">
-              <Mail className="w-4 h-4 text-green" />
-              <span>contact@therealitycheck.co.il</span>
-            </div>
-          </div>
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+        {/* Tagline + CTA */}
+        <div className="db-card-green p-8 text-center mb-8">
+          <div className="text-xs font-bold text-green uppercase tracking-[0.2em] mb-3">THE REALITY CHECK</div>
+          <h2 className="text-2xl font-bold text-foreground mb-3">
+            {t('אנחנו בודקים. אתם ישנים בשקט.', 'We check. You sleep soundly.')}
+          </h2>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mt-6">
             <a href="/checkup" className="btn-primary py-3 px-8 rounded-lg text-sm flex items-center gap-2">
               <Shield className="w-4 h-4" />
               {t('הפק דוח Reality Check', 'Generate Reality Check')}
               <ChevronLeft className="w-4 h-4" />
             </a>
+          </div>
+        </div>
+
+        {/* Contact */}
+        <div className="db-card p-6 text-center">
+          <h2 className="text-lg font-bold text-foreground mb-3">{t('בואו נדבר', "Let's Talk")}</h2>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 text-sm text-foreground-muted">
+            <div className="flex items-center gap-2"><Phone className="w-4 h-4 text-green" />{t('ליצירת קשר ישיר', 'Direct Contact')}</div>
+            <div className="flex items-center gap-2"><Mail className="w-4 h-4 text-green" />contact@therealitycheck.co.il</div>
           </div>
         </div>
       </div>
@@ -167,7 +201,7 @@ export default function AboutPage() {
       <div className="relative z-10 border-t border-[var(--border)] p-3 text-center text-[10px] text-foreground-muted mt-auto" style={{ background: 'rgba(13,17,23,0.9)' }}>
         <span>THE REALITY CHECK</span>
         <span className="opacity-30 mx-2">|</span>
-        <span>{t('שמאות מקרקעין | כלכלה | התחדשות עירונית', 'Real Estate Appraisal | Economics | Urban Renewal')}</span>
+        <span>{t('אנחנו בודקים. אתם ישנים בשקט.', 'We check. You sleep soundly.')}</span>
       </div>
     </div>
   );

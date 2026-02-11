@@ -75,20 +75,20 @@ export default function Home() {
 
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-[rgba(255,255,255,0.1)] mb-8" style={{ background: 'rgba(255,255,255,0.05)', backdropFilter: 'blur(12px)' }}>
             <span className="w-2 h-2 rounded-full bg-green pulse" />
-            <span className="text-xs font-medium tracking-wide text-foreground-muted uppercase">{t('מודיעין התחדשות עירונית', 'Urban Renewal Intelligence')}</span>
+            <span className="text-xs font-medium tracking-wide text-foreground-muted uppercase">{t('בדיקת נאותות להתחדשות עירונית', 'Urban Renewal Due Diligence')}</span>
           </div>
 
-          <h1 className="text-5xl md:text-7xl font-bold tracking-tight mb-6 text-gradient-blue">
-            THE REALITY CHECK
+          <h1 className="text-4xl md:text-6xl font-bold tracking-tight mb-4 text-gradient-blue">
+            {t('בדיקת מציאות להבטחות נדל"ן', 'Reality Check for Real Estate Promises')}
           </h1>
 
           <p className="text-lg md:text-xl text-foreground-muted mb-12 max-w-2xl mx-auto leading-relaxed">
             {t(
-              'בלי אנשי מכירות, בלי סיפורים. קבל ניתוח אנליטי קר של פרויקט ההתחדשות העירונית שלך: ',
-              'No sales pitches, no stories. Get a cold analytical review of your urban renewal project: '
+              'חושפים את האמת מאחורי המצגות, המספרים וההבטחות של היזמים. ',
+              'Exposing the truth behind presentations, numbers and developer promises. '
             )}
             <span className="text-foreground font-semibold">
-              {t('זמנים אמיתיים, רמת סיכון וציון וודאות.', 'real timelines, risk level and certainty score.')}
+              {t('בדיקת נאותות מקיפה על ידי נבחרת מומחים.', 'Comprehensive due diligence by an expert team.')}
             </span>
           </p>
 
