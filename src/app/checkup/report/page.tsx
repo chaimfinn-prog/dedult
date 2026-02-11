@@ -306,38 +306,43 @@ export default function ReportPage() {
     const planningDesc = 'desc' in planning ? (planning as { desc: string }).desc : '';
     const planningDescEn = 'descEn' in planning ? (planning as { descEn: string }).descEn : '';
 
-    // Generate score explanation paragraph
+    // Construction buffer: 100+ tenants = 4y, otherwise 3.5y
+    const constructionYears = form.tenantCount === 'over100' ? 4 : 3.5;
+    const totalYears = years + constructionYears;
+
+    // Generate score explanation — clean bullet list, no percentages
     const riskLevel = getRiskLevel(certainty);
-    const occupancyYear = new Date().getFullYear() + Math.ceil(years);
+    const occupancyYear = new Date().getFullYear() + Math.ceil(totalYears);
 
-    let explanationHe = `ציון הוודאות נקבע על סמך: `;
-    let explanationEn = `The certainty score was determined by: `;
-    const factorsHe = risks.map(r => r.he);
-    const factorsEn = risks.map(r => r.en);
-    explanationHe += factorsHe.join(', ') + '. ';
-    explanationEn += factorsEn.join(', ') + '. ';
+    // Build clean risk factor bullets (no internal %)
+    const riskBullets: { he: string; en: string }[] = [];
+    if (form.signatureStatus === 'noMajority') riskBullets.push({ he: 'העדר רוב חוקי של דיירים', en: 'No legal majority of tenants' });
+    if (form.signatureStatus === 'unknown') riskBullets.push({ he: 'סטטוס חתימות דיירים לא ידוע', en: 'Unknown tenant signature status' });
+    if (form.projectType === 'pinui' && planStage === 'planning' && form.planningStatus !== 'tabaApproved' && form.planningStatus !== 'designApproved') {
+      riskBullets.push({ he: 'פרויקט פינוי-בינוי ללא תב"ע מאושרת', en: 'Pinui-Binui without approved TBA' });
+    }
+    if (form.planningStatus === 'unknown') riskBullets.push({ he: 'שלב תכנוני לא ידוע', en: 'Unknown planning stage' });
+    if (hasSqmRisk) riskBullets.push({ he: 'תוספת מ"ר חורגת מהנחיות תקן 21', en: 'Excess sqm beyond Standard 21 guidelines' });
+    if (form.objection === 'objection') riskBullets.push({ he: 'קיום התנגדות לתוכנית', en: 'Existing objection to plan' });
+    else if (form.objection === 'appeal') riskBullets.push({ he: 'הליך ערר פעיל', en: 'Active appeal process' });
+    else if (form.objection === 'both') riskBullets.push({ he: 'התנגדות וערר בו-זמניים', en: 'Simultaneous objection and appeal' });
+    else if (form.objection === 'unknown') riskBullets.push({ he: 'מצב התנגדויות לא ידוע', en: 'Unknown objection status' });
+    if (form.tenantCount === 'over100') riskBullets.push({ he: 'מקדם חיכוך גבוה: מעל 100 בעלי זכויות', en: 'High friction: 100+ rights holders' });
 
-    if (form.planningStatus !== 'unknown') {
-      const statusLabel = allOptions.find(o => o.value === form.planningStatus)?.label ?? '';
-      explanationHe += `הפרויקט נמצא בסטטוס "${statusLabel}"`;
-      explanationEn += `The project is at "${allOptions.find(o => o.value === form.planningStatus)?.labelEn ?? ''}" status`;
+    const statusLabel = allOptions.find(o => o.value === form.planningStatus)?.label ?? '';
+    if (form.planningStatus !== 'unknown' && statusLabel) {
+      riskBullets.push({ he: `סטטוס פרויקט: ${statusLabel}`, en: `Project status: ${allOptions.find(o => o.value === form.planningStatus)?.labelEn ?? ''}` });
     }
-    if (form.tenantCount === 'over100') {
-      explanationHe += `, ובשל היקף של מעל 100 דיירים, המערכת הפחיתה את הציון בגין סיכון התארגנות ועיכובים משפטיים`;
-      explanationEn += `, and due to 100+ tenants, the system reduced the score for organizational risk and legal delays`;
-    }
-    explanationHe += `. התחזית שלנו שמרנית וכוללת מקדמי ביטחון.`;
-    explanationEn += `. Our forecast is conservative and includes safety margins.`;
 
     return {
-      years: Number(years.toFixed(1)), certainty, promiseDiff,
+      years: Number(years.toFixed(1)), totalYears: Number(totalYears.toFixed(1)), constructionYears, certainty, promiseDiff,
       toldYears: Number.isFinite(told) ? told : null,
       annualYield: annualYield !== null ? Number(annualYield.toFixed(2)) : null,
       pricePerSqm: pricePerSqm !== null ? Math.round(pricePerSqm) : null,
       hasSqmRisk, sqmAdd: Number.isFinite(sqmAdd) ? sqmAdd : null,
       risk: riskLevel, adjustments, risks, unknownFields,
       planningDesc, planningDescEn,
-      occupancyYear, explanationHe, explanationEn,
+      occupancyYear, riskBullets,
       isNegativeCarry: annualYield !== null && annualYield < 3,
     };
   }, [form]);
@@ -535,11 +540,14 @@ export default function ReportPage() {
               <div className="text-xs font-bold uppercase tracking-[0.2em] mb-2" style={{ color: 'var(--accent)' }}>THE REALITY CHECK</div>
               <h2 className="text-lg font-bold mb-6" style={{ color: '#1a1a2e' }}>{form.projectName || displayAddress || t('דוח ניתוח', 'Analysis Report')}</h2>
 
-              {/* 1. Realistic Date */}
+              {/* 1. Realistic Occupancy Date (demolition + construction) */}
               <div className="mb-6">
                 <div className="text-xs uppercase tracking-wider font-semibold mb-2" style={{ color: '#666' }}>{t('מועד אכלוס ריאלי (תרחיש סביר)', 'Realistic Occupancy Date (Likely Scenario)')}</div>
                 <div className="text-6xl md:text-7xl font-black font-mono" style={{ color: 'var(--accent)' }}>{calc.occupancyYear}</div>
-                <div className="text-base mt-1" style={{ color: '#666' }}>{calc.years} {t('שנים להריסה', 'years to demolition')}</div>
+                <div className="text-sm mt-2 space-y-0.5" style={{ color: '#666' }}>
+                  <div>{calc.years} {t('שנים עד הריסה', 'years to demolition')} + {calc.constructionYears} {t('שנות בנייה', 'years construction')}</div>
+                  <div className="font-semibold" style={{ color: '#1a1a2e' }}>{t('סה"כ', 'Total')}: {calc.totalYears} {t('שנים עד אכלוס', 'years to occupancy')}</div>
+                </div>
               </div>
 
               {/* 2. Certainty Score */}
@@ -554,10 +562,22 @@ export default function ReportPage() {
                 </div>
               </div>
 
-              {/* 3. The Explanation — MANDATORY */}
+              {/* 3. Explanation — clean bullet list, no percentages */}
               <div className="rounded-xl p-5 text-right mx-auto max-w-2xl" style={{ background: 'rgba(0,0,0,0.04)', border: '1px solid rgba(0,0,0,0.08)' }}>
-                <div className="text-xs uppercase tracking-wider font-bold mb-2" style={{ color: '#666' }}>{t('הסבר המערכת', 'System Explanation')}</div>
-                <p className="text-sm leading-relaxed" style={{ color: '#333' }}>{lang === 'he' ? calc.explanationHe : calc.explanationEn}</p>
+                <div className="text-xs uppercase tracking-wider font-bold mb-3" style={{ color: '#666' }}>{t('הסבר המערכת', 'System Explanation')}</div>
+                <p className="text-sm mb-3 leading-relaxed" style={{ color: '#555' }}>{t('ציון הוודאות נקבע על סמך ניתוח גורמי העיכוב והסיכונים הבאים:', 'The certainty score was determined by analyzing the following delay and risk factors:')}</p>
+                {calc.riskBullets.length > 0 ? (
+                  <ul className="space-y-2 text-right">
+                    {calc.riskBullets.map((b, i) => (
+                      <li key={i} className="flex items-start gap-2 text-sm" style={{ color: '#333' }}>
+                        <span className="w-1.5 h-1.5 rounded-full flex-shrink-0 mt-2" style={{ background: 'var(--red)' }} />
+                        {lang === 'he' ? b.he : b.en}
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-sm" style={{ color: '#333' }}>{t('לא זוהו גורמי סיכון משמעותיים.', 'No significant risk factors identified.')}</p>
+                )}
               </div>
             </div>
 
@@ -619,24 +639,6 @@ export default function ReportPage() {
               </div>
             )}
 
-            {/* Negative Carry Warning */}
-            {calc.isNegativeCarry && (
-              <div className="rounded-2xl p-6" style={GLASS_WARN}>
-                <div className="flex items-start gap-3">
-                  <TrendingUp className="w-6 h-6 flex-shrink-0 mt-0.5" style={{ color: '#c0392b' }} />
-                  <div>
-                    <h3 className="text-base font-bold mb-2" style={{ color: '#c0392b' }}>{t('תזרים מזומנים גרעוני (Negative Carry)', 'Negative Cash Flow (Negative Carry)')}</h3>
-                    <p className="text-sm leading-relaxed" style={{ color: '#5c1a1a' }}>
-                      {t(
-                        'הנכס מניב תשואה שוטפת הנמוכה מ-3%. בסביבת הריבית הנוכחית (משכנתא כ-5%+), המשמעות היא הפסד חודשי קבוע (תזרים שלילי). עליך להיערך להשלמת הון חודשית מהכיס לאורך כל חיי הפרויקט, עד לאכלוס. כל עיכוב בלוחות הזמנים יעמיק את ההפסד התזרימי המצטבר.',
-                        'The property yields below 3% annually. With current interest rates (~5%+ mortgage), this means a fixed monthly loss (negative cash flow). You must be prepared to supplement capital from pocket throughout the project\'s life until occupancy. Any timeline delay deepens the cumulative cash flow loss.'
-                      )}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
-
             {/* Planning Verification with TABA Selection */}
             <div className="rounded-2xl p-6" style={GLASS}>
               <div className="flex items-center gap-2 mb-4"><MapPin className="w-5 h-5" style={{ color: 'var(--accent)' }} /><h2 className="text-lg font-bold" style={{ color: '#1a1a2e' }}>{t('אימות סטטוס תכנוני', 'Planning Verification')}</h2></div>
@@ -667,6 +669,24 @@ export default function ReportPage() {
                 </div>
               </div>
             </div>
+
+            {/* Negative Carry Warning — right after Financial */}
+            {calc.isNegativeCarry && (
+              <div className="rounded-2xl p-6" style={GLASS_WARN}>
+                <div className="flex items-start gap-3">
+                  <TrendingUp className="w-6 h-6 flex-shrink-0 mt-0.5" style={{ color: '#c0392b' }} />
+                  <div>
+                    <h3 className="text-base font-bold mb-2" style={{ color: '#c0392b' }}>{t('תזרים מזומנים גרעוני (Negative Carry)', 'Negative Cash Flow (Negative Carry)')}</h3>
+                    <p className="text-sm leading-relaxed" style={{ color: '#5c1a1a' }}>
+                      {t(
+                        'הנכס מניב תשואה שוטפת הנמוכה מ-3%. בסביבת הריבית הנוכחית (משכנתא כ-5%+), המשמעות היא הפסד חודשי קבוע (תזרים שלילי). עליך להיערך להשלמת הון חודשית מהכיס לאורך כל חיי הפרויקט, עד לאכלוס. כל עיכוב בלוחות הזמנים יעמיק את ההפסד התזרימי המצטבר.',
+                        'The property yields below 3% annually. With current interest rates (~5%+ mortgage), this means a fixed monthly loss (negative cash flow). You must be prepared to supplement capital from pocket throughout the project\'s life until occupancy. Any timeline delay deepens the cumulative cash flow loss.'
+                      )}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* PREMIUM TRAP — Always Show */}
             <div className="rounded-2xl p-6" style={GLASS_GOLD}>

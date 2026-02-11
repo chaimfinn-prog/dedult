@@ -10,7 +10,7 @@ function getResend() {
   }
   return _resend;
 }
-const NOTIFY_EMAIL = process.env.NOTIFY_EMAIL || 'contact@therealitycheck.co.il';
+const NOTIFY_EMAIL = process.env.NOTIFY_EMAIL || 'chaimfinn@gmail.com';
 
 export async function POST(req: NextRequest) {
   try {
@@ -96,7 +96,7 @@ export async function POST(req: NextRequest) {
     if (resend) {
       try {
         await resend.emails.send({
-          from: 'THE REALITY CHECK <noreply@therealitycheck.co.il>',
+          from: 'THE REALITY CHECK <onboarding@resend.dev>',
           to: [NOTIFY_EMAIL],
           subject,
           html: lines.join('\n'),
