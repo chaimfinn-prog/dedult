@@ -1,8 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import { Building2, ChevronLeft, Search, CalendarDays, BarChart3 } from 'lucide-react';
+import { Building2, ChevronLeft, Search, CalendarDays, BarChart3, Globe } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { useLang } from '@/lib/i18n';
 
 const VIDEO_SRC = 'https://videos.pexels.com/video-files/3571264/3571264-hd_1920_1080_25fps.mp4';
 const FALLBACK_IMG = 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=2000&q=80';
@@ -10,6 +11,8 @@ const FALLBACK_IMG = 'https://images.unsplash.com/photo-1486406146926-c627a92ad1
 export default function Home() {
   const [address, setAddress] = useState('');
   const router = useRouter();
+  const { lang, toggle } = useLang();
+  const t = (he: string, en: string) => lang === 'he' ? he : en;
 
   const handleStart = () => {
     if (address.trim()) {
@@ -25,7 +28,7 @@ export default function Home() {
     <div className="min-h-screen flex flex-col">
       <div className="relative flex-1 flex flex-col items-center justify-center min-h-screen overflow-hidden">
 
-        {/* Video / Animated Background */}
+        {/* Video / Animated Background — UNCHANGED */}
         <div className="absolute inset-0 z-0 overflow-hidden">
           <video
             autoPlay muted loop playsInline
@@ -50,13 +53,18 @@ export default function Home() {
               <span className="font-bold text-sm">THE REALITY CHECK</span>
             </div>
             <div className="flex items-center gap-4">
+              <button onClick={toggle} className="flex items-center gap-1 text-xs text-foreground-muted hover:text-foreground transition-colors cursor-pointer bg-transparent border-0">
+                <Globe className="w-3.5 h-3.5" />
+                {lang === 'he' ? 'EN' : 'עב'}
+              </button>
+              <a href="/about" className="text-xs text-foreground-muted hover:text-foreground transition-colors">{t('אודות', 'About')}</a>
               <a href="/prices" className="text-xs text-foreground-muted hover:text-foreground transition-colors flex items-center gap-1">
                 <BarChart3 className="w-3.5 h-3.5" />
-                {'השוואת מחירים'}
+                {t('מקורות מידע', 'Resources')}
               </a>
               <a href="/booking" className="text-xs text-foreground-muted hover:text-foreground transition-colors flex items-center gap-1">
                 <CalendarDays className="w-3.5 h-3.5" />
-                {'קביעת ייעוץ'}
+                {t('קביעת ייעוץ', 'Book Consultation')}
               </a>
             </div>
           </div>
@@ -67,16 +75,21 @@ export default function Home() {
 
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-[rgba(255,255,255,0.1)] mb-8" style={{ background: 'rgba(255,255,255,0.05)', backdropFilter: 'blur(12px)' }}>
             <span className="w-2 h-2 rounded-full bg-green pulse" />
-            <span className="text-xs font-medium tracking-wide text-foreground-muted uppercase">Urban Renewal Intelligence</span>
+            <span className="text-xs font-medium tracking-wide text-foreground-muted uppercase">{t('בדיקת נאותות להתחדשות עירונית', 'Urban Renewal Due Diligence')}</span>
           </div>
 
-          <h1 className="text-5xl md:text-7xl font-bold tracking-tight mb-6 text-gradient-blue">
-            THE REALITY CHECK
+          <h1 className="text-4xl md:text-6xl font-bold tracking-tight mb-4 text-gradient-blue">
+            {t('בדיקת מציאות להבטחות נדל"ן', 'Reality Check for Real Estate Promises')}
           </h1>
 
           <p className="text-lg md:text-xl text-foreground-muted mb-12 max-w-2xl mx-auto leading-relaxed">
-            {'בלי אנשי מכירות, בלי סיפורים. קבל ניתוח אנליטי קר של פרויקט ההתחדשות העירונית שלך: '}
-            <span className="text-foreground font-semibold">{'זמנים אמיתיים, רמת סיכון וציון וודאות.'}</span>
+            {t(
+              'חושפים את האמת מאחורי המצגות, המספרים וההבטחות של היזמים. ',
+              'Exposing the truth behind presentations, numbers and developer promises. '
+            )}
+            <span className="text-foreground font-semibold">
+              {t('בדיקת נאותות מקיפה על ידי נבחרת מומחים.', 'Comprehensive due diligence by an expert team.')}
+            </span>
           </p>
 
           <div className="max-w-xl mx-auto db-card p-2 flex flex-col md:flex-row gap-2 transition-all focus-within:border-green/50 focus-within:shadow-[0_0_20px_var(--green-glow)]">
@@ -84,7 +97,7 @@ export default function Home() {
               <Search className="w-5 h-5 text-foreground-muted ml-3" />
               <input
                 type="text"
-                placeholder="...הזן כתובת פרויקט מלאה"
+                placeholder={t('...הזן כתובת פרויקט מלאה', 'Enter full project address...')}
                 className="w-full bg-transparent border-none outline-none text-foreground placeholder-[var(--fg-dim)] text-right"
                 value={address}
                 onChange={(e) => setAddress(e.target.value)}
@@ -97,19 +110,19 @@ export default function Home() {
               disabled={!address.trim()}
               className="btn-green h-14 px-8 rounded-xl flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <span>{'התחל בדיקה'}</span>
+              <span>{t('התחל בדיקה', 'Start Check')}</span>
               <ChevronLeft className="w-4 h-4" />
             </button>
           </div>
 
           <div className="mt-8 flex items-center justify-center gap-8 text-xs text-foreground-muted font-medium tracking-widest uppercase">
-            <span>{'אימות סטטוס תכנוני'}</span>
+            <span>{t('אימות סטטוס תכנוני', 'Planning Verification')}</span>
             <span className="w-1 h-1 rounded-full bg-[var(--fg-dim)]" />
-            <span>{'פרופיל יזם'}</span>
+            <span>{t('פרופיל יזם', 'Developer Profile')}</span>
             <span className="w-1 h-1 rounded-full bg-[var(--fg-dim)]" />
-            <span>{'ניתוח סיכונים'}</span>
+            <span>{t('ניתוח סיכונים', 'Risk Analysis')}</span>
             <span className="w-1 h-1 rounded-full bg-[var(--fg-dim)]" />
-            <span>{'ניתוח כלכלי'}</span>
+            <span>{t('ניתוח כלכלי', 'Financial Analysis')}</span>
           </div>
         </div>
       </div>
