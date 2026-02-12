@@ -306,38 +306,43 @@ export default function ReportPage() {
     const planningDesc = 'desc' in planning ? (planning as { desc: string }).desc : '';
     const planningDescEn = 'descEn' in planning ? (planning as { descEn: string }).descEn : '';
 
-    // Generate score explanation paragraph
+    // Construction buffer: 100+ tenants = 4y, otherwise 3.5y
+    const constructionYears = form.tenantCount === 'over100' ? 4 : 3.5;
+    const totalYears = years + constructionYears;
+
+    // Generate score explanation — clean bullet list, no percentages
     const riskLevel = getRiskLevel(certainty);
-    const occupancyYear = new Date().getFullYear() + Math.ceil(years);
+    const occupancyYear = new Date().getFullYear() + Math.ceil(totalYears);
 
-    let explanationHe = `ציון הוודאות נקבע על סמך: `;
-    let explanationEn = `The certainty score was determined by: `;
-    const factorsHe = risks.map(r => r.he);
-    const factorsEn = risks.map(r => r.en);
-    explanationHe += factorsHe.join(', ') + '. ';
-    explanationEn += factorsEn.join(', ') + '. ';
+    // Build clean risk factor bullets (no internal %)
+    const riskBullets: { he: string; en: string }[] = [];
+    if (form.signatureStatus === 'noMajority') riskBullets.push({ he: 'העדר רוב חוקי של דיירים', en: 'No legal majority of tenants' });
+    if (form.signatureStatus === 'unknown') riskBullets.push({ he: 'סטטוס חתימות דיירים לא ידוע', en: 'Unknown tenant signature status' });
+    if (form.projectType === 'pinui' && planStage === 'planning' && form.planningStatus !== 'tabaApproved' && form.planningStatus !== 'designApproved') {
+      riskBullets.push({ he: 'פרויקט פינוי-בינוי ללא תב"ע מאושרת', en: 'Pinui-Binui without approved TBA' });
+    }
+    if (form.planningStatus === 'unknown') riskBullets.push({ he: 'שלב תכנוני לא ידוע', en: 'Unknown planning stage' });
+    if (hasSqmRisk) riskBullets.push({ he: 'תוספת מ"ר חורגת מהנחיות תקן 21', en: 'Excess sqm beyond Standard 21 guidelines' });
+    if (form.objection === 'objection') riskBullets.push({ he: 'קיום התנגדות לתוכנית', en: 'Existing objection to plan' });
+    else if (form.objection === 'appeal') riskBullets.push({ he: 'הליך ערר פעיל', en: 'Active appeal process' });
+    else if (form.objection === 'both') riskBullets.push({ he: 'התנגדות וערר בו-זמניים', en: 'Simultaneous objection and appeal' });
+    else if (form.objection === 'unknown') riskBullets.push({ he: 'מצב התנגדויות לא ידוע', en: 'Unknown objection status' });
+    if (form.tenantCount === 'over100') riskBullets.push({ he: 'מקדם חיכוך גבוה: מעל 100 בעלי זכויות', en: 'High friction: 100+ rights holders' });
 
-    if (form.planningStatus !== 'unknown') {
-      const statusLabel = allOptions.find(o => o.value === form.planningStatus)?.label ?? '';
-      explanationHe += `הפרויקט נמצא בסטטוס "${statusLabel}"`;
-      explanationEn += `The project is at "${allOptions.find(o => o.value === form.planningStatus)?.labelEn ?? ''}" status`;
+    const statusLabel = allOptions.find(o => o.value === form.planningStatus)?.label ?? '';
+    if (form.planningStatus !== 'unknown' && statusLabel) {
+      riskBullets.push({ he: `סטטוס פרויקט: ${statusLabel}`, en: `Project status: ${allOptions.find(o => o.value === form.planningStatus)?.labelEn ?? ''}` });
     }
-    if (form.tenantCount === 'over100') {
-      explanationHe += `, ובשל היקף של מעל 100 דיירים, המערכת הפחיתה את הציון בגין סיכון התארגנות ועיכובים משפטיים`;
-      explanationEn += `, and due to 100+ tenants, the system reduced the score for organizational risk and legal delays`;
-    }
-    explanationHe += `. התחזית שלנו שמרנית וכוללת מקדמי ביטחון.`;
-    explanationEn += `. Our forecast is conservative and includes safety margins.`;
 
     return {
-      years: Number(years.toFixed(1)), certainty, promiseDiff,
+      years: Number(years.toFixed(1)), totalYears: Number(totalYears.toFixed(1)), constructionYears, certainty, promiseDiff,
       toldYears: Number.isFinite(told) ? told : null,
       annualYield: annualYield !== null ? Number(annualYield.toFixed(2)) : null,
       pricePerSqm: pricePerSqm !== null ? Math.round(pricePerSqm) : null,
       hasSqmRisk, sqmAdd: Number.isFinite(sqmAdd) ? sqmAdd : null,
       risk: riskLevel, adjustments, risks, unknownFields,
       planningDesc, planningDescEn,
-      occupancyYear, explanationHe, explanationEn,
+      occupancyYear, riskBullets,
       isNegativeCarry: annualYield !== null && annualYield < 3,
     };
   }, [form]);
@@ -380,25 +385,129 @@ export default function ReportPage() {
 
         {/* ============ AGRICULTURAL LAND — FULL BLOCK WARNING ============ */}
         {isAgri && showResults && (
-          <div className="space-y-6 fade-in-up">
-            <div className="rounded-2xl p-10 text-center" style={{ ...GLASS_WARN, background: 'rgba(255, 230, 225, 0.95)' }}>
-              <div className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6" style={{ background: 'rgba(248,81,73,0.15)' }}>
-                <Sprout className="w-10 h-10" style={{ color: 'var(--red)' }} />
-              </div>
-              <h1 className="text-2xl md:text-3xl font-black mb-4" style={{ color: '#c0392b' }}>
-                {t('אזהרה: עסקה ספקולטיבית בסיכון גבוה', 'Warning: High-Risk Speculative Transaction')}
-              </h1>
-              <div className="text-right max-w-2xl mx-auto space-y-4 text-base leading-relaxed" style={{ color: '#3d1c1c' }}>
-                <div className="flex items-start gap-3"><AlertOctagon className="w-5 h-5 flex-shrink-0 mt-1" style={{ color: '#c0392b' }} /><p><strong>{t('סטטוס תכנוני:', 'Planning Status:')}</strong> {t('הקרקע נמצאת בשלבים טרום-תב"ע (Pre-Zoning). המשמעות היא אי-ודאות מוחלטת לגבי אם ומתי תאושר בנייה.', 'The land is at pre-zoning stages. Complete uncertainty about if and when construction will be approved.')}</p></div>
-                <div className="flex items-start gap-3"><AlertOctagon className="w-5 h-5 flex-shrink-0 mt-1" style={{ color: '#c0392b' }} /><p><strong>{t('פער ציפיות:', 'Expectations Gap:')}</strong> {t('הבטחות המשווקים לגבי תשואות ולוחות זמנים לרוב אינן ריאליות ומנותקות מהמציאות התכנונית בישראל.', 'Marketer promises about yields and timelines are usually unrealistic and disconnected from Israeli planning reality.')}</p></div>
-                <div className="flex items-start gap-3"><AlertOctagon className="w-5 h-5 flex-shrink-0 mt-1" style={{ color: '#c0392b' }} /><p><strong>{t('מבנה העסקה:', 'Deal Structure:')}</strong> {t('גם אם התוכנית תאושר, המימוש צפוי להתבצע במתכונת של "קבוצת רכישה" — מודל בעל סיכונים משפטיים וביצועיים כבדים מאוד.', 'Even if approved, realization will likely be via "purchasing group" — a model with heavy legal and execution risks.')}</p></div>
-                <div className="flex items-start gap-3"><AlertOctagon className="w-5 h-5 flex-shrink-0 mt-1" style={{ color: '#c0392b' }} /><p><strong>{t('עלויות נסתרות:', 'Hidden Costs:')}</strong> {t('התחשיבים המוצגים לרוב מתעלמים מהיטל השבחה (50% מההשבחה הריאלית) ועלויות פיתוח כבדות שישחקו את הרווח באופן ניכר.', 'Presented calculations usually ignore betterment levy (50% of real appreciation) and heavy development costs that will significantly erode profit.')}</p></div>
-              </div>
-              <div className="mt-8">
-                <a href="/booking" className="inline-flex items-center gap-2 py-4 px-8 rounded-lg text-base font-bold border-0 cursor-pointer" style={{ background: '#c0392b', color: '#fff' }}>
-                  <CalendarDays className="w-5 h-5" />
-                  {t('העסקה דורשת בדיקת עומק — לקביעת פגישת ייעוץ לחץ כאן', 'This deal requires deep review — click to schedule consultation')}
-                </a>
+          <div className="fade-in-up">
+            {/* Full-screen warning with cracked earth background */}
+            <div className="relative rounded-2xl overflow-hidden" style={{ minHeight: '100vh' }}>
+              {/* Background: cracked parched earth */}
+              <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: "url('https://images.unsplash.com/photo-1509228468518-180dd4864904?auto=format&fit=crop&w=2000&q=80')", filter: 'saturate(0.3)' }} />
+              {/* Dark overlay 75% */}
+              <div className="absolute inset-0" style={{ background: 'rgba(0,0,0,0.75)' }} />
+
+              <div className="relative z-10 p-8 md:p-12 text-right" dir="rtl">
+                {/* Icon + Main Header */}
+                <div className="flex items-center gap-4 mb-8">
+                  <div className="w-16 h-16 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(220,38,38,0.25)', border: '2px solid rgba(220,38,38,0.5)' }}>
+                    <Sprout className="w-8 h-8" style={{ color: '#ef4444' }} />
+                  </div>
+                  <h1 className="text-2xl md:text-4xl font-black leading-tight" style={{ color: '#ef4444' }}>
+                    {t('אזהרה חמורה: סיכון קיצוני וחוסר ודאות בהשקעה', 'Severe Warning: Extreme Risk and Investment Uncertainty')}
+                  </h1>
+                </div>
+
+                {/* Intro Paragraph */}
+                <div className="max-w-4xl mb-8">
+                  <p className="text-base md:text-lg leading-relaxed" style={{ color: 'rgba(255,255,255,0.9)' }}>
+                    {t(
+                      'רכישת קרקע חקלאית בישראל היא מהלך המאופיין ברמת סיכון קיצונית ובחוסר ודאות מובנה. בניגוד לרכישת דירה מוכנה או מניות בשוק ההון, כאן המשקיע תלוי בשורה ארוכה של משתנים שאינם בשליטתו: החלטות פוליטיות של מוסדות התכנון, מדיניות ארצית של שימור שטחים פתוחים, יכולת הניהול של קבוצת זרים במושע, ועמידות התקציב האישי מול נטל מיסוי שעלול להגיע ל-70% מסך ההשבחה (בשקלול היטל השבחה, מס שבח ועלויות פיתוח).',
+                      'Purchasing agricultural land in Israel is characterized by extreme risk and inherent uncertainty. Unlike buying a finished apartment or stock market shares, the investor depends on a long chain of uncontrollable variables: political decisions by planning institutions, national open space preservation policy, management capability of a group of strangers in musha, and personal budget resilience against a tax burden that can reach 70% of total appreciation.'
+                    )}
+                  </p>
+                </div>
+
+                <div className="max-w-4xl mb-10">
+                  <p className="text-base md:text-lg leading-relaxed" style={{ color: 'rgba(255,255,255,0.85)' }}>
+                    {t(
+                      'הכשל המרכזי טמון בעובדה שהשוק מתמחר את ה"ציפיות" כבר במחיר הרכישה המקורי. כתוצאה מכך, המשקיע משלם פרמיה גבוהה על סיכון שלא בטוח שיתממש, וגם אם יתממש – השנים הרבות של ההמתנה (למעלה מ-15 שנה בממוצע לקרקע גולמית) שוחקות את התשואה הריאלית והופכות את ההשקעה לבלתי כלכלית בהשוואה לאפיקים סולידיים יותר. עבור המשקיע הסביר, הקרקע החקלאית היא לעיתים קרובות נכס שקל מאוד לקנות וקשה מאוד (עד בלתי אפשרי) למכור, מה שהופך אותה ל"בור ללא תחתית" של הוצאות במקום למנוע של צמיחה והון.',
+                      'The core failure lies in the fact that the market already prices "expectations" into the original purchase price. As a result, the investor pays a high premium on risk that may never materialize, and even if it does – the many years of waiting (over 15 years on average for raw land) erode real returns and make the investment uneconomical compared to more solid channels. For the average investor, agricultural land is often an asset that is very easy to buy and very hard (to impossible) to sell, turning it into a "bottomless pit" of expenses rather than an engine of growth.'
+                    )}
+                  </p>
+                </div>
+
+                {/* Risk Factors Header */}
+                <h2 className="text-xl md:text-2xl font-bold mb-6" style={{ color: '#fbbf24' }}>
+                  {t('הנה הנקודות המרכזיות שהופכות השקעה בקרקע חקלאית לסיכון משמעותי ולעיתים קרובות ללא כדאית מבחינה כלכלית:', 'Key factors that make agricultural land investment a significant and often uneconomical risk:')}
+                </h2>
+
+                {/* 7 Bullet Points */}
+                <div className="max-w-4xl space-y-5 mb-10">
+                  <div className="flex items-start gap-4 p-4 rounded-xl" style={{ background: 'rgba(220,38,38,0.12)', border: '1px solid rgba(220,38,38,0.25)' }}>
+                    <AlertOctagon className="w-6 h-6 flex-shrink-0 mt-0.5" style={{ color: '#ef4444' }} />
+                    <div>
+                      <p className="font-bold text-base mb-1" style={{ color: '#ef4444' }}>{t('חוסר ודאות תכנוני מובנה', 'Inherent Planning Uncertainty')}</p>
+                      <p className="text-sm leading-relaxed" style={{ color: 'rgba(255,255,255,0.85)' }}>
+                        {t('תוכניות מתאר ארציות כמו תמ"א 35 מגדירות אזורים לשימור ומונעות הפשרה של קרקעות שאינן צמודות דופן ליישובים קיימים. משקיעים רבים מגלים מאוחר מדי שהקרקע שרכשו מוגדרת כשטח פתוח מוגן שהסיכוי לשינוי ייעודו קלוש.', 'National outline plans like TAMA 35 designate preservation zones and prevent rezoning of land not adjacent to existing settlements. Many investors discover too late that their land is classified as protected open space with minimal chance of rezoning.')}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-4 p-4 rounded-xl" style={{ background: 'rgba(220,38,38,0.12)', border: '1px solid rgba(220,38,38,0.25)' }}>
+                    <AlertOctagon className="w-6 h-6 flex-shrink-0 mt-0.5" style={{ color: '#ef4444' }} />
+                    <div>
+                      <p className="font-bold text-base mb-1" style={{ color: '#ef4444' }}>{t('לוחות זמנים של עשרות שנים', 'Decades-Long Timelines')}</p>
+                      <p className="text-sm leading-relaxed" style={{ color: 'rgba(255,255,255,0.85)' }}>
+                        {t('תהליך הפשרה של קרקע חקלאית גולמית יכול להימשך בין מספר שנים לעשור ואף עשרות שנים, ללא כל ערובה לתוצאה הסופית. לאורך כל התקופה הזו, הכסף "נעול" ללא תשואה שוטפת.', 'The rezoning process for raw agricultural land can take years to decades, with no guarantee of outcome. Throughout this entire period, capital is locked with no current yield.')}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-4 p-4 rounded-xl" style={{ background: 'rgba(220,38,38,0.12)', border: '1px solid rgba(220,38,38,0.25)' }}>
+                    <AlertOctagon className="w-6 h-6 flex-shrink-0 mt-0.5" style={{ color: '#ef4444' }} />
+                    <div>
+                      <p className="font-bold text-base mb-1" style={{ color: '#ef4444' }}>{t('עיכובים בשל התנגדויות', 'Objection-Driven Delays')}</p>
+                      <p className="text-sm leading-relaxed" style={{ color: 'rgba(255,255,255,0.85)' }}>
+                        {t('חוק התכנון והבנייה מאפשר לכל בעל עניין, תושב או ארגון סביבתי להגיש התנגדות לתוכנית שהופקדה. הליכים אלו, יחד עם ערעורים ועתירות מנהליות, מייצרים עיכובים משפטיים כבדים שעלולים להקפיא פרויקטים לשנים רבות.', 'The Planning and Building Law allows any stakeholder, resident or environmental organization to file objections. These proceedings, along with appeals and administrative petitions, create heavy legal delays that can freeze projects for years.')}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-4 p-4 rounded-xl" style={{ background: 'rgba(220,38,38,0.12)', border: '1px solid rgba(220,38,38,0.25)' }}>
+                    <AlertOctagon className="w-6 h-6 flex-shrink-0 mt-0.5" style={{ color: '#ef4444' }} />
+                    <div>
+                      <p className="font-bold text-base mb-1" style={{ color: '#ef4444' }}>{t('סיכוני הבעלות המשותפת ("מושע")', 'Joint Ownership Risks ("Musha")')}</p>
+                      <p className="text-sm leading-relaxed" style={{ color: 'rgba(255,255,255,0.85)' }}>
+                        {t('רכישה כחלק מקבוצה גדולה בתוך חטיבת קרקע אחת (Musha) משמעותה שאין לכם בעלות על מגרש ספציפי. כל החלטה דורשת הסכמה של שותפים רבים, ודי בשותף סרבן אחד או בסכסוך פנימי כדי לעכב את פיתוח הקרקע או את מכירתה.', 'Purchasing as part of a large group within a single land parcel (Musha) means you have no ownership of a specific plot. Every decision requires consent of many partners, and a single refusing partner or internal dispute can delay development or sale.')}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-4 p-4 rounded-xl" style={{ background: 'rgba(220,38,38,0.12)', border: '1px solid rgba(220,38,38,0.25)' }}>
+                    <AlertOctagon className="w-6 h-6 flex-shrink-0 mt-0.5" style={{ color: '#ef4444' }} />
+                    <div>
+                      <p className="font-bold text-base mb-1" style={{ color: '#ef4444' }}>{t('הפרשות לצורכי ציבור (הפקעות)', 'Public Purpose Appropriations')}</p>
+                      <p className="text-sm leading-relaxed" style={{ color: 'rgba(255,255,255,0.85)' }}>
+                        {t('במסגרת הליכי איחוד וחלוקה, הרשויות רשאיות להפקיע עד 40% מהשטח לצרכי ציבור ללא תשלום פיצוי, ובפועל ההפרשות בתוכניות מודרניות מגיעות גם ל-50% ומעלה. לכן, רכישת שטח קטן (כמו 100 מ"ר) עלולה שלא להספיק לקבלת זכות לדירה שלמה לאחר הקיזוזים.', 'In consolidation and redistribution proceedings, authorities can appropriate up to 40% of land for public needs without compensation, and in practice modern plans reach 50%+. Therefore, purchasing a small area (like 100 sqm) may not suffice for a full apartment right after deductions.')}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-4 p-4 rounded-xl" style={{ background: 'rgba(220,38,38,0.12)', border: '1px solid rgba(220,38,38,0.25)' }}>
+                    <AlertOctagon className="w-6 h-6 flex-shrink-0 mt-0.5" style={{ color: '#ef4444' }} />
+                    <div>
+                      <p className="font-bold text-base mb-1" style={{ color: '#ef4444' }}>{t('מיסוי שוחק', 'Erosive Taxation')}</p>
+                      <p className="text-sm leading-relaxed" style={{ color: 'rgba(255,255,255,0.85)' }}>
+                        {t('המיסוי על קרקע חקלאית הוא מהכבדים בשוק: היטל השבחה בגובה 50% מעליית השווי המשולם לרשות המקומית, מס שבח בשיעור של עד 25% מהרווח הריאלי ומס רכישה של 6% ללא מדרגות פטור.', 'Taxation on agricultural land is among the heaviest in the market: 50% betterment levy on value increase paid to local authority, capital gains tax of up to 25% on real profit, and 6% purchase tax with no exemption brackets.')}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-4 p-4 rounded-xl" style={{ background: 'rgba(220,38,38,0.12)', border: '1px solid rgba(220,38,38,0.25)' }}>
+                    <AlertOctagon className="w-6 h-6 flex-shrink-0 mt-0.5" style={{ color: '#ef4444' }} />
+                    <div>
+                      <p className="font-bold text-base mb-1" style={{ color: '#ef4444' }}>{t('מלכודת קרקעות המדינה (רמ"י)', 'State Land Trap (RMI)')}</p>
+                      <p className="text-sm leading-relaxed" style={{ color: 'rgba(255,255,255,0.85)' }}>
+                        {t('בקרקע המוחכרת מרשות מקרקעי ישראל, חוזה החכירה קובע לרוב כי עם שינוי הייעוד הקרקע חוזרת למדינה. במצב כזה, החוכר מקבל פיצוי חקלאי מינימלי בלבד ואינו נהנה מעליית הערך של הקרקע למגורים.', 'For land leased from the Israel Land Authority, the lease contract typically stipulates that upon rezoning the land reverts to the state. The lessee receives only minimal agricultural compensation and does not benefit from the land\'s residential value increase.')}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* CTA */}
+                <div className="text-center">
+                  <a href="/booking" className="inline-flex items-center gap-3 py-5 px-10 rounded-xl text-lg font-black border-0 cursor-pointer transition-all hover:scale-105" style={{ background: '#dc2626', color: '#fff', boxShadow: '0 0 40px rgba(220,38,38,0.4)' }}>
+                    <CalendarDays className="w-6 h-6" />
+                    {t('העסקה דורשת בדיקת עומק — לקביעת פגישת ייעוץ לחץ כאן', 'This deal requires deep review — click to schedule consultation')}
+                  </a>
+                </div>
               </div>
             </div>
           </div>
@@ -431,11 +540,14 @@ export default function ReportPage() {
               <div className="text-xs font-bold uppercase tracking-[0.2em] mb-2" style={{ color: 'var(--accent)' }}>THE REALITY CHECK</div>
               <h2 className="text-lg font-bold mb-6" style={{ color: '#1a1a2e' }}>{form.projectName || displayAddress || t('דוח ניתוח', 'Analysis Report')}</h2>
 
-              {/* 1. Realistic Date */}
+              {/* 1. Realistic Occupancy Date (demolition + construction) */}
               <div className="mb-6">
                 <div className="text-xs uppercase tracking-wider font-semibold mb-2" style={{ color: '#666' }}>{t('מועד אכלוס ריאלי (תרחיש סביר)', 'Realistic Occupancy Date (Likely Scenario)')}</div>
                 <div className="text-6xl md:text-7xl font-black font-mono" style={{ color: 'var(--accent)' }}>{calc.occupancyYear}</div>
-                <div className="text-base mt-1" style={{ color: '#666' }}>{calc.years} {t('שנים להריסה', 'years to demolition')}</div>
+                <div className="text-sm mt-2 space-y-0.5" style={{ color: '#666' }}>
+                  <div>{calc.years} {t('שנים עד הריסה', 'years to demolition')} + {calc.constructionYears} {t('שנות בנייה', 'years construction')}</div>
+                  <div className="font-semibold" style={{ color: '#1a1a2e' }}>{t('סה"כ', 'Total')}: {calc.totalYears} {t('שנים עד אכלוס', 'years to occupancy')}</div>
+                </div>
               </div>
 
               {/* 2. Certainty Score */}
@@ -450,10 +562,22 @@ export default function ReportPage() {
                 </div>
               </div>
 
-              {/* 3. The Explanation — MANDATORY */}
+              {/* 3. Explanation — clean bullet list, no percentages */}
               <div className="rounded-xl p-5 text-right mx-auto max-w-2xl" style={{ background: 'rgba(0,0,0,0.04)', border: '1px solid rgba(0,0,0,0.08)' }}>
-                <div className="text-xs uppercase tracking-wider font-bold mb-2" style={{ color: '#666' }}>{t('הסבר המערכת', 'System Explanation')}</div>
-                <p className="text-sm leading-relaxed" style={{ color: '#333' }}>{lang === 'he' ? calc.explanationHe : calc.explanationEn}</p>
+                <div className="text-xs uppercase tracking-wider font-bold mb-3" style={{ color: '#666' }}>{t('הסבר המערכת', 'System Explanation')}</div>
+                <p className="text-sm mb-3 leading-relaxed" style={{ color: '#555' }}>{t('ציון הוודאות נקבע על סמך ניתוח גורמי העיכוב והסיכונים הבאים:', 'The certainty score was determined by analyzing the following delay and risk factors:')}</p>
+                {calc.riskBullets.length > 0 ? (
+                  <ul className="space-y-2 text-right">
+                    {calc.riskBullets.map((b, i) => (
+                      <li key={i} className="flex items-start gap-2 text-sm" style={{ color: '#333' }}>
+                        <span className="w-1.5 h-1.5 rounded-full flex-shrink-0 mt-2" style={{ background: 'var(--red)' }} />
+                        {lang === 'he' ? b.he : b.en}
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-sm" style={{ color: '#333' }}>{t('לא זוהו גורמי סיכון משמעותיים.', 'No significant risk factors identified.')}</p>
+                )}
               </div>
             </div>
 
@@ -515,24 +639,6 @@ export default function ReportPage() {
               </div>
             )}
 
-            {/* Negative Carry Warning */}
-            {calc.isNegativeCarry && (
-              <div className="rounded-2xl p-6" style={GLASS_WARN}>
-                <div className="flex items-start gap-3">
-                  <TrendingUp className="w-6 h-6 flex-shrink-0 mt-0.5" style={{ color: '#c0392b' }} />
-                  <div>
-                    <h3 className="text-base font-bold mb-2" style={{ color: '#c0392b' }}>{t('תזרים מזומנים גרעוני (Negative Carry)', 'Negative Cash Flow (Negative Carry)')}</h3>
-                    <p className="text-sm leading-relaxed" style={{ color: '#5c1a1a' }}>
-                      {t(
-                        'הנכס מניב תשואה שוטפת הנמוכה מ-3%. בסביבת הריבית הנוכחית (משכנתא כ-5%+), המשמעות היא הפסד חודשי קבוע (תזרים שלילי). עליך להיערך להשלמת הון חודשית מהכיס לאורך כל חיי הפרויקט, עד לאכלוס. כל עיכוב בלוחות הזמנים יעמיק את ההפסד התזרימי המצטבר.',
-                        'The property yields below 3% annually. With current interest rates (~5%+ mortgage), this means a fixed monthly loss (negative cash flow). You must be prepared to supplement capital from pocket throughout the project\'s life until occupancy. Any timeline delay deepens the cumulative cash flow loss.'
-                      )}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
-
             {/* Planning Verification with TABA Selection */}
             <div className="rounded-2xl p-6" style={GLASS}>
               <div className="flex items-center gap-2 mb-4"><MapPin className="w-5 h-5" style={{ color: 'var(--accent)' }} /><h2 className="text-lg font-bold" style={{ color: '#1a1a2e' }}>{t('אימות סטטוס תכנוני', 'Planning Verification')}</h2></div>
@@ -563,6 +669,24 @@ export default function ReportPage() {
                 </div>
               </div>
             </div>
+
+            {/* Negative Carry Warning — right after Financial */}
+            {calc.isNegativeCarry && (
+              <div className="rounded-2xl p-6" style={GLASS_WARN}>
+                <div className="flex items-start gap-3">
+                  <TrendingUp className="w-6 h-6 flex-shrink-0 mt-0.5" style={{ color: '#c0392b' }} />
+                  <div>
+                    <h3 className="text-base font-bold mb-2" style={{ color: '#c0392b' }}>{t('תזרים מזומנים גרעוני (Negative Carry)', 'Negative Cash Flow (Negative Carry)')}</h3>
+                    <p className="text-sm leading-relaxed" style={{ color: '#5c1a1a' }}>
+                      {t(
+                        'הנכס מניב תשואה שוטפת הנמוכה מ-3%. בסביבת הריבית הנוכחית (משכנתא כ-5%+), המשמעות היא הפסד חודשי קבוע (תזרים שלילי). עליך להיערך להשלמת הון חודשית מהכיס לאורך כל חיי הפרויקט, עד לאכלוס. כל עיכוב בלוחות הזמנים יעמיק את ההפסד התזרימי המצטבר.',
+                        'The property yields below 3% annually. With current interest rates (~5%+ mortgage), this means a fixed monthly loss (negative cash flow). You must be prepared to supplement capital from pocket throughout the project\'s life until occupancy. Any timeline delay deepens the cumulative cash flow loss.'
+                      )}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* PREMIUM TRAP — Always Show */}
             <div className="rounded-2xl p-6" style={GLASS_GOLD}>

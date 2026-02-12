@@ -13,12 +13,15 @@ const CITY_NAMES = [
   'לוד', 'רמלה', 'נהריה', 'עכו', 'קריית אתא', 'קריית ים', 'קריית מוצקין',
   'קריית ביאליק', 'קריית גת', 'נצרת', 'עפולה', 'יבנה', 'אור יהודה',
   'רחובות', 'נס ציונה', 'מודיעין', 'רמת השרון', 'גבעת שמואל', 'יהוד',
-  'טבריה', 'צפת', 'דימונה', 'ערד', 'אילת', 'עפולה', 'כרמיאל',
-  'גבעת שמואל', 'קריית אונו', 'קריית שמונה', 'מגדל העמק', 'טירת כרמל',
+  'טבריה', 'צפת', 'דימונה', 'ערד', 'אילת', 'כרמיאל',
+  'קריית אונו', 'קריית שמונה', 'מגדל העמק', 'טירת כרמל',
   'נשר', 'קריית מלאכי', 'אופקים', 'שדרות', 'נתיבות',
 ];
 
-function parseAddress(address: string): { street: string; city: string } {
+// Common neighborhood names that users might include
+const NEIGHBORHOOD_PREFIXES = ['שכונת', 'שכ׳', 'שכ\'', 'נווה', 'נוה', 'גבעת', 'רמת', 'תל', 'קרית', 'קריית'];
+
+function parseAddress(address: string): { street: string; city: string; words: string[] } {
   let street = address.trim();
   let city = '';
 
@@ -38,7 +41,10 @@ function parseAddress(address: string): { street: string; city: string } {
   // Clean up separators
   street = street.replace(/[,\-–]/g, ' ').replace(/\s+/g, ' ').trim();
 
-  return { street, city };
+  // Extract individual words for partial matching
+  const words = street.split(/\s+/).filter(w => w.length > 1);
+
+  return { street, city, words };
 }
 
 function mapRecord(r: Record<string, string | number>) {
@@ -86,6 +92,16 @@ function addUnique(results: Record<string, string | number>[], newRecords: Recor
   }
 }
 
+// Extract neighborhood-like term from street name
+function extractNeighborhood(street: string): string | null {
+  for (const prefix of NEIGHBORHOOD_PREFIXES) {
+    if (street.startsWith(prefix)) {
+      return street; // Return full neighborhood name (e.g., "נווה שאנן")
+    }
+  }
+  return null;
+}
+
 export async function GET(req: NextRequest) {
   const q = req.nextUrl.searchParams.get('q') ?? '';
   const city = req.nextUrl.searchParams.get('city') ?? '';
@@ -106,7 +122,18 @@ export async function GET(req: NextRequest) {
         const url = `${API_URL}?resource_id=${RESOURCE_ID}&filters=${encodeURIComponent(JSON.stringify({ Yeshuv: city }))}&q=${encodeURIComponent(cleanStreet)}&limit=50`;
         addUnique(results, await fetchRecords(url), seen);
       }
-      // Also try city-only if no results from street+city
+
+      // Try individual words from street name against city
+      if (results.length === 0) {
+        const streetWords = cleanStreet.split(/\s+/).filter(w => w.length > 2);
+        for (const word of streetWords) {
+          const url = `${API_URL}?resource_id=${RESOURCE_ID}&filters=${encodeURIComponent(JSON.stringify({ Yeshuv: city }))}&q=${encodeURIComponent(word)}&limit=30`;
+          addUnique(results, await fetchRecords(url), seen);
+          if (results.length > 0) break;
+        }
+      }
+
+      // Fallback: city-only if still nothing
       if (results.length === 0) {
         const url = `${API_URL}?resource_id=${RESOURCE_ID}&filters=${encodeURIComponent(JSON.stringify({ Yeshuv: city }))}&limit=50`;
         addUnique(results, await fetchRecords(url), seen);
@@ -123,21 +150,49 @@ export async function GET(req: NextRequest) {
         addUnique(results, await fetchRecords(url), seen);
       }
 
-      // 2b: Just city filter if city detected
+      // 2b: Try neighborhood match — search complex name by neighborhood
+      if (results.length === 0 && parsed.street) {
+        const hood = extractNeighborhood(parsed.street);
+        if (hood && parsed.city) {
+          const url = `${API_URL}?resource_id=${RESOURCE_ID}&filters=${encodeURIComponent(JSON.stringify({ Yeshuv: parsed.city }))}&q=${encodeURIComponent(hood)}&limit=50`;
+          addUnique(results, await fetchRecords(url), seen);
+        }
+      }
+
+      // 2c: Try individual words from street with city filter
+      if (results.length === 0 && parsed.city && parsed.words.length > 0) {
+        for (const word of parsed.words) {
+          if (word.length < 3) continue;
+          const url = `${API_URL}?resource_id=${RESOURCE_ID}&filters=${encodeURIComponent(JSON.stringify({ Yeshuv: parsed.city }))}&q=${encodeURIComponent(word)}&limit=30`;
+          addUnique(results, await fetchRecords(url), seen);
+          if (results.length > 0) break;
+        }
+      }
+
+      // 2d: Just city filter if city detected
       if (parsed.city && results.length === 0) {
         const url = `${API_URL}?resource_id=${RESOURCE_ID}&filters=${encodeURIComponent(JSON.stringify({ Yeshuv: parsed.city }))}&limit=50`;
         addUnique(results, await fetchRecords(url), seen);
       }
 
-      // 2c: Search just the street name (strip numbers)
+      // 2e: Search just the street name (strip numbers)
       if (parsed.street && results.length === 0) {
         const url = `${API_URL}?resource_id=${RESOURCE_ID}&q=${encodeURIComponent(parsed.street)}&limit=50`;
         addUnique(results, await fetchRecords(url), seen);
       }
 
-      // 2d: Full text search as final fallback
+      // 2f: Try each individual word globally as final effort
+      if (results.length === 0 && parsed.words.length > 0) {
+        for (const word of parsed.words) {
+          if (word.length < 3) continue;
+          const url = `${API_URL}?resource_id=${RESOURCE_ID}&q=${encodeURIComponent(word)}&limit=30`;
+          addUnique(results, await fetchRecords(url), seen);
+          if (results.length > 0) break;
+        }
+      }
+
+      // 2g: Full text search as final fallback
       if (results.length === 0) {
-        // Strip numbers from query for better matching
         const cleanQ = q.replace(/\d+/g, '').trim();
         if (cleanQ) {
           const url = `${API_URL}?resource_id=${RESOURCE_ID}&q=${encodeURIComponent(cleanQ)}&limit=50`;
