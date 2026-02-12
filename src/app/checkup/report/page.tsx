@@ -80,6 +80,7 @@ const SCAN_STEPS = [
   { he: 'אימות נתוני כתובת ומיקום', en: 'Verifying address and location' },
   { he: 'סריקת מאגר תוכניות מינהל התכנון', en: 'Scanning planning database' },
   { he: 'אימות סטטוס תכנוני', en: 'Verifying planning status' },
+  { he: 'בדיקת נתוני הרשות להתחדשות עירונית', en: 'Checking Urban Renewal Authority data' },
   { he: 'בדיקת איתנות פיננסית של היזם', en: 'Checking developer financials' },
   { he: 'ניתוח תקן 21 ורווחיות', en: 'Analyzing Standard 21' },
   { he: 'חישוב מקדמי סיכון', en: 'Computing risk factors' },
@@ -112,7 +113,17 @@ interface DeveloperResult {
   expertBreakdown: ExpertBreakdown; expertBreakdownEn: ExpertBreakdown;
   madadLink: string; madlanLink: string; duns100Link: string; bdiCodeLink: string; magdilimLink: string;
   website: string | null;
+  databaseAppearances: string[];
+  expertOpinion: string;
 }
+
+interface MitchamimRecord {
+  id: number; city: string; neighborhood?: string; complexName: string;
+  complexNumber?: string; track: string; status: string; declarationYear?: string;
+  existingUnits?: number; plannedUnits?: number; developerName?: string; source: string;
+}
+
+interface MitchamimResponse { records: MitchamimRecord[]; total: number; source: string; }
 
 interface DeveloperResponse { query: string; found: boolean; results: DeveloperResult[]; source: string; }
 
@@ -165,6 +176,8 @@ export default function ReportPage() {
   const [selectedPlan, setSelectedPlan] = useState<PlanningRecord | null>(null);
   const [devData, setDevData] = useState<DeveloperResponse | null>(null);
   const [devLoading, setDevLoading] = useState(false);
+  const [mitchamimData, setMitchamimData] = useState<MitchamimRecord[]>([]);
+  const [mitchamimLoading, setMitchamimLoading] = useState(false);
 
   const [activeCta, setActiveCta] = useState<null | 'consultation' | 'report' | 'broker'>(null);
   const [contactForm, setContactForm] = useState({ name: '', phone: '', email: '' });
@@ -183,6 +196,7 @@ export default function ReportPage() {
     setIsScanning(true);
     if (parsed.city || parsed.street || parsed.projectName) fetchPlanning(parsed.street, parsed.city, parsed.projectName);
     if (parsed.developerName) fetchDev(parsed.developerName);
+    if (parsed.city) fetchMitchamim(parsed.city, parsed.developerName);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -206,6 +220,19 @@ export default function ReportPage() {
     try { const res = await fetch(`/api/developer?q=${encodeURIComponent(q.trim())}`); if (res.ok) setDevData(await res.json()); }
     catch { /* silent */ }
     setDevLoading(false);
+  }, []);
+
+  const fetchMitchamim = useCallback(async (city: string, developer?: string) => {
+    if (!city.trim()) return;
+    setMitchamimLoading(true);
+    try {
+      const p = new URLSearchParams();
+      p.set('city', city.trim());
+      if (developer) p.set('developer', developer.trim());
+      const res = await fetch(`/api/mitchamim?${p.toString()}`);
+      if (res.ok) { const d = await res.json(); setMitchamimData(d.records ?? []); }
+    } catch { /* silent */ }
+    setMitchamimLoading(false);
   }, []);
 
   // Scanning animation
@@ -577,7 +604,7 @@ export default function ReportPage() {
               <div className="rounded-xl p-5 text-right mx-auto max-w-2xl" style={{ background: 'rgba(0,0,0,0.04)', border: '1px solid rgba(0,0,0,0.08)' }}>
                 <div className="text-xs uppercase tracking-wider font-bold mb-3" style={{ color: '#666' }}>{t('הסבר המערכת', 'System Explanation')}</div>
                 <p className="text-sm mb-3 leading-relaxed" style={{ color: '#555' }}>{t('ציון הוודאות נקבע על סמך ניתוח גורמי העיכוב והסיכונים הבאים:', 'The certainty score was determined by analyzing the following delay and risk factors:')}</p>
-                {calc.riskBullets.length > 0 ? (
+                {(calc.riskBullets.length > 0 || mitchamimData.length > 0) ? (
                   <ul className="space-y-2 text-right">
                     {calc.riskBullets.map((b, i) => (
                       <li key={i} className="flex items-start gap-2 text-sm" style={{ color: '#333' }}>
@@ -585,6 +612,12 @@ export default function ReportPage() {
                         {lang === 'he' ? b.he : b.en}
                       </li>
                     ))}
+                    {mitchamimData.length > 0 && (
+                      <li className="flex items-start gap-2 text-sm" style={{ color: '#333' }}>
+                        <span className="w-1.5 h-1.5 rounded-full flex-shrink-0 mt-2" style={{ background: '#b8860b' }} />
+                        {t(`פרויקט מופיע ברשימת הרשות להתחדשות עירונית — ${mitchamimData.length} רשומות`, `Project appears in Urban Renewal Authority list — ${mitchamimData.length} records`)}
+                      </li>
+                    )}
                   </ul>
                 ) : (
                   <p className="text-sm" style={{ color: '#333' }}>{t('לא זוהו גורמי סיכון משמעותיים.', 'No significant risk factors identified.')}</p>
@@ -658,11 +691,17 @@ export default function ReportPage() {
                 selectedPlan={selectedPlan} onSelectPlan={setSelectedPlan} lang={lang} t={t} />
             </div>
 
+            {/* Mitchamim — Urban Renewal Authority Data */}
+            <div className="rounded-2xl p-6" style={GLASS}>
+              <div className="flex items-center gap-2 mb-4"><Landmark className="w-5 h-5" style={{ color: '#b8860b' }} /><h2 className="text-lg font-bold" style={{ color: '#1a1a2e' }}>{t('נתוני הרשות להתחדשות עירונית', 'Urban Renewal Authority Data')}</h2></div>
+              <MitchamimSection mitchamimData={mitchamimData} mitchamimLoading={mitchamimLoading} city={form.city} onSearch={(c) => fetchMitchamim(c)} lang={lang} t={t} />
+            </div>
+
             {/* Developer Profile */}
             {form.developerName && (
               <div className="rounded-2xl p-6" style={GLASS}>
                 <div className="flex items-center gap-2 mb-4"><Building2 className="w-5 h-5" style={{ color: 'var(--green)' }} /><h2 className="text-lg font-bold" style={{ color: '#1a1a2e' }}>{t('פרופיל יזם', 'Developer Profile')}</h2></div>
-                <DevSection devData={devData} devLoading={devLoading} devName={form.developerName} onSearch={fetchDev} lang={lang} t={t} />
+                <DevSection devData={devData} devLoading={devLoading} devName={form.developerName} onSearch={fetchDev} lang={lang} t={t} mitchamimData={mitchamimData} />
               </div>
             )}
 
@@ -903,14 +942,100 @@ function PlanningSection({ planningData, planningLoading, street, city, onSearch
 }
 
 /* ==========================================================================
+   MITCHAMIM SECTION — Urban Renewal Authority Data
+   ========================================================================== */
+
+const ALL_DATABASES = ['DUNS 100', 'BDI Code', 'מדד ההתחדשות', 'Madlan', 'מגדילים'];
+
+function MitchamimSection({ mitchamimData, mitchamimLoading, city, onSearch, lang, t }: {
+  mitchamimData: MitchamimRecord[]; mitchamimLoading: boolean; city: string;
+  onSearch: (city: string) => void; lang: string; t: (he: string, en: string) => string;
+}) {
+  const [customCity, setCustomCity] = useState('');
+  return (
+    <>
+      <div className="flex gap-2 mb-4">
+        <div className="flex-1 flex items-center gap-2 px-4 py-2.5 rounded-lg" style={{ background: 'rgba(0,0,0,0.05)', border: '1px solid rgba(0,0,0,0.1)' }}>
+          <Search className="w-4 h-4 flex-shrink-0" style={{ color: '#999' }} />
+          <input type="text" className="w-full bg-transparent border-none outline-none text-sm text-right" style={{ color: '#1a1a2e' }}
+            placeholder={t('חפש לפי עיר...', 'Search by city...')}
+            value={customCity} onChange={(e) => setCustomCity(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && customCity.trim() && onSearch(customCity.trim())} />
+        </div>
+        <button onClick={() => customCity.trim() && onSearch(customCity.trim())} className="px-4 py-2.5 rounded-lg text-sm font-medium border-0 cursor-pointer" style={{ background: '#b8860b', color: '#fff' }}>{t('חפש', 'Search')}</button>
+      </div>
+
+      {mitchamimLoading && <div className="flex items-center justify-center gap-2 py-8 text-sm" style={{ color: '#666' }}><Loader2 className="w-5 h-5 animate-spin" />{t('מחפש נתוני רשות...', 'Searching authority data...')}</div>}
+
+      {!mitchamimLoading && mitchamimData.length === 0 && (
+        <div className="py-6 text-center">
+          <Info className="w-8 h-8 mx-auto mb-2" style={{ color: '#ccc' }} />
+          <p className="text-sm" style={{ color: '#888' }}>{t(`לא נמצאו מתחמים מוכרזים ב${city || 'עיר זו'}`, `No declared complexes found in ${city || 'this city'}`)}</p>
+        </div>
+      )}
+
+      {!mitchamimLoading && mitchamimData.length > 0 && (
+        <div className="space-y-3">
+          <div className="text-sm font-medium flex items-center gap-2" style={{ color: '#b8860b' }}>
+            <Landmark className="w-4 h-4" />
+            {t(`נמצאו ${mitchamimData.length} מתחמים מוכרזים`, `Found ${mitchamimData.length} declared complexes`)}
+          </div>
+
+          {mitchamimData.slice(0, 8).map((m) => (
+            <div key={m.id} className="rounded-lg p-4" style={{ background: 'rgba(210,153,34,0.04)', border: '1px solid rgba(210,153,34,0.15)' }}>
+              <div className="flex items-start justify-between mb-2">
+                <div>
+                  <div className="text-sm font-bold" style={{ color: '#1a1a2e' }}>{m.complexName}</div>
+                  <div className="text-xs" style={{ color: '#888' }}>{m.city}{m.neighborhood ? ` · ${m.neighborhood}` : ''}</div>
+                </div>
+                <span className="px-2 py-1 rounded text-xs font-medium" style={{
+                  background: m.status === 'בביצוע' ? 'rgba(63,185,80,0.1)' : m.status === 'אושרה תב"ע' ? 'rgba(91,141,238,0.1)' : 'rgba(210,153,34,0.1)',
+                  color: m.status === 'בביצוע' ? 'var(--green)' : m.status === 'אושרה תב"ע' ? 'var(--accent)' : '#b8860b',
+                }}>{m.status}</span>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                <MiniStat label={t('מסלול', 'Track')} value={m.track || '\u2014'} />
+                <MiniStat label={t('יח"ד קיימות', 'Existing')} value={m.existingUnits ? String(m.existingUnits) : '\u2014'} />
+                <MiniStat label={t('יח"ד מתוכננות', 'Planned')} value={m.plannedUnits ? String(m.plannedUnits) : '\u2014'} />
+              </div>
+              {m.developerName && (
+                <div className="mt-2 text-xs flex items-center gap-1" style={{ color: '#666' }}>
+                  <User className="w-3 h-3" />{t('יזם:', 'Developer:')} <span className="font-medium">{m.developerName}</span>
+                </div>
+              )}
+              {m.declarationYear && (
+                <div className="mt-1 text-xs" style={{ color: '#999' }}>{t('שנת הכרזה:', 'Declared:')} {m.declarationYear}</div>
+              )}
+            </div>
+          ))}
+
+          {mitchamimData.length > 8 && (
+            <div className="text-center text-xs py-2" style={{ color: '#888' }}>
+              {t(`ו-${mitchamimData.length - 8} מתחמים נוספים...`, `and ${mitchamimData.length - 8} more complexes...`)}
+            </div>
+          )}
+
+          <div className="p-3 rounded-lg text-xs" style={{ background: 'rgba(210,153,34,0.06)', border: '1px solid rgba(210,153,34,0.12)', color: '#8B6914' }}>
+            {t('מקור: הרשות להתחדשות עירונית — נתוני מתחמים מוכרזים', 'Source: Urban Renewal Authority — declared complexes data')}
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+/* ==========================================================================
    DEVELOPER SECTION
    ========================================================================== */
 
-function DevSection({ devData, devLoading, devName, onSearch, lang, t }: {
+function DevSection({ devData, devLoading, devName, onSearch, lang, t, mitchamimData }: {
   devData: DeveloperResponse | null; devLoading: boolean; devName: string;
   onSearch: (q: string) => void; lang: string; t: (he: string, en: string) => string;
+  mitchamimData?: MitchamimRecord[];
 }) {
   const [cs, setCs] = useState('');
+  // Count mitchamim records matching this developer
+  const devMitchamimCount = mitchamimData?.filter(m => m.developerName && devName && m.developerName.includes(devName))?.length ?? 0;
+
   return (
     <>
       <div className="flex gap-2 mb-4">
@@ -940,13 +1065,49 @@ function DevSection({ devData, devLoading, devName, onSearch, lang, t }: {
             </div>
           </div>
 
+          {/* Database Appearances Badges */}
+          {dev.databaseAppearances && dev.databaseAppearances.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 mb-3">
+              {ALL_DATABASES.map((db) => {
+                const present = dev.databaseAppearances.includes(db);
+                return (
+                  <span key={db} className="inline-flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium" style={{
+                    background: present ? 'rgba(63,185,80,0.1)' : 'rgba(0,0,0,0.04)',
+                    color: present ? '#1a5c2a' : '#aaa',
+                    border: present ? '1px solid rgba(63,185,80,0.2)' : '1px solid rgba(0,0,0,0.06)',
+                  }}>
+                    {present ? <CheckCircle2 className="w-3 h-3" /> : <XCircle className="w-3 h-3" />}
+                    {db}
+                  </span>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Mitchamim cross-reference badge */}
+          {devMitchamimCount > 0 && (
+            <div className="flex items-center gap-2 mb-3 px-3 py-2 rounded-lg text-xs" style={{ background: 'rgba(210,153,34,0.06)', border: '1px solid rgba(210,153,34,0.15)', color: '#8B6914' }}>
+              <Landmark className="w-3.5 h-3.5" />
+              {t(`${devMitchamimCount} מתחמים מוכרזים ברשות להתחדשות עירונית`, `${devMitchamimCount} declared complexes in Urban Renewal Authority`)}
+            </div>
+          )}
+
           {/* Summary */}
           <p className="text-sm mb-3" style={{ color: '#555' }}>{lang === 'en' ? (dev.summaryEn || dev.summary) : dev.summary}</p>
+
+          {/* Quoted Expert Opinion */}
+          {dev.expertOpinion && (
+            <div className="rounded-lg p-4 mb-3" style={{ background: 'rgba(210,153,34,0.05)', border: '1px solid rgba(210,153,34,0.15)', borderRight: '3px solid #b8860b' }}>
+              <div className="text-[10px] font-bold uppercase tracking-wider mb-2" style={{ color: '#b8860b' }}>{t('חוות דעת מקצועית (ציטוט)', 'Expert Opinion (Quote)')}</div>
+              <p className="text-sm leading-relaxed" style={{ color: '#444', fontStyle: 'italic' }}>&ldquo;{dev.expertOpinion}&rdquo;</p>
+              <div className="mt-2 text-[10px]" style={{ color: '#999' }}>{t('מקור: מאגר יזמי התחדשות עירונית 2025', 'Source: Urban Renewal Developers Database 2025')}</div>
+            </div>
+          )}
 
           {/* Expert Summary — 3 dimensions */}
           {dev.expertBreakdown && (
             <div className="rounded-lg p-4 mb-3" style={{ background: 'rgba(91,141,238,0.06)', border: '1px solid rgba(91,141,238,0.12)' }}>
-              <div className="text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--accent)' }}>{t('חוות דעת מקצועית', 'Expert Assessment')}</div>
+              <div className="text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--accent)' }}>{t('הערכה מקצועית', 'Professional Assessment')}</div>
               <div className="space-y-1.5">
                 <div className="flex items-start gap-2 text-xs" style={{ color: '#444' }}>
                   <span className="font-bold flex-shrink-0" style={{ color: '#1a1a2e' }}>{t('ניסיון:', 'Experience:')}</span>
@@ -977,7 +1138,7 @@ function DevSection({ devData, devLoading, devName, onSearch, lang, t }: {
             <MiniStat label={t('בתכנון', 'Planning')} value={String(dev.inPlanning)} />
           </div>
 
-          {/* Verification Links — 4 rating indices */}
+          {/* Verification Links — with database-aware styling */}
           <div className="pt-3" style={{ borderTop: '1px solid rgba(0,0,0,0.06)' }}>
             <div className="text-[10px] font-bold uppercase tracking-wider mb-2" style={{ color: '#999' }}>{t('קישורי אימות', 'Verification Links')}</div>
             <div className="flex flex-wrap gap-2">
