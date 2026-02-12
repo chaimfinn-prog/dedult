@@ -556,10 +556,14 @@ export default function ReportPage() {
                 </div>
 
                 {/* CTA */}
-                <div className="text-center">
-                  <a href="/booking" className="inline-flex items-center gap-3 py-5 px-10 rounded-xl text-lg font-black border-0 cursor-pointer transition-all hover:scale-105" style={{ background: '#dc2626', color: '#fff', boxShadow: '0 0 40px rgba(220,38,38,0.4)' }}>
-                    <CalendarDays className="w-6 h-6" />
-                    {t('העסקה דורשת בדיקת עומק — לקביעת פגישת ייעוץ לחץ כאן', 'This deal requires deep review — click to schedule consultation')}
+                <div className="flex flex-col items-center gap-4">
+                  <button onClick={() => setActiveCta('report')} className="inline-flex items-center gap-3 py-5 px-10 rounded-xl text-lg font-black border-0 cursor-pointer transition-all hover:scale-105" style={{ background: '#dc2626', color: '#fff', boxShadow: '0 0 40px rgba(220,38,38,0.4)' }}>
+                    <FileText className="w-6 h-6" />
+                    {t('הזמן דו"ח מקצועי לקרקע חקלאית — 250 ₪', 'Order Agricultural Land Report — 250 NIS')}
+                  </button>
+                  <a href="/booking" className="inline-flex items-center gap-3 py-3 px-8 rounded-xl text-sm font-bold border-0 cursor-pointer transition-all hover:scale-105" style={{ background: 'rgba(255,255,255,0.15)', color: '#fff', border: '1px solid rgba(255,255,255,0.2)' }}>
+                    <CalendarDays className="w-5 h-5" />
+                    {t('או קבעו פגישת ייעוץ — 2,500 ₪', 'Or schedule consultation — 2,500 NIS')}
                   </a>
                 </div>
               </div>
@@ -790,7 +794,7 @@ export default function ReportPage() {
                       <li className="text-sm flex items-start gap-2" style={{ color: '#5c1a1a' }}><span className="w-1.5 h-1.5 rounded-full flex-shrink-0 mt-2" style={{ background: '#c0392b' }} />{t('אימות הבטחות: האם המפרט שהבטיחו לכם תואם את זכויות הבנייה הקיימות בשטח?', 'Promise verification: Does the specification match the existing building rights on the ground?')}</li>
                     </ul>
                     <button onClick={() => setActiveCta('report')} className="px-6 py-3 rounded-lg text-sm font-bold border-0 cursor-pointer" style={{ background: '#c0392b', color: '#fff' }}>
-                      {t('הזמן דו"ח מפורט — 250 ₪', 'Order Detailed Report — 250 NIS')}
+                      {t('הזמן דו"ח מפורט — 750 ₪', 'Order Detailed Report — 750 NIS')}
                     </button>
                   </div>
                 </div>
@@ -837,13 +841,13 @@ export default function ReportPage() {
                     <CalendarDays className="w-8 h-8 mb-3" style={{ color: 'var(--accent)' }} />
                     <h3 className="text-base font-bold mb-2" style={{ color: '#1a1a2e' }}>{t('פגישת ייעוץ', 'Consultation')}</h3>
                     <p className="text-sm mb-3" style={{ color: '#666' }}>{t('45 דקות ניתוח מעמיק', '45 min deep analysis')}</p>
-                    <div className="text-base font-bold" style={{ color: 'var(--accent)' }}>3,000 ₪</div>
+                    <div className="text-base font-bold" style={{ color: 'var(--accent)' }}>2,500 ₪</div>
                   </button>
                   <button onClick={() => setActiveCta('report')} className="rounded-2xl p-6 text-right transition-all cursor-pointer border-0" style={GLASS}>
                     <FileText className="w-8 h-8 mb-3" style={{ color: 'var(--green)' }} />
                     <h3 className="text-base font-bold mb-2" style={{ color: '#1a1a2e' }}>{t('דוח מפורט', 'Detailed Report')}</h3>
                     <p className="text-sm mb-3" style={{ color: '#666' }}>{t('בדיקה ידנית — 7 ימי עבודה', 'Manual review — 7 business days')}</p>
-                    <div className="text-base font-bold" style={{ color: 'var(--green)' }}>250 ₪</div>
+                    <div className="text-base font-bold" style={{ color: 'var(--green)' }}>750 ₪</div>
                   </button>
                   <button onClick={() => setActiveCta('broker')} className="rounded-2xl p-6 text-right transition-all cursor-pointer border-0" style={GLASS}>
                     <Home className="w-8 h-8 mb-3" style={{ color: '#b8860b' }} />
@@ -860,8 +864,8 @@ export default function ReportPage() {
               <div className="rounded-2xl p-8 fade-in-up" style={GLASS}>
                 <div className="flex items-center justify-between mb-6">
                   <h3 className="text-base font-bold" style={{ color: '#1a1a2e' }}>
-                    {activeCta === 'consultation' && t('פגישת ייעוץ — 3,000 ₪', 'Consultation — 3,000 ₪')}
-                    {activeCta === 'report' && t('דוח מפורט — 250 ₪', 'Report — 250 ₪')}
+                    {activeCta === 'consultation' && t('פגישת ייעוץ — 2,500 ₪', 'Consultation — 2,500 ₪')}
+                    {activeCta === 'report' && t('דוח מפורט — 750 ₪', 'Report — 750 ₪')}
                     {activeCta === 'broker' && t('תיווך להשקעה', 'Investment Brokerage')}
                   </h3>
                   <button onClick={() => setActiveCta(null)} className="text-sm cursor-pointer bg-transparent border-0" style={{ color: '#666' }}>{t('← חזרה', '← Back')}</button>
