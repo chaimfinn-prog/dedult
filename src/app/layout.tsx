@@ -3,8 +3,8 @@ import './globals.css';
 import { LangProvider } from '@/lib/i18n';
 
 export const metadata: Metadata = {
-  title: 'THE REALITY CHECK — בדיקת נאותות להתחדשות עירונית',
-  description: 'ניתוח אנליטי של פרויקטי התחדשות עירונית: לו״ז אמיתי למפתח, מדד וודאות וציון סיכון',
+  title: 'PROPCHECK — בדיקת נאותות לנדל"ן',
+  description: 'אל תסתפקו בהבטחות, תסתמכו על עובדות. בדיקת כדאיות מקצועית לפרויקטי התחדשות עירונית',
   icons: { icon: '/favicon.ico' },
 };
 

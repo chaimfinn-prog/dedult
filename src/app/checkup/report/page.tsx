@@ -427,7 +427,7 @@ export default function ReportPage() {
         <div className="max-w-4xl mx-auto px-6 h-14 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Building2 className="w-4 h-4 text-green" />
-            <span className="font-bold text-sm text-white tracking-tight">THE REALITY CHECK</span>
+            <span className="font-bold text-sm text-white tracking-tight">PROPCHECK</span>
           </div>
           <div className="flex items-center gap-4">
             <button onClick={toggle} className="flex items-center gap-1 text-xs text-foreground-muted hover:text-white transition-colors cursor-pointer bg-transparent border-0"><Globe className="w-3.5 h-3.5" />{lang === 'he' ? 'EN' : 'עב'}</button>
@@ -595,8 +595,12 @@ export default function ReportPage() {
           <div className="space-y-6 fade-in-up">
 
             {/* ===== THE HOLY TRINITY — Top Center ===== */}
-            <div className="rounded-2xl p-8 text-center" style={GLASS_ACCENT}>
-              <div className="text-xs font-bold uppercase tracking-[0.2em] mb-2" style={{ color: 'var(--accent)' }}>THE REALITY CHECK</div>
+            <div className="rounded-2xl p-8 text-center" style={{
+              ...GLASS_ACCENT,
+              border: `2px solid ${calc.risk.color}`,
+              boxShadow: `0 0 32px color-mix(in srgb, ${calc.risk.color} 20%, transparent)`,
+            }}>
+              <div className="text-xs font-bold uppercase tracking-[0.2em] mb-2" style={{ color: calc.risk.color }}>PROPCHECK</div>
               <h2 className="text-lg font-bold mb-6" style={{ color: '#1a1a2e' }}>{form.projectName || displayAddress || t('דוח ניתוח', 'Analysis Report')}</h2>
 
               {/* 1. Realistic Occupancy Date (demolition + construction) */}
@@ -609,14 +613,26 @@ export default function ReportPage() {
                 </div>
               </div>
 
-              {/* 2. Certainty Score */}
+              {/* 2. Certainty Score — with dynamic coloring */}
               <div className="mb-6">
-                <div className="text-xs uppercase tracking-wider font-semibold mb-2" style={{ color: '#666' }}>{t('מדד הוודאות (Certainty Score)', 'Certainty Score')}</div>
-                <div className="text-7xl font-black font-mono" style={{ color: calc.risk.color }}>{calc.certainty}<span className="text-3xl">%</span></div>
-                <div className="max-w-sm mx-auto mt-2 h-2 rounded-full overflow-hidden" style={{ background: '#e0e0e0' }}>
+                <div className="text-xs uppercase tracking-wider font-semibold mb-3" style={{ color: '#666' }}>{t('מדד הוודאות (Certainty Score)', 'Certainty Score')}</div>
+                <div className="inline-flex items-center justify-center w-40 h-40 rounded-full mx-auto mb-3" style={{
+                  background: `color-mix(in srgb, ${calc.risk.color} 8%, transparent)`,
+                  border: `4px solid ${calc.risk.color}`,
+                  boxShadow: `0 0 24px color-mix(in srgb, ${calc.risk.color} 25%, transparent)`,
+                }}>
+                  <div>
+                    <div className="text-5xl font-black font-mono" style={{ color: calc.risk.color }}>{calc.certainty}<span className="text-2xl">%</span></div>
+                  </div>
+                </div>
+                <div className="max-w-sm mx-auto mt-2 h-3 rounded-full overflow-hidden" style={{ background: '#e0e0e0' }}>
                   <div className={`h-full rounded-full ${calc.risk.barClass}`} style={{ width: `${calc.certainty}%`, transition: 'width 1s' }} />
                 </div>
-                <div className="text-sm font-semibold mt-2" style={{ color: calc.risk.color }}>
+                <div className="text-base font-bold mt-3 px-4 py-1.5 rounded-full inline-block" style={{
+                  color: calc.risk.color,
+                  background: `color-mix(in srgb, ${calc.risk.color} 10%, transparent)`,
+                  border: `1px solid color-mix(in srgb, ${calc.risk.color} 25%, transparent)`,
+                }}>
                   {t('רמת סיכון: ', 'Risk: ')}{lang === 'he' ? calc.risk.label : calc.risk.labelEn}
                 </div>
               </div>
@@ -925,7 +941,7 @@ export default function ReportPage() {
 
       {/* Footer */}
       <div className="relative z-10 border-t border-[var(--border)] p-3 text-center text-[10px] text-foreground-muted mt-auto" style={{ background: 'rgba(13,17,23,0.9)' }}>
-        <span>THE REALITY CHECK</span><span className="opacity-30 mx-2">|</span><span>{t('אנחנו בודקים. אתם ישנים בשקט.', 'We check. You sleep soundly.')}</span>
+        <span>PROPCHECK</span><span className="opacity-30 mx-2">|</span><span>{t('אנחנו בודקים. אתם ישנים בשקט.', 'We check. You sleep soundly.')}</span>
       </div>
     </div>
   );

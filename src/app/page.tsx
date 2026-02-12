@@ -50,7 +50,7 @@ export default function Home() {
           <div className="max-w-5xl mx-auto flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Building2 className="w-5 h-5 text-green" />
-              <span className="font-bold text-sm">THE REALITY CHECK</span>
+              <span className="font-bold text-sm">PROPCHECK</span>
             </div>
             <div className="flex items-center gap-4">
               <button onClick={toggle} className="flex items-center gap-1 text-xs text-foreground-muted hover:text-foreground transition-colors cursor-pointer bg-transparent border-0">
@@ -75,21 +75,18 @@ export default function Home() {
 
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-[rgba(255,255,255,0.1)] mb-8" style={{ background: 'rgba(255,255,255,0.05)', backdropFilter: 'blur(12px)' }}>
             <span className="w-2 h-2 rounded-full bg-green pulse" />
-            <span className="text-xs font-medium tracking-wide text-foreground-muted uppercase">{t('בדיקת נאותות להתחדשות עירונית', 'Urban Renewal Due Diligence')}</span>
+            <span className="text-xs font-medium tracking-wide text-foreground-muted uppercase">{t('תחליף לבדיקת נאותות', 'Your Due Diligence Alternative')}</span>
           </div>
 
           <h1 className="text-4xl md:text-6xl font-bold tracking-tight mb-4 text-gradient-blue">
-            {t('בדיקת מציאות להבטחות נדל"ן', 'Reality Check for Real Estate Promises')}
+            {t('אל תסתפקו בהבטחות, תסתמכו על עובדות.', "Don't Settle for Promises, Rely on Facts.")}
           </h1>
 
           <p className="text-lg md:text-xl text-foreground-muted mb-12 max-w-2xl mx-auto leading-relaxed">
             {t(
-              'חושפים את האמת מאחורי המצגות, המספרים וההבטחות של היזמים. ',
-              'Exposing the truth behind presentations, numbers and developer promises. '
+              'עין מקצועית על העסקה שלכם. בדיקת כדאיות — תחליף לבדיקת נאותות — חושפת את האמת מאחורי ההבטחות של המוכרים, המתווכים והיזמים.',
+              'A professional eye on your deal. Viability check — a due diligence alternative — exposing the truth behind sellers, brokers, and developers\' promises.'
             )}
-            <span className="text-foreground font-semibold">
-              {t('בדיקת נאותות מקיפה על ידי נבחרת מומחים.', 'Comprehensive due diligence by an expert team.')}
-            </span>
           </p>
 
           <div className="max-w-xl mx-auto db-card p-2 flex flex-col md:flex-row gap-2 transition-all focus-within:border-green/50 focus-within:shadow-[0_0_20px_var(--green-glow)]">
@@ -120,9 +117,9 @@ export default function Home() {
             <span className="w-1 h-1 rounded-full bg-[var(--fg-dim)]" />
             <span>{t('פרופיל יזם', 'Developer Profile')}</span>
             <span className="w-1 h-1 rounded-full bg-[var(--fg-dim)]" />
-            <span>{t('ניתוח סיכונים', 'Risk Analysis')}</span>
+            <span>{t('בדיקת כדאיות', 'Viability Check')}</span>
             <span className="w-1 h-1 rounded-full bg-[var(--fg-dim)]" />
-            <span>{t('ניתוח כלכלי', 'Financial Analysis')}</span>
+            <span>{t('ניתוח סיכונים', 'Risk Analysis')}</span>
           </div>
         </div>
       </div>

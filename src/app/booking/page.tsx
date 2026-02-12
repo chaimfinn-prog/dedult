@@ -114,7 +114,7 @@ export default function BookingPage() {
         <div className="max-w-5xl mx-auto px-6 h-14 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Building2 className="w-4 h-4 text-green" />
-            <span className="font-bold text-sm">THE REALITY CHECK</span>
+            <span className="font-bold text-sm">PROPCHECK</span>
             <span className="text-foreground-muted text-xs">{t('| קביעת פגישה', '| Book Meeting')}</span>
           </div>
           <div className="flex items-center gap-4">
@@ -334,7 +334,7 @@ export default function BookingPage() {
 
       {/* Footer */}
       <div className="relative z-10 border-t border-[var(--border)] p-3 text-center text-[10px] text-foreground-muted mt-auto" style={{ background: 'rgba(13,17,23,0.9)' }}>
-        <span>THE REALITY CHECK</span>
+        <span>PROPCHECK</span>
         <span className="opacity-30 mx-2">|</span>
         <span>{t('אנחנו בודקים. אתם ישנים בשקט.', 'We check. You sleep soundly.')}</span>
       </div>

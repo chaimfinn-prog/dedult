@@ -4,7 +4,7 @@ import { Suspense, useState, useCallback } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import {
   Building2, ChevronLeft, ClipboardList, ArrowRight,
-  Shield, Globe, MapPin, HelpCircle,
+  Shield, Globe, MapPin, HelpCircle, AlertOctagon, FileText, CalendarDays, X,
 } from 'lucide-react';
 import { useLang } from '@/lib/i18n';
 
@@ -72,6 +72,8 @@ function CheckupContent() {
   const { lang, toggle } = useLang();
   const t = (he: string, en: string) => lang === 'he' ? he : en;
 
+  const [showAgriWarning, setShowAgriWarning] = useState(false);
+
   const [form, setForm] = useState({
     street: initialAddress,
     city: '',
@@ -91,6 +93,10 @@ function CheckupContent() {
   });
 
   const updateField = useCallback((field: string, value: string) => {
+    // Immediately show agri warning when selecting agricultural land
+    if (field === 'projectType' && value === 'agri') {
+      setShowAgriWarning(true);
+    }
     setForm((prev) => {
       const next = { ...prev, [field]: value };
       if (field === 'projectType') {
@@ -137,7 +143,7 @@ function CheckupContent() {
             <div className="w-7 h-7 rounded-md bg-green/20 flex items-center justify-center">
               <Building2 className="w-4 h-4 text-green" />
             </div>
-            <span className="font-bold text-sm tracking-tight">THE REALITY CHECK</span>
+            <span className="font-bold text-sm tracking-tight">PROPCHECK</span>
           </div>
           <div className="flex items-center gap-4">
             <button onClick={toggle} className="flex items-center gap-1 text-xs text-foreground-muted hover:text-foreground transition-colors cursor-pointer bg-transparent border-0">
@@ -157,7 +163,7 @@ function CheckupContent() {
 
         {/* Page Title */}
         <div className="text-center mb-8">
-          <div className="text-[10px] font-bold text-accent uppercase tracking-[0.2em] mb-2">THE REALITY CHECK</div>
+          <div className="text-[10px] font-bold text-accent uppercase tracking-[0.2em] mb-2">PROPCHECK</div>
           <h1 className="text-2xl md:text-3xl font-bold text-foreground mb-2">
             {t('הזן את נתוני הפרויקט', 'Enter Project Data')}
           </h1>
@@ -266,18 +272,70 @@ function CheckupContent() {
               }}
             >
               <Shield className="w-5 h-5" />
-              {t('הפק דוח Reality Check', 'Generate Reality Check')}
+              {t('הפק דוח PROPCHECK', 'Generate PROPCHECK Report')}
               <ChevronLeft className="w-5 h-5" />
             </button>
           </div>
         </div>
       </div>
 
+      {/* Agricultural Land Warning Modal */}
+      {showAgriWarning && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(8px)' }}>
+          <div className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl p-8" style={{ background: 'linear-gradient(135deg, #1a0000 0%, #2d0000 50%, #1a0505 100%)', border: '2px solid rgba(220,38,38,0.4)' }}>
+            <button onClick={() => setShowAgriWarning(false)} className="absolute top-4 left-4 w-8 h-8 flex items-center justify-center rounded-full bg-transparent border border-red-500/30 cursor-pointer" style={{ color: '#ef4444' }}>
+              <X className="w-4 h-4" />
+            </button>
+
+            <div className="text-center mb-6">
+              <AlertOctagon className="w-16 h-16 mx-auto mb-4" style={{ color: '#ef4444' }} />
+              <h2 className="text-2xl font-black mb-2" style={{ color: '#ef4444' }}>
+                {t('אל תיפלו בפח של מוכרי החלומות בקרקע חקלאית!', "Don't Fall for Agricultural Land Dream Sellers!")}
+              </h2>
+              <p className="text-base font-semibold" style={{ color: 'rgba(255,255,255,0.85)' }}>
+                {t('קבלו הסבר מפורט ומקצועי למה לא לבצע עסקה בקרקע חקלאית', 'Get a detailed professional explanation of why not to invest in agricultural land')}
+              </p>
+            </div>
+
+            <div className="space-y-4 mb-8 text-sm leading-relaxed" style={{ color: 'rgba(255,255,255,0.75)' }}>
+              <p>
+                {t(
+                  'רכישת קרקע חקלאית בישראל מאופיינת בסיכון קיצוני וחוסר ודאות מובנה. בניגוד לרכישת דירה מוגמרת, המשקיע תלוי בשרשרת ארוכה של משתנים בלתי נשלטים: החלטות פוליטיות של מוסדות תכנון, מדיניות שימור שטחים פתוחים, כושר ניהול של קבוצת זרים במושע, ועמידות תקציבית אישית מול נטל מס שיכול להגיע ל-70% מסך ההשבחה.',
+                  'Agricultural land investment in Israel carries extreme risk. Unlike buying a finished apartment, investors depend on uncontrollable variables: political planning decisions, open space policy, management of strangers in musha, and tax burdens reaching 70% of appreciation.'
+                )}
+              </p>
+              <p>
+                {t(
+                  'תהליך הפשרה של קרקע חקלאית גולמית יכול להימשך בין מספר שנים לעשור ואף עשרות שנים, ללא כל ערובה לתוצאה הסופית. לאורך כל התקופה הזו, הכסף "נעול" ללא תשואה שוטפת.',
+                  'The rezoning process can take years to decades with no guarantee. Throughout, capital is locked with no current yield.'
+                )}
+              </p>
+              <p className="font-bold" style={{ color: '#ef4444' }}>
+                {t(
+                  'סוכני קרקע ומשווקים מציגים מצגת שווא של "הזדמנות השקעה" — אבל בפועל, רוב הרוכשים נותרים עם קרקע שאינה ניתנת לפיתוח, תוך שהם נושאים בנטל מס כבד.',
+                  'Land agents present a false "investment opportunity" — but most buyers end up with undevelopable land, bearing heavy tax burdens.'
+                )}
+              </p>
+            </div>
+
+            <div className="flex flex-col items-center gap-3">
+              <button onClick={() => { setShowAgriWarning(false); sessionStorage.setItem('rc-form', JSON.stringify(form)); router.push('/checkup/report'); }} className="w-full py-4 rounded-lg text-base font-bold border-0 cursor-pointer flex items-center justify-center gap-2" style={{ background: '#dc2626', color: '#fff' }}>
+                <FileText className="w-5 h-5" />
+                {t('קרא את הדוח המלא על הסיכונים', 'Read the Full Risk Report')}
+              </button>
+              <button onClick={() => setShowAgriWarning(false)} className="text-sm cursor-pointer bg-transparent border-0" style={{ color: 'rgba(255,255,255,0.5)' }}>
+                {t('חזרה לטופס', 'Back to form')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Footer */}
       <div className="relative z-10 border-t border-[var(--border)] p-3 text-center text-[10px] text-foreground-muted mt-auto" style={{ background: 'rgba(13,17,23,0.9)' }}>
-        <span>THE REALITY CHECK</span>
+        <span>PROPCHECK</span>
         <span className="opacity-30 mx-2">|</span>
-        <span>{t('בדיקת נאותות להתחדשות עירונית', 'Urban Renewal Due Diligence')}</span>
+        <span>{t('בדיקת כדאיות לנדל"ן', 'Real Estate Viability Check')}</span>
       </div>
     </div>
   );

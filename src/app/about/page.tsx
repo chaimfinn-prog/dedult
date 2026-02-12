@@ -70,7 +70,7 @@ export default function AboutPage() {
         <div className="max-w-5xl mx-auto px-6 h-14 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Building2 className="w-4 h-4 text-green" />
-            <span className="font-bold text-sm">THE REALITY CHECK</span>
+            <span className="font-bold text-sm">PROPCHECK</span>
             <span className="text-foreground-muted text-xs">{t('| הנבחרת', '| The Team')}</span>
           </div>
           <div className="flex items-center gap-4">
@@ -90,11 +90,11 @@ export default function AboutPage() {
         {/* Hero */}
         <div className="text-center mb-12">
           <div className="w-28 h-28 rounded-full mx-auto mb-6 overflow-hidden border-3 flex items-center justify-center" style={{ borderColor: 'var(--accent)', background: 'linear-gradient(135deg, var(--accent) 0%, var(--accent-purple) 100%)' }}>
-            <span className="text-3xl font-black text-white">RC</span>
+            <span className="text-3xl font-black text-white">PC</span>
           </div>
-          <div className="text-xs font-bold text-accent uppercase tracking-[0.2em] mb-3">THE REALITY CHECK</div>
+          <div className="text-xs font-bold text-accent uppercase tracking-[0.2em] mb-3">PROPCHECK</div>
           <h1 className="text-3xl md:text-4xl font-bold text-foreground mb-2">{t('הנבחרת', 'The Task Force')}</h1>
-          <p className="text-base text-accent font-semibold mb-4">{t('השורה התחתונה של עולם הנדל"ן', 'The Bottom Line of Real Estate')}</p>
+          <p className="text-base text-accent font-semibold mb-4">{t('הנבחרת המקצועית שעומדת לצידכם', 'The Professional Team on Your Side')}</p>
         </div>
 
         {/* Who We Are */}
@@ -103,8 +103,8 @@ export default function AboutPage() {
           <div className="space-y-4 text-base text-foreground-secondary leading-relaxed">
             <p>
               {t(
-                'בעולם שמונע מאינטרסים, עמלות והבטחות שיווקיות, הקמנו את The Reality Check מתוך תחושת שליחות אמיתית וצורך בוער בשטח. ראינו יותר מדי רוכשים, משקיעים ובעלי דירות הולכים שבי אחרי מצגות נוצצות, כשהפער בינן לבין המציאות התכנונית והכלכלית הוא עצום — ולעיתים הרסני.',
-                'In a world driven by commissions and marketing promises, we founded The Reality Check from a genuine sense of mission. We\'ve seen too many buyers and investors captivated by flashy presentations, when the gap between them and planning/economic reality is enormous — and sometimes devastating.'
+                'בעולם שמונע מאינטרסים, עמלות והבטחות שיווקיות, הקמנו את PROPCHECK מתוך תחושת שליחות אמיתית וצורך בוער בשטח. ראינו יותר מדי רוכשים, משקיעים ובעלי דירות הולכים שבי אחרי מצגות נוצצות, כשהפער בינן לבין המציאות התכנונית והכלכלית הוא עצום — ולעיתים הרסני.',
+                'In a world driven by commissions and marketing promises, we founded PROPCHECK from a genuine sense of mission. We\'ve seen too many buyers and investors captivated by flashy presentations, when the gap between them and planning/economic reality is enormous — and sometimes devastating.'
               )}
             </p>
             <p>
@@ -174,14 +174,14 @@ export default function AboutPage() {
 
         {/* Tagline + CTA */}
         <div className="db-card-green p-8 text-center mb-8">
-          <div className="text-xs font-bold text-green uppercase tracking-[0.2em] mb-3">THE REALITY CHECK</div>
+          <div className="text-xs font-bold text-green uppercase tracking-[0.2em] mb-3">PROPCHECK</div>
           <h2 className="text-2xl font-bold text-foreground mb-3">
             {t('אנחנו בודקים. אתם ישנים בשקט.', 'We check. You sleep soundly.')}
           </h2>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mt-6">
             <a href="/checkup" className="btn-primary py-3 px-8 rounded-lg text-sm flex items-center gap-2">
               <Shield className="w-4 h-4" />
-              {t('הפק דוח Reality Check', 'Generate Reality Check')}
+              {t('הפק דוח PROPCHECK', 'Generate PROPCHECK Report')}
               <ChevronLeft className="w-4 h-4" />
             </a>
           </div>
@@ -199,7 +199,7 @@ export default function AboutPage() {
 
       {/* Footer */}
       <div className="relative z-10 border-t border-[var(--border)] p-3 text-center text-[10px] text-foreground-muted mt-auto" style={{ background: 'rgba(13,17,23,0.9)' }}>
-        <span>THE REALITY CHECK</span>
+        <span>PROPCHECK</span>
         <span className="opacity-30 mx-2">|</span>
         <span>{t('אנחנו בודקים. אתם ישנים בשקט.', 'We check. You sleep soundly.')}</span>
       </div>

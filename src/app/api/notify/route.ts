@@ -57,7 +57,7 @@ export async function POST(req: NextRequest) {
       : `🔔 ליד חדש (${type}) — ${name}`;
 
     const lines: string[] = [
-      `<h2>THE REALITY CHECK — ${type === 'booking' ? 'בקשת פגישה' : 'ליד חדש'}</h2>`,
+      `<h2>PROPCHECK — ${type === 'booking' ? 'בקשת פגישה' : 'ליד חדש'}</h2>`,
       `<p><strong>סוג:</strong> ${type}</p>`,
       `<p><strong>שם:</strong> ${name}</p>`,
       `<p><strong>טלפון:</strong> ${phone}</p>`,
@@ -96,7 +96,7 @@ export async function POST(req: NextRequest) {
     if (resend) {
       try {
         await resend.emails.send({
-          from: 'THE REALITY CHECK <onboarding@resend.dev>',
+          from: 'PROPCHECK <onboarding@resend.dev>',
           to: [NOTIFY_EMAIL],
           subject,
           html: lines.join('\n'),
@@ -108,7 +108,7 @@ export async function POST(req: NextRequest) {
     }
 
     // ── 3. Always log to console as fallback ──
-    console.log('=== REALITY CHECK — NEW LEAD ===');
+    console.log('=== PROPCHECK — NEW LEAD ===');
     console.log(JSON.stringify(notification, null, 2));
     console.log('================================');
 
