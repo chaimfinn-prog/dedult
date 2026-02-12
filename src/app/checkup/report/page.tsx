@@ -139,8 +139,8 @@ interface FormData {
    ========================================================================== */
 
 function getRiskLevel(c: number) {
-  if (c < 40) return { label: 'גבוהה מאוד', labelEn: 'Very High', color: 'var(--red)', barClass: 'confidence-low' };
-  if (c < 70) return { label: 'בינונית', labelEn: 'Medium', color: 'var(--gold)', barClass: 'confidence-medium' };
+  if (c < 50) return { label: 'גבוהה מאוד', labelEn: 'Very High', color: 'var(--red)', barClass: 'confidence-low' };
+  if (c < 75) return { label: 'בינונית', labelEn: 'Medium', color: 'var(--gold)', barClass: 'confidence-medium' };
   return { label: 'נמוכה', labelEn: 'Low', color: 'var(--green)', barClass: 'confidence-high' };
 }
 
@@ -352,23 +352,39 @@ export default function ReportPage() {
     const riskLevel = getRiskLevel(certainty);
     const occupancyYear = new Date().getFullYear() + Math.ceil(totalYears);
 
-    // Build clean risk factor bullets (no internal %)
+    // Build detailed risk factor bullets with explanations
     const riskBullets: { he: string; en: string }[] = [];
-    if (form.signatureStatus === 'noMajority') riskBullets.push({ he: 'העדר רוב חוקי של דיירים', en: 'No legal majority of tenants' });
-    if (form.signatureStatus === 'unknown') riskBullets.push({ he: 'סטטוס חתימות דיירים לא ידוע', en: 'Unknown tenant signature status' });
+    if (form.signatureStatus === 'noMajority') riskBullets.push({
+      he: 'העדר רוב חוקי של דיירים: משמעותו שהפרויקט נמצא בשלב תיאורטי בלבד. ללא הרוב הנדרש בחוק, לא ניתן לקדם הליכים סטטוטוריים וקיים סיכון גבוה לסכסוכי שכנים שיעצרו את התהליך לשנים.',
+      en: 'No legal majority of tenants: The project is purely theoretical. Without the legally required majority, statutory proceedings cannot advance and there is high risk of neighbor disputes halting the process for years.',
+    });
+    if (form.signatureStatus === 'unknown') riskBullets.push({
+      he: 'סטטוס חתימות דיירים לא ידוע — נתון קריטי שחסר. ללא מידע על מצב החתימות, לא ניתן להעריך את סיכויי התקדמות הפרויקט.',
+      en: 'Unknown tenant signature status — critical missing data. Without this, project advancement probability cannot be assessed.',
+    });
     if (form.projectType === 'pinui' && planStage === 'planning' && form.planningStatus !== 'tabaApproved' && form.planningStatus !== 'designApproved') {
-      riskBullets.push({ he: 'פרויקט פינוי-בינוי ללא תב"ע מאושרת', en: 'Pinui-Binui without approved TBA' });
+      riskBullets.push({
+        he: 'פרויקט ללא תב"ע מאושרת: אתם בוחנים הצעה שטרם קיבלה תוקף תכנוני. ישנה אי-ודאות מוחלטת לגבי היקף הזכויות הסופי, וסיכון שהוועדות המחוזיות ידרשו שינויים שיפגעו בכדאיות העסקה.',
+        en: 'No approved TBA: You are evaluating a proposal without planning validity. There is absolute uncertainty about final rights scope, and risk of district committees requiring changes that harm deal viability.',
+      });
     }
-    if (form.planningStatus === 'unknown') riskBullets.push({ he: 'שלב תכנוני לא ידוע', en: 'Unknown planning stage' });
-    if (hasSqmRisk) riskBullets.push({ he: 'תוספת מ"ר חורגת מהנחיות תקן 21', en: 'Excess sqm beyond Standard 21 guidelines' });
-    if (form.objection === 'objection') riskBullets.push({ he: 'קיום התנגדות לתוכנית', en: 'Existing objection to plan' });
-    else if (form.objection === 'appeal') riskBullets.push({ he: 'הליך ערר פעיל', en: 'Active appeal process' });
-    else if (form.objection === 'both') riskBullets.push({ he: 'התנגדות וערר בו-זמניים', en: 'Simultaneous objection and appeal' });
-    else if (form.objection === 'unknown') riskBullets.push({ he: 'מצב התנגדויות לא ידוע', en: 'Unknown objection status' });
-    if (form.tenantCount === 'over100') riskBullets.push({ he: 'מקדם חיכוך גבוה: מעל 100 בעלי זכויות', en: 'High friction: 100+ rights holders' });
+    if (form.planningStatus === 'unknown') riskBullets.push({
+      he: 'שלב תכנוני לא ידוע — מידע קריטי שחסר. ללא ידיעת השלב התכנוני, לא ניתן לחשב לוח זמנים ריאלי. תרחיש שמרני הופעל.',
+      en: 'Unknown planning stage — critical missing data. Without knowing the planning stage, a realistic timeline cannot be calculated. Conservative scenario applied.',
+    });
+    if (form.planningStatus === 'initialPlanning') riskBullets.push({
+      he: 'סטטוס תכנון ראשוני: הפרויקט נמצא בראשית דרכו. בלוחות זמנים של התחדשות עירונית, זהו שלב שבו "הנייר סופג הכל" — המרחק בין ההבטחה לבין היתר בנייה בפועל עשוי להיות עשור ומעלה.',
+      en: 'Initial planning stage: The project is in its earliest phase. In urban renewal timelines, this is the stage where "paper absorbs everything" — the distance from promise to actual building permit may be a decade or more.',
+    });
+    if (hasSqmRisk) riskBullets.push({ he: 'תוספת מ"ר חורגת מהנחיות תקן 21 — עלולה לגרום לעיכובים ברישוי ולדרישות הקלה מהוועדה.', en: 'Excess sqm beyond Standard 21 guidelines — may cause permit delays and require relief from committee.' });
+    if (form.objection === 'objection') riskBullets.push({ he: 'קיום התנגדות לתוכנית — הליכי התנגדות עלולים לעכב את התב"ע בחודשים עד שנים, תלוי במהות ההתנגדות.', en: 'Existing objection to plan — may delay TBA by months to years depending on objection nature.' });
+    else if (form.objection === 'appeal') riskBullets.push({ he: 'הליך ערר פעיל — ערר בוועדת ערר מחוזית מעכב את מתן תוקף לתוכנית עד להכרעה.', en: 'Active appeal — district appeal committee process delays plan validation until decision.' });
+    else if (form.objection === 'both') riskBullets.push({ he: 'התנגדות וערר בו-זמניים — מצב מורכב שעלול לעכב את הפרויקט באופן משמעותי. מומלץ בדיקת מומחה.', en: 'Simultaneous objection and appeal — complex situation that may significantly delay the project.' });
+    else if (form.objection === 'unknown') riskBullets.push({ he: 'מצב התנגדויות לא ידוע — מומלץ לבדוק באתר מנהל התכנון האם קיימות התנגדויות פעילות.', en: 'Unknown objection status — check the Planning Administration website for active objections.' });
+    if (form.tenantCount === 'over100') riskBullets.push({ he: 'מקדם חיכוך קריטי: מעל 100 בעלי זכויות. סבירות גבוהה מאוד לעיכובים מדיירים סרבנים, קשיים בפינוי, וניהול ליווי בנקאי מול מאות בתי אב.', en: 'Critical friction coefficient: 100+ rights holders. Very high probability of delays from refusing tenants, evacuation difficulties, and bank accompaniment management.' });
 
     const statusLabel = allOptions.find(o => o.value === form.planningStatus)?.label ?? '';
-    if (form.planningStatus !== 'unknown' && statusLabel) {
+    if (form.planningStatus !== 'unknown' && form.planningStatus !== 'initialPlanning' && statusLabel) {
       riskBullets.push({ he: `סטטוס פרויקט: ${statusLabel}`, en: `Project status: ${allOptions.find(o => o.value === form.planningStatus)?.labelEn ?? ''}` });
     }
 
@@ -754,15 +770,42 @@ export default function ReportPage() {
               </div>
             </div>
 
-            {/* Expert Disclaimer */}
+            {/* Upsell — Expert Report */}
+            {calc.certainty < 75 && (
+              <div className="rounded-2xl p-6" style={{ ...GLASS_WARN, borderRight: '4px solid var(--red)' }}>
+                <div className="flex items-start gap-3">
+                  <AlertOctagon className="w-7 h-7 flex-shrink-0 mt-0.5" style={{ color: '#c0392b' }} />
+                  <div>
+                    <h3 className="text-base font-bold mb-2" style={{ color: '#c0392b' }}>{t('אל תסתפקו בחצי תמונה — חשיפת ה"אותיות הקטנות" של העסקה', "Don't Settle for Half the Picture — Uncover the Deal's Fine Print")}</h3>
+                    <p className="text-sm leading-relaxed mb-3" style={{ color: '#5c1a1a' }}>
+                      {t(
+                        'הנתונים הגלויים הם רק קצה הקרחון. בדו"ח המפורט (תוך 48 שעות) הצוות המקצועי שלנו צולל לעומק העסקה כדי לענות על שאלות הקריטיות:',
+                        'The visible data is just the tip of the iceberg. In the detailed report (within 48 hours), our professional team dives deep into the deal to answer the critical questions:'
+                      )}
+                    </p>
+                    <ul className="space-y-2 mb-4">
+                      <li className="text-sm flex items-start gap-2" style={{ color: '#5c1a1a' }}><span className="w-1.5 h-1.5 rounded-full flex-shrink-0 mt-2" style={{ background: '#c0392b' }} />{t('סטטוס תכנוני אמיתי: מה המוכר או המתווך לא מספרים לכם על מצב הדיונים בוועדה?', 'Real planning status: What is the seller or agent not telling you about committee discussions?')}</li>
+                      <li className="text-sm flex items-start gap-2" style={{ color: '#5c1a1a' }}><span className="w-1.5 h-1.5 rounded-full flex-shrink-0 mt-2" style={{ background: '#c0392b' }} />{t('חסמים אנושיים: האם ישנם דיירים סרבנים או מחלוקות משפטיות שמעכבות את הבניין?', 'Human blockers: Are there refusing tenants or legal disputes blocking the building?')}</li>
+                      <li className="text-sm flex items-start gap-2" style={{ color: '#5c1a1a' }}><span className="w-1.5 h-1.5 rounded-full flex-shrink-0 mt-2" style={{ background: '#c0392b' }} />{t('בדיקת כדאיות כלכלית: האם הפרויקט בכלל רווחי ליזם, או שהוא עלול להיעצר באמצע מחוסר תקציב?', 'Economic viability: Is the project even profitable for the developer, or could it stall mid-way due to budget?')}</li>
+                      <li className="text-sm flex items-start gap-2" style={{ color: '#5c1a1a' }}><span className="w-1.5 h-1.5 rounded-full flex-shrink-0 mt-2" style={{ background: '#c0392b' }} />{t('אימות הבטחות: האם המפרט שהבטיחו לכם תואם את זכויות הבנייה הקיימות בשטח?', 'Promise verification: Does the specification match the existing building rights on the ground?')}</li>
+                    </ul>
+                    <button onClick={() => setActiveCta('report')} className="px-6 py-3 rounded-lg text-sm font-bold border-0 cursor-pointer" style={{ background: '#c0392b', color: '#fff' }}>
+                      {t('הזמן דו"ח מפורט — 250 ₪', 'Order Detailed Report — 250 NIS')}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Methodology Clarification */}
             <div className="rounded-2xl p-6" style={GLASS}>
               <div className="flex items-start gap-3">
                 <Shield className="w-6 h-6 flex-shrink-0 mt-0.5" style={{ color: 'var(--accent)' }} />
                 <div>
                   <p className="text-sm leading-relaxed" style={{ color: '#333' }}>
                     {t(
-                      'דוח זה אינו פלט אוטומטי בלבד. זהו ניתוח עומק המבוסס על מתודולוגיה שמאית, אשר נכתב, נבדק ומאומת באופן אישי על ידי מומחי נדל"ן, כלכלנים ושמאי מקרקעין. הנתונים עוברים בקרת איכות אנושית (Manual Verification) כדי להבטיח דיוק מקסימלי מול המציאות התכנונית.',
-                      'This report is not merely automated output. It is an in-depth analysis based on appraisal methodology, written, reviewed and personally verified by real estate experts, economists and appraisers. Data undergoes human quality control (Manual Verification) to ensure maximum accuracy against planning reality.'
+                      'דוח ראשוני זה מופק באופן אוטומטי על בסיס סריקת מאגרי מידע ונתונים שהוזנו (AI Powered). כדי לקבל ניתוח עומק המבוסס על מתודולוגיה שמאית, המאומת באופן אישי על ידי שמאי מקרקעין וכלכלנים (Manual Verification), יש להזמין את הדו"ח המפורט.',
+                      'This initial report is generated automatically based on database scanning and entered data (AI Powered). For an in-depth analysis based on appraisal methodology, personally verified by real estate appraisers and economists (Manual Verification), order the detailed report.'
                     )}
                   </p>
                 </div>
@@ -800,7 +843,7 @@ export default function ReportPage() {
                     <FileText className="w-8 h-8 mb-3" style={{ color: 'var(--green)' }} />
                     <h3 className="text-base font-bold mb-2" style={{ color: '#1a1a2e' }}>{t('דוח מפורט', 'Detailed Report')}</h3>
                     <p className="text-sm mb-3" style={{ color: '#666' }}>{t('בדיקה ידנית — 7 ימי עבודה', 'Manual review — 7 business days')}</p>
-                    <div className="text-base font-bold" style={{ color: 'var(--green)' }}>750 ₪</div>
+                    <div className="text-base font-bold" style={{ color: 'var(--green)' }}>250 ₪</div>
                   </button>
                   <button onClick={() => setActiveCta('broker')} className="rounded-2xl p-6 text-right transition-all cursor-pointer border-0" style={GLASS}>
                     <Home className="w-8 h-8 mb-3" style={{ color: '#b8860b' }} />
@@ -818,7 +861,7 @@ export default function ReportPage() {
                 <div className="flex items-center justify-between mb-6">
                   <h3 className="text-base font-bold" style={{ color: '#1a1a2e' }}>
                     {activeCta === 'consultation' && t('פגישת ייעוץ — 3,000 ₪', 'Consultation — 3,000 ₪')}
-                    {activeCta === 'report' && t('דוח מפורט — 750 ₪', 'Report — 750 ₪')}
+                    {activeCta === 'report' && t('דוח מפורט — 250 ₪', 'Report — 250 ₪')}
                     {activeCta === 'broker' && t('תיווך להשקעה', 'Investment Brokerage')}
                   </h3>
                   <button onClick={() => setActiveCta(null)} className="text-sm cursor-pointer bg-transparent border-0" style={{ color: '#666' }}>{t('← חזרה', '← Back')}</button>
@@ -862,6 +905,18 @@ export default function ReportPage() {
           </div>
         )}
       </div>
+
+      {/* Legal Disclaimer */}
+      {showResults && (
+        <div className="relative z-10 px-6 py-4 text-center" style={{ background: 'rgba(0,0,0,0.02)' }}>
+          <p style={{ fontSize: '10px', lineHeight: '1.5', color: '#b0b0b0', maxWidth: '720px', margin: '0 auto' }}>
+            {t(
+              'מסמך זה נועד למטרות מידע כללי בלבד ואינו מהווה חוות דעת שמאית, ייעוץ משפטי, ייעוץ מס או המלצת השקעה. המידע מבוסס על נתונים שהוזנו ידנית ועל סריקת מאגרי מידע ציבוריים באמצעות אלגוריתם ממוחשב (AI). אין להסתמך על תוצאות דוח זה כבסיס לקבלת החלטת רכישה. מומלץ להיעזר בשמאי מקרקעין מוסמך ובעורך דין לפני ביצוע עסקה.',
+              'This document is for general informational purposes only and does not constitute an appraisal opinion, legal advice, tax advice, or investment recommendation. The information is based on manually entered data and public database scanning via an AI algorithm. Do not rely on this report as the basis for a purchase decision. It is recommended to consult a certified real estate appraiser and attorney before making any transaction.'
+            )}
+          </p>
+        </div>
+      )}
 
       {/* Footer */}
       <div className="relative z-10 border-t border-[var(--border)] p-3 text-center text-[10px] text-foreground-muted mt-auto" style={{ background: 'rgba(13,17,23,0.9)' }}>
@@ -916,7 +971,17 @@ function PlanningSection({ planningData, planningLoading, street, city, onSearch
           <div className="text-sm font-medium flex items-center gap-2" style={{ color: 'var(--green)' }}><CheckCircle2 className="w-4 h-4" />{t(`נמצאו ${planningData.length} תוכניות. בחר את התוכנית הרלוונטית:`, `Found ${planningData.length} plans. Select the relevant one:`)}</div>
 
           {hasMatch && <div className="p-3 rounded-lg flex items-center gap-2 text-sm" style={{ background: 'rgba(63,185,80,0.08)', border: '1px solid rgba(63,185,80,0.2)', color: '#1a5c2a' }}><CheckCircle2 className="w-4 h-4" style={{ color: 'var(--green)' }} />{t('אימות מוצלח — הסטטוס תואם', 'Verified — status matches')}</div>}
-          {hasMismatch && <div className="p-3 rounded-lg flex items-center gap-2 text-sm" style={{ background: 'rgba(248,81,73,0.08)', border: '1px solid rgba(248,81,73,0.2)', color: '#c0392b' }}><AlertTriangle className="w-4 h-4" />{t('אי-התאמה אפשרית — הסטטוס לא תואם', 'Possible mismatch')}</div>}
+          {hasMismatch && (
+            <div className="p-4 rounded-lg space-y-2" style={{ background: 'rgba(248,81,73,0.08)', border: '1px solid rgba(248,81,73,0.2)' }}>
+              <div className="flex items-center gap-2 text-sm font-bold" style={{ color: '#c0392b' }}><AlertTriangle className="w-4 h-4" />{t('אי-התאמה בין הנתונים שהוזנו לנתונים הרשמיים', 'Mismatch between reported and official data')}</div>
+              <p className="text-xs leading-relaxed" style={{ color: '#8b3a3a' }}>
+                {t(
+                  'המערכת זיהתה פערי מידע בין הנתונים שהזנת לבין הנתונים הרשמיים ברשות להתחדשות עירונית. כדי להבין מה הסטטוס האמיתי ומה המוכר מסתיר מכם, מומלץ להזמין דוח מומחה ידני (Manual Verification).',
+                  'The system detected data gaps between your reported data and official records from the Urban Renewal Authority. To understand the real status and what the seller may be hiding, we recommend ordering a manual expert report (Manual Verification).'
+                )}
+              </p>
+            </div>
+          )}
 
           {planningData.slice(0, 5).map((p, i) => {
             const isSelected = selectedPlan?.id === p.id;
