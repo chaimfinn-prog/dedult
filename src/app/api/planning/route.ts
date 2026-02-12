@@ -4,19 +4,45 @@ import { NextRequest, NextResponse } from 'next/server';
 const RESOURCE_ID = 'f65a0daf-f737-49c5-9424-d378d52104f5';
 const API_URL = 'https://data.gov.il/api/3/action/datastore_search';
 
-// Common Israeli city names for address parsing
+// Common Israeli city names for address parsing (including alternate spellings)
 const CITY_NAMES = [
   'תל אביב-יפו', 'תל אביב יפו', 'תל-אביב-יפו', 'תל אביב',
   'ירושלים', 'חיפה', 'באר שבע', 'ראשון לציון', 'פתח תקווה', 'פתח תקוה',
   'אשדוד', 'נתניה', 'חולון', 'בני ברק', 'רמת גן', 'בת ים', 'אשקלון',
-  'הרצליה', 'כפר סבא', 'רעננה', 'הוד השרון', 'גבעתיים', 'ראש העין',
-  'לוד', 'רמלה', 'נהריה', 'עכו', 'קריית אתא', 'קריית ים', 'קריית מוצקין',
-  'קריית ביאליק', 'קריית גת', 'נצרת', 'עפולה', 'יבנה', 'אור יהודה',
+  'הרצליה', 'הרצלייה', 'כפר סבא', 'רעננה', 'הוד השרון', 'גבעתיים', 'גבעתים', 'ראש העין',
+  'לוד', 'רמלה', 'נהריה', 'עכו', 'קריית אתא', 'קרית אתא', 'קריית ים', 'קרית ים',
+  'קריית מוצקין', 'קרית מוצקין', 'קריית ביאליק', 'קרית ביאליק',
+  'קריית גת', 'קרית גת', 'נצרת', 'עפולה', 'יבנה', 'אור יהודה',
   'רחובות', 'נס ציונה', 'מודיעין', 'רמת השרון', 'גבעת שמואל', 'יהוד',
   'טבריה', 'צפת', 'דימונה', 'ערד', 'אילת', 'כרמיאל',
-  'קריית אונו', 'קריית שמונה', 'מגדל העמק', 'טירת כרמל',
-  'נשר', 'קריית מלאכי', 'אופקים', 'שדרות', 'נתיבות',
+  'קריית אונו', 'קרית אונו', 'קריית שמונה', 'קרית שמונה',
+  'מגדל העמק', 'טירת כרמל', 'טירת הכרמל',
+  'נשר', 'קריית מלאכי', 'קרית מלאכי', 'אופקים', 'שדרות', 'נתיבות',
 ];
+
+// Canonical city name mapping (resolve common variations to the official name used in data.gov.il)
+const CITY_CANONICAL: Record<string, string> = {
+  'תל אביב': 'תל אביב-יפו',
+  'תל אביב יפו': 'תל אביב-יפו',
+  'פתח תקוה': 'פתח תקווה',
+  'גבעתים': 'גבעתיים',
+  'הרצלייה': 'הרצליה',
+  'קרית אתא': 'קריית אתא',
+  'קרית ים': 'קריית ים',
+  'קרית מוצקין': 'קריית מוצקין',
+  'קרית ביאליק': 'קריית ביאליק',
+  'קרית גת': 'קריית גת',
+  'קרית אונו': 'קריית אונו',
+  'קרית שמונה': 'קריית שמונה',
+  'קרית מלאכי': 'קריית מלאכי',
+  'טירת הכרמל': 'טירת כרמל',
+};
+
+/** Resolve city name to canonical form for API queries */
+function canonicalCity(city: string): string {
+  const trimmed = city.trim();
+  return CITY_CANONICAL[trimmed] ?? trimmed;
+}
 
 // Common neighborhood names that users might include
 const NEIGHBORHOOD_PREFIXES = ['שכונת', 'שכ׳', 'שכ\'', 'נווה', 'נוה', 'גבעת', 'רמת', 'תל', 'קרית', 'קריית'];
@@ -30,7 +56,7 @@ function parseAddress(address: string): { street: string; city: string; words: s
 
   for (const c of sortedCities) {
     if (street.includes(c)) {
-      city = c;
+      city = canonicalCity(c);
       street = street.replace(c, '').trim();
       break;
     }
@@ -104,8 +130,11 @@ function extractNeighborhood(street: string): string | null {
 
 export async function GET(req: NextRequest) {
   const q = req.nextUrl.searchParams.get('q') ?? '';
-  const city = req.nextUrl.searchParams.get('city') ?? '';
+  const cityRaw = req.nextUrl.searchParams.get('city') ?? '';
   const street = req.nextUrl.searchParams.get('street') ?? '';
+
+  // Resolve city name to canonical form for accurate API queries
+  const city = cityRaw ? canonicalCity(cityRaw) : '';
 
   if (!q && !city && !street) {
     return NextResponse.json({ error: 'Missing query parameter (q, city, or street)' }, { status: 400 });
