@@ -432,19 +432,69 @@ const DEVELOPERS: DeveloperInfo[] = [
   },
 ];
 
-// ── Matching ──
+// ── Fuzzy Matching Utilities ──
+
+/** Levenshtein distance for fuzzy Hebrew matching */
+function levenshtein(a: string, b: string): number {
+  const m = a.length, n = b.length;
+  if (m === 0) return n;
+  if (n === 0) return m;
+  const dp: number[][] = Array.from({ length: m + 1 }, () => Array(n + 1).fill(0));
+  for (let i = 0; i <= m; i++) dp[i][0] = i;
+  for (let j = 0; j <= n; j++) dp[0][j] = j;
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      dp[i][j] = a[i - 1] === b[j - 1]
+        ? dp[i - 1][j - 1]
+        : 1 + Math.min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1]);
+    }
+  }
+  return dp[m][n];
+}
+
+function normalizeName(s: string): string {
+  return s
+    .replace(/[\u0591-\u05C7]/g, '')     // strip niqqud
+    .replace(/["\-()\.׳'"״]/g, '')        // strip punctuation
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
+}
+
+// ── Matching (with fuzzy fallback) ──
 
 function matchDeveloper(query: string): DeveloperInfo[] {
-  const q = query.trim().toLowerCase().replace(/["\-()\.]/g, '');
+  const q = normalizeName(query);
   if (!q) return [];
-  return DEVELOPERS.filter((d) => {
-    const name = d.name.toLowerCase().replace(/["\-()\.]/g, '');
+
+  // Phase 1: Exact substring match (original logic)
+  const exact = DEVELOPERS.filter((d) => {
+    const name = normalizeName(d.name);
     if (name.includes(q) || q.includes(name)) return true;
-    const nameEn = d.nameEn.toLowerCase().replace(/["\-()\.]/g, '');
+    const nameEn = normalizeName(d.nameEn);
     if (nameEn.includes(q) || q.includes(nameEn)) return true;
     const qWords = q.split(/\s+/);
     return qWords.some((w) => w.length > 2 && (name.includes(w) || nameEn.includes(w)));
   });
+  if (exact.length > 0) return exact;
+
+  // Phase 2: Fuzzy match (Levenshtein distance ≤ 2 per word)
+  const fuzzy = DEVELOPERS.filter((d) => {
+    const name = normalizeName(d.name);
+    const nameEn = normalizeName(d.nameEn);
+    // Full name fuzzy
+    if (q.length >= 3 && name.length >= 3 && levenshtein(q, name) <= 2) return true;
+    if (q.length >= 3 && nameEn.length >= 3 && levenshtein(q, nameEn) <= 2) return true;
+    // Word-level fuzzy
+    const qWords = q.split(/\s+/).filter(w => w.length >= 3);
+    const nameWords = name.split(/\s+/).filter(w => w.length >= 3);
+    const nameEnWords = nameEn.split(/\s+/).filter(w => w.length >= 3);
+    return qWords.some(qw =>
+      nameWords.some(nw => levenshtein(qw, nw) <= 2) ||
+      nameEnWords.some(nw => levenshtein(qw, nw) <= 2)
+    );
+  });
+  return fuzzy;
 }
 
 // ── Madlan fallback ──
@@ -489,15 +539,63 @@ function generateExpertSummary(d: DeveloperInfo, lang: 'he' | 'en' = 'he'): {
   return { full: `${experience} ${trackRecord} ${financial}`, experience, trackRecord, financial };
 }
 
-// ── Verification Links Generator ──
+// ── Verification Links Generator (with validation) ──
 
-function generateVerificationLinks(d: DeveloperInfo) {
+const PORTAL_FALLBACKS = {
+  madadLink: 'https://madadithadshut.co.il/',
+  madlanLink: 'https://www.madlan.co.il/developers',
+  duns100Link: 'https://www.duns100.co.il/rating/התחדשות_עירונית/פינוי_בינוי',
+  bdiCodeLink: 'https://www.bdicode.co.il/Company/Category/התחדשות-עירונית',
+  magdilimLink: 'https://magdilim.co.il/התחדשות-עירונית',
+};
+
+/** HEAD-check a URL with a short timeout. Returns true if reachable (2xx/3xx). */
+async function isLinkValid(url: string): Promise<boolean> {
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 3000);
+    const res = await fetch(url, {
+      method: 'HEAD',
+      headers: { 'User-Agent': 'Mozilla/5.0' },
+      signal: controller.signal,
+      redirect: 'follow',
+    });
+    clearTimeout(timeout);
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
+/** Simple in-memory cache for link validation (persists for lifetime of server process) */
+const linkCache = new Map<string, { valid: boolean; ts: number }>();
+const LINK_CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
+
+async function validateLink(url: string): Promise<boolean> {
+  const cached = linkCache.get(url);
+  if (cached && Date.now() - cached.ts < LINK_CACHE_TTL) return cached.valid;
+  const valid = await isLinkValid(url);
+  linkCache.set(url, { valid, ts: Date.now() });
+  return valid;
+}
+
+async function generateVerificationLinks(d: DeveloperInfo) {
+  const madadUrl = `https://madadithadshut.co.il/company/${encodeURIComponent(d.slug)}/`;
+  const madlanUrl = `https://www.madlan.co.il/developers/${encodeURIComponent(d.slug)}`;
+
+  // Validate developer-specific links in parallel
+  const [madadValid, madlanValid] = await Promise.all([
+    validateLink(madadUrl),
+    validateLink(madlanUrl),
+  ]);
+
   return {
-    madadLink: `https://madadithadshut.co.il/company/${encodeURIComponent(d.slug)}/`,
-    madlanLink: `https://www.madlan.co.il/developers/${encodeURIComponent(d.slug)}`,
-    duns100Link: 'https://www.duns100.co.il/rating/התחדשות_עירונית/פינוי_בינוי',
-    bdiCodeLink: 'https://www.bdicode.co.il/Company/Category/התחדשות-עירונית',
-    magdilimLink: 'https://magdilim.co.il/התחדשות-עירונית',
+    madadLink: madadValid ? madadUrl : PORTAL_FALLBACKS.madadLink,
+    madlanLink: madlanValid ? madlanUrl : PORTAL_FALLBACKS.madlanLink,
+    duns100Link: PORTAL_FALLBACKS.duns100Link,
+    bdiCodeLink: PORTAL_FALLBACKS.bdiCodeLink,
+    magdilimLink: PORTAL_FALLBACKS.magdilimLink,
+    linksValidated: true,
   };
 }
 
@@ -513,10 +611,10 @@ export async function GET(req: NextRequest) {
 
   // Found in database
   if (matches.length > 0) {
-    const results = matches.map((d) => {
+    const results = await Promise.all(matches.map(async (d) => {
       const expertHe = generateExpertSummary(d, 'he');
       const expertEn = generateExpertSummary(d, 'en');
-      const links = generateVerificationLinks(d);
+      const links = await generateVerificationLinks(d);
 
       return {
         name: d.name,
@@ -549,7 +647,7 @@ export async function GET(req: NextRequest) {
         expertOpinion: d.expertOpinion ?? '',
         ...links,
       };
-    });
+    }));
 
     return NextResponse.json({
       query: q,

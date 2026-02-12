@@ -196,7 +196,7 @@ export default function ReportPage() {
     setIsScanning(true);
     if (parsed.city || parsed.street || parsed.projectName) fetchPlanning(parsed.street, parsed.city, parsed.projectName);
     if (parsed.developerName) fetchDev(parsed.developerName);
-    if (parsed.city) fetchMitchamim(parsed.city, parsed.developerName);
+    if (parsed.city) fetchMitchamim(parsed.city, parsed.developerName, parsed.street);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -222,13 +222,14 @@ export default function ReportPage() {
     setDevLoading(false);
   }, []);
 
-  const fetchMitchamim = useCallback(async (city: string, developer?: string) => {
+  const fetchMitchamim = useCallback(async (city: string, developer?: string, street?: string) => {
     if (!city.trim()) return;
     setMitchamimLoading(true);
     try {
       const p = new URLSearchParams();
       p.set('city', city.trim());
       if (developer) p.set('developer', developer.trim());
+      if (street) p.set('street', street.trim());
       const res = await fetch(`/api/mitchamim?${p.toString()}`);
       if (res.ok) { const d = await res.json(); setMitchamimData(d.records ?? []); }
     } catch { /* silent */ }
