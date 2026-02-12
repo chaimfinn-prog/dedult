@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
+import { LangProvider } from '@/lib/i18n';
 
 export const metadata: Metadata = {
   title: 'THE REALITY CHECK — בדיקת נאותות להתחדשות עירונית',
@@ -21,7 +22,9 @@ export default function RootLayout({
   return (
     <html lang="he" dir="rtl">
       <body className="antialiased">
-        {children}
+        <LangProvider>
+          {children}
+        </LangProvider>
       </body>
     </html>
   );

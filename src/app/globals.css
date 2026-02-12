@@ -17,11 +17,11 @@
   --bg-input: #0D1117;
   --bg-elevated: #1C2128;
 
-  /* Foregrounds - High contrast for readability */
-  --fg-primary: #F0F6FC;
-  --fg-secondary: #8B949E;
-  --fg-muted: #6E7681;
-  --fg-dim: #484F58;
+  /* Foregrounds - Brighter for modern feel */
+  --fg-primary: #F8FAFD;
+  --fg-secondary: #A0AAB6;
+  --fg-muted: #7D8590;
+  --fg-dim: #525A65;
 
   /* Accent - Blue-purple gradient (Linear-style) */
   --accent: #5B8DEE;
@@ -46,9 +46,9 @@
   --red: #F85149;
   --purple: #B083F0;
 
-  /* Borders - Subtle and elegant */
-  --border: rgba(255, 255, 255, 0.08);
-  --border-light: rgba(255, 255, 255, 0.12);
+  /* Borders - Slightly brighter */
+  --border: rgba(255, 255, 255, 0.10);
+  --border-light: rgba(255, 255, 255, 0.15);
   --border-accent: rgba(91, 141, 238, 0.25);
   --border-subtle: rgba(255, 255, 255, 0.04);
 
@@ -836,7 +836,7 @@ input[type='number'] { -moz-appearance: textfield; }
 }
 
 .bg-overlay-dark {
-  background: linear-gradient(180deg, rgba(13,17,23,0.92) 0%, rgba(13,17,23,0.85) 50%, rgba(13,17,23,0.95) 100%);
+  background: linear-gradient(180deg, rgba(13,17,23,0.88) 0%, rgba(13,17,23,0.80) 50%, rgba(13,17,23,0.90) 100%);
 }
 
 .bg-grid {
