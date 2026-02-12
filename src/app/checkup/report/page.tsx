@@ -97,13 +97,24 @@ interface PlanningRecord {
   totalPermits: number; track: string; approvalYear: string; inExecution: string; status: string;
 }
 
-interface DeveloperResult {
-  name: string; tier: string; tierLabel: string; summary: string; specialties: string[];
-  totalProjects: number; inConstruction: number; delivered: number; inPlanning: number;
-  rating: string; madadLink: string; website: string | null;
+interface ExpertBreakdown {
+  full: string; experience: string; trackRecord: string; financial: string;
 }
 
-interface DeveloperResponse { query: string; found: boolean; results: DeveloperResult[]; source: string; duns100Link: string; }
+interface DeveloperResult {
+  name: string; nameEn: string; tier: string; tierLabel: string; tierLabelEn: string;
+  summary: string; summaryEn: string; specialties: string[];
+  totalProjects: number; inConstruction: number; delivered: number; inPlanning: number;
+  activeUnits: number; completedOccupancyCount: number;
+  rating: string; yearsInMarket: number; hasCompletedOccupancy: boolean; publiclyTraded: boolean;
+  parentGroup: string | null; financialHealth: string; financialHealthEn: string;
+  expertSummary: string; expertSummaryEn: string;
+  expertBreakdown: ExpertBreakdown; expertBreakdownEn: ExpertBreakdown;
+  madadLink: string; madlanLink: string; duns100Link: string; bdiCodeLink: string; magdilimLink: string;
+  website: string | null;
+}
+
+interface DeveloperResponse { query: string; found: boolean; results: DeveloperResult[]; source: string; }
 
 interface FormData {
   street: string; city: string; developerName: string; projectName: string;
@@ -912,21 +923,72 @@ function DevSection({ devData, devLoading, devName, onSearch, lang, t }: {
       {devLoading && <div className="flex items-center justify-center gap-2 py-8 text-sm" style={{ color: '#666' }}><Loader2 className="w-5 h-5 animate-spin" />{t('מחפש...', 'Searching...')}</div>}
       {!devLoading && devData && !devData.found && (
         <div className="p-5 rounded-lg" style={{ background: 'rgba(210,153,34,0.08)', border: '1px solid rgba(210,153,34,0.2)' }}>
-          <div className="flex items-start gap-3"><AlertTriangle className="w-6 h-6 flex-shrink-0" style={{ color: '#b8860b' }} /><div><div className="text-sm font-bold mb-1" style={{ color: '#8B6914' }}>{t(`"${devName}" לא נמצא בדירוג`, `"${devName}" not found`)}</div><p className="text-sm" style={{ color: '#5d4e37' }}>{t('ייתכן שמדובר בחברה חדשה או חברת בת. מומלץ לבדוק.', 'May be a new or subsidiary company.')}</p></div></div>
+          <div className="flex items-start gap-3"><AlertTriangle className="w-6 h-6 flex-shrink-0" style={{ color: '#b8860b' }} /><div><div className="text-sm font-bold mb-1" style={{ color: '#8B6914' }}>{t(`"${devName}" לא נמצא בדירוג`, `"${devName}" not found`)}</div><p className="text-sm" style={{ color: '#5d4e37' }}>{t('ייתכן שמדובר בחברה חדשה או חברת בת. מומלץ לבצע בדיקת נאותות מעמיקה.', 'May be a new or subsidiary company. Recommended to perform thorough due diligence.')}</p></div></div>
         </div>
       )}
       {!devLoading && devData && devData.found && devData.results.map((dev, i) => (
         <div key={i} className="rounded-lg p-5 mb-3" style={{ background: 'rgba(0,0,0,0.03)', border: '1px solid rgba(0,0,0,0.08)' }}>
+          {/* Header: Name + Tier */}
           <div className="flex items-center gap-3 mb-3">
-            <div className="w-12 h-12 rounded-xl flex items-center justify-center text-base font-black" style={{ background: dev.tier === 'A' ? 'rgba(63,185,80,0.15)' : 'rgba(91,141,238,0.15)', color: dev.tier === 'A' ? 'var(--green)' : 'var(--accent)' }}>{dev.tier}</div>
-            <div><div className="text-base font-bold" style={{ color: '#1a1a2e' }}>{dev.name}</div><div className="text-xs" style={{ color: '#888' }}>{dev.tierLabel}</div></div>
+            <div className="w-12 h-12 rounded-xl flex items-center justify-center text-base font-black" style={{
+              background: dev.tier === 'A' ? 'rgba(63,185,80,0.15)' : dev.tier === 'B' ? 'rgba(91,141,238,0.15)' : 'rgba(210,153,34,0.15)',
+              color: dev.tier === 'A' ? 'var(--green)' : dev.tier === 'B' ? 'var(--accent)' : '#b8860b',
+            }}>{dev.tier}</div>
+            <div>
+              <div className="text-base font-bold" style={{ color: '#1a1a2e' }}>{lang === 'en' ? (dev.nameEn || dev.name) : dev.name}</div>
+              <div className="text-xs" style={{ color: '#888' }}>{lang === 'en' ? (dev.tierLabelEn || dev.tierLabel) : dev.tierLabel}{dev.publiclyTraded ? ` · ${t('ציבורית', 'Public')}` : ''}</div>
+            </div>
           </div>
-          <p className="text-sm mb-3" style={{ color: '#555' }}>{dev.summary}</p>
-          <div className="grid grid-cols-4 gap-3">
-            <MiniStat label={t('סה"כ', 'Total')} value={String(dev.totalProjects)} /><MiniStat label={t('בבנייה', 'Building')} value={String(dev.inConstruction)} />
-            <MiniStat label={t('נמסרו', 'Delivered')} value={String(dev.delivered)} /><MiniStat label={t('בתכנון', 'Planning')} value={String(dev.inPlanning)} />
+
+          {/* Summary */}
+          <p className="text-sm mb-3" style={{ color: '#555' }}>{lang === 'en' ? (dev.summaryEn || dev.summary) : dev.summary}</p>
+
+          {/* Expert Summary — 3 dimensions */}
+          {dev.expertBreakdown && (
+            <div className="rounded-lg p-4 mb-3" style={{ background: 'rgba(91,141,238,0.06)', border: '1px solid rgba(91,141,238,0.12)' }}>
+              <div className="text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--accent)' }}>{t('חוות דעת מקצועית', 'Expert Assessment')}</div>
+              <div className="space-y-1.5">
+                <div className="flex items-start gap-2 text-xs" style={{ color: '#444' }}>
+                  <span className="font-bold flex-shrink-0" style={{ color: '#1a1a2e' }}>{t('ניסיון:', 'Experience:')}</span>
+                  <span>{lang === 'en' ? dev.expertBreakdownEn?.experience : dev.expertBreakdown.experience}</span>
+                </div>
+                <div className="flex items-start gap-2 text-xs" style={{ color: '#444' }}>
+                  <span className="font-bold flex-shrink-0" style={{ color: '#1a1a2e' }}>{t('רקורד:', 'Track Record:')}</span>
+                  <span>{lang === 'en' ? dev.expertBreakdownEn?.trackRecord : dev.expertBreakdown.trackRecord}</span>
+                </div>
+                <div className="flex items-start gap-2 text-xs" style={{ color: '#444' }}>
+                  <span className="font-bold flex-shrink-0" style={{ color: '#1a1a2e' }}>{t('פיננסי:', 'Financial:')}</span>
+                  <span>{lang === 'en' ? dev.expertBreakdownEn?.financial : dev.expertBreakdown.financial}</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Key Metrics */}
+          <div className="grid grid-cols-3 gap-2 mb-3">
+            <MiniStat label={t('שנים בשוק', 'Years')} value={String(dev.yearsInMarket || '?')} />
+            <MiniStat label={t('יח"ד פעילות', 'Active Units')} value={dev.activeUnits ? dev.activeUnits.toLocaleString() : '?'} />
+            <MiniStat label={t('אכלוס הושלם', 'Occupancy')} value={dev.hasCompletedOccupancy ? `${dev.completedOccupancyCount}` : t('טרם', 'No')} />
           </div>
-          <div className="flex gap-3 mt-3 pt-3" style={{ borderTop: '1px solid rgba(0,0,0,0.06)' }}><ExtLink href={dev.madadLink} label={t('מדד ההתחדשות', 'Index')} />{dev.website && <ExtLink href={dev.website} label={t('אתר', 'Website')} />}</div>
+          <div className="grid grid-cols-4 gap-2 mb-3">
+            <MiniStat label={t('סה"כ', 'Total')} value={String(dev.totalProjects)} />
+            <MiniStat label={t('בבנייה', 'Building')} value={String(dev.inConstruction)} />
+            <MiniStat label={t('נמסרו', 'Delivered')} value={String(dev.delivered)} />
+            <MiniStat label={t('בתכנון', 'Planning')} value={String(dev.inPlanning)} />
+          </div>
+
+          {/* Verification Links — 4 rating indices */}
+          <div className="pt-3" style={{ borderTop: '1px solid rgba(0,0,0,0.06)' }}>
+            <div className="text-[10px] font-bold uppercase tracking-wider mb-2" style={{ color: '#999' }}>{t('קישורי אימות', 'Verification Links')}</div>
+            <div className="flex flex-wrap gap-2">
+              <ExtLink href={dev.madadLink} label={t('מדד ההתחדשות', 'Renewal Index')} />
+              {dev.madlanLink && <ExtLink href={dev.madlanLink} label="Madlan" />}
+              <ExtLink href={dev.duns100Link} label="DUNS 100" />
+              <ExtLink href={dev.bdiCodeLink} label="BDI Code" />
+              <ExtLink href={dev.magdilimLink} label={t('מגדילים', 'Magdilim')} />
+              {dev.website && <ExtLink href={dev.website} label={t('אתר', 'Website')} />}
+            </div>
+          </div>
         </div>
       ))}
     </>

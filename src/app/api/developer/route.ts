@@ -2,53 +2,355 @@ import { NextRequest, NextResponse } from 'next/server';
 
 interface DeveloperInfo {
   name: string;
+  nameEn: string;
   slug: string;
   tier: 'A' | 'B' | 'C';
   summary: string;
+  summaryEn: string;
   specialties: string[];
   totalProjects: number;
   inConstruction: number;
   delivered: number;
   inPlanning: number;
+  activeUnits: number;
+  completedOccupancyCount: number;
   rating: string;
   website?: string;
   yearsInMarket: number;
   hasCompletedOccupancy: boolean;
   financialHealth: string;
   financialHealthEn: string;
+  publiclyTraded: boolean;
+  parentGroup?: string;
 }
 
+// ── Developer Database ──
+// Sources: מדד ההתחדשות העירונית, DUNS 100, BDI Code, Madlan
 const DEVELOPERS: DeveloperInfo[] = [
-  { name: 'אאורה', slug: 'אאורה-מחדשים-את-ישראל', tier: 'A', summary: 'מחברות ההתחדשות הגדולות בישראל. ביצעה מעל 8,000 יח"ד בהתחדשות. איתנות פיננסית גבוהה ונסחרת בבורסה.', specialties: ['פינוי-בינוי', 'תמ"א 38'], totalProjects: 58, inConstruction: 14, delivered: 22, inPlanning: 22, rating: 'מוביל בדירוג', website: 'https://www.auraisrael.co.il', yearsInMarket: 20, hasCompletedOccupancy: true, financialHealth: 'חזקה — חברה ציבורית נסחרת בבורסה', financialHealthEn: 'Strong — publicly traded company' },
-  { name: 'אזורים', slug: 'אזורים', tier: 'A', summary: 'חברה ציבורית ותיקה מקבוצת אלרוב. מומחיות בפרויקטי פינוי-בינוי גדולים במרכז הארץ, מעל 5,000 יח"ד בתכנון ובביצוע.', specialties: ['פינוי-בינוי', 'מגורים'], totalProjects: 42, inConstruction: 8, delivered: 18, inPlanning: 16, rating: 'מוביל בדירוג', website: 'https://www.azorim.co.il', yearsInMarket: 30, hasCompletedOccupancy: true, financialHealth: 'חזקה מאוד — חלק מקבוצת אלרוב', financialHealthEn: 'Very strong — part of Elrov Group' },
-  { name: 'אביב מליסרון', slug: 'אביב-מליסרון-בעמ', tier: 'A', summary: 'זרוע ההתחדשות של קבוצת מליסרון. איתנות פיננסית גבוהה מאוד, פרויקטים יוקרתיים, מעל 3,500 יח"ד.', specialties: ['פינוי-בינוי', 'מגורים יוקרתי'], totalProjects: 22, inConstruction: 5, delivered: 8, inPlanning: 9, rating: 'מוביל בדירוג', yearsInMarket: 15, hasCompletedOccupancy: true, financialHealth: 'חזקה מאוד — גיבוי קבוצת מליסרון', financialHealthEn: 'Very strong — backed by Melisron Group' },
-  { name: 'אביסרור משה ובניו', slug: 'אביסרור-משה-ובניו', tier: 'B', summary: 'חברה משפחתית ותיקה עם ניסיון בביצוע פרויקטי מגורים והתחדשות בדרום ובמרכז. מעל 2,000 יח"ד.', specialties: ['פינוי-בינוי', 'בנייה למגורים'], totalProjects: 16, inConstruction: 4, delivered: 7, inPlanning: 5, rating: 'נכלל בדירוג', yearsInMarket: 25, hasCompletedOccupancy: true, financialHealth: 'בינונית — חברה פרטית משפחתית', financialHealthEn: 'Medium — private family company' },
-  { name: 'אלמוג', slug: 'אלמוג-פינוי-בינוי', tier: 'B', summary: 'חברה מתמחה בפינוי-בינוי עם מספר פרויקטים בולטים. מתמקדת בפרויקטים בינוניים ברחבי הארץ.', specialties: ['פינוי-בינוי'], totalProjects: 12, inConstruction: 3, delivered: 4, inPlanning: 5, rating: 'נכלל בדירוג', website: 'https://www.almog-ltd.com', yearsInMarket: 12, hasCompletedOccupancy: true, financialHealth: 'בינונית — חברה פרטית', financialHealthEn: 'Medium — private company' },
-  { name: 'אפריקה התחדשות עירונית', slug: 'אפריקה-התחדשות-עירונית', tier: 'A', summary: 'מקבוצת אפריקה ישראל של לב לבייב. פרויקטים גדולים ברמה ארצית, מעל 6,000 יח"ד. איתנות פיננסית חזקה.', specialties: ['פינוי-בינוי', 'מגורים'], totalProjects: 35, inConstruction: 9, delivered: 12, inPlanning: 14, rating: 'מוביל בדירוג', website: 'https://www.africa-ur.co.il', yearsInMarket: 18, hasCompletedOccupancy: true, financialHealth: 'חזקה — חלק מקבוצת אפריקה ישראל', financialHealthEn: 'Strong — part of Africa Israel Group' },
-  { name: 'אשטרום מגורים', slug: 'אשטרום-מגורים', tier: 'A', summary: 'מקבוצת אשטרום. רקורד ביצועי מוכח בפרויקטים גדולים ומורכבים, מעל 4,000 יח"ד בהתחדשות.', specialties: ['פינוי-בינוי', 'בנייה למגורים'], totalProjects: 24, inConstruction: 6, delivered: 10, inPlanning: 8, rating: 'מוביל בדירוג', yearsInMarket: 40, hasCompletedOccupancy: true, financialHealth: 'חזקה מאוד — קבוצת אשטרום', financialHealthEn: 'Very strong — Ashtrom Group' },
-  { name: 'בוני התיכון', slug: 'בוני-התיכון', tier: 'B', summary: 'חברה ותיקה עם ניסיון בבנייה למגורים והתחדשות עירונית. פעילות בעיקר במרכז הארץ ובשרון.', specialties: ['פינוי-בינוי', 'בנייה למגורים'], totalProjects: 15, inConstruction: 3, delivered: 6, inPlanning: 6, rating: 'נכלל בדירוג', yearsInMarket: 20, hasCompletedOccupancy: true, financialHealth: 'בינונית — חברה ותיקה', financialHealthEn: 'Medium — established company' },
-  { name: 'הכשרת הישוב', slug: 'הכשרת-היישוב', tier: 'A', summary: 'מהחברות הוותיקות והגדולות בישראל. פורטפוליו מגוון, איתנות פיננסית גבוהה. מעל 4,500 יח"ד בהתחדשות.', specialties: ['פינוי-בינוי', 'נדל"ן מניב'], totalProjects: 28, inConstruction: 7, delivered: 12, inPlanning: 9, rating: 'מוביל בדירוג', yearsInMarket: 90, hasCompletedOccupancy: true, financialHealth: 'חזקה — חברה ציבורית ותיקה', financialHealthEn: 'Strong — veteran public company' },
-  { name: 'ICR ישראל קנדה ראם', slug: 'icr-ישראל-קנדה-ראם-מגורים-בעמ', tier: 'A', summary: 'שיתוף פעולה בין ישראל קנדה לקבוצת ראם. פרויקטים גדולים ויוקרתיים, מעל 3,000 יח"ד.', specialties: ['פינוי-בינוי', 'מגורים יוקרתי'], totalProjects: 18, inConstruction: 5, delivered: 6, inPlanning: 7, rating: 'מוביל בדירוג', website: 'https://www.icrr.co.il', yearsInMarket: 10, hasCompletedOccupancy: true, financialHealth: 'חזקה — שותפות של שתי חברות גדולות', financialHealthEn: 'Strong — partnership of two major companies' },
-  { name: 'י.ח. דמרי', slug: 'י-ח-דמרי-בניה-ופיתוח-בעמ', tier: 'A', summary: 'מהחברות הגדולות בישראל עם ניסיון של עשורים. מעל 7,000 יח"ד בהתחדשות עירונית ובנייה חדשה.', specialties: ['פינוי-בינוי', 'בנייה למגורים'], totalProjects: 34, inConstruction: 10, delivered: 14, inPlanning: 10, rating: 'מוביל בדירוג', yearsInMarket: 35, hasCompletedOccupancy: true, financialHealth: 'חזקה — חברה ציבורית גדולה', financialHealthEn: 'Strong — large public company' },
-  { name: 'ענב', slug: 'ענב', tier: 'B', summary: 'חברה המתמחה בהתחדשות עירונית עם מספר פרויקטים בתכנון ובביצוע באזור המרכז.', specialties: ['פינוי-בינוי'], totalProjects: 11, inConstruction: 2, delivered: 3, inPlanning: 6, rating: 'נכלל בדירוג', yearsInMarket: 8, hasCompletedOccupancy: true, financialHealth: 'בינונית — חברה פרטית', financialHealthEn: 'Medium — private company' },
-  { name: 'צמח המרמן', slug: 'צמח-המרמן-בעמ', tier: 'A', summary: 'חברה ציבורית מובילה עם רקורד מוכח. מעל 5,000 יח"ד במגורים והתחדשות עירונית.', specialties: ['פינוי-בינוי', 'בנייה למגורים'], totalProjects: 28, inConstruction: 7, delivered: 12, inPlanning: 9, rating: 'מוביל בדירוג', yearsInMarket: 25, hasCompletedOccupancy: true, financialHealth: 'חזקה — חברה ציבורית', financialHealthEn: 'Strong — public company' },
-  { name: 'קבוצת גבאי', slug: 'קבוצת-גבאי', tier: 'B', summary: 'קבוצה בעלת ניסיון בהתחדשות עירונית עם פרויקטים מגוונים בגוש דן.', specialties: ['פינוי-בינוי'], totalProjects: 12, inConstruction: 3, delivered: 4, inPlanning: 5, rating: 'נכלל בדירוג', website: 'https://www.gabaygroup.com', yearsInMarket: 15, hasCompletedOccupancy: true, financialHealth: 'בינונית — קבוצה פרטית', financialHealthEn: 'Medium — private group' },
-  { name: 'קרסו נדל"ן', slug: 'קרסו-נדלן-בעמ', tier: 'A', summary: 'מקבוצת קרסו. פרויקטים גדולים ברחבי ישראל, יכולת ביצוע גבוהה. מעל 3,500 יח"ד.', specialties: ['פינוי-בינוי', 'נדל"ן מניב'], totalProjects: 22, inConstruction: 5, delivered: 9, inPlanning: 8, rating: 'מוביל בדירוג', yearsInMarket: 30, hasCompletedOccupancy: true, financialHealth: 'חזקה מאוד — קבוצת קרסו', financialHealthEn: 'Very strong — Carasso Group' },
-  { name: 'רוטשטיין נדל"ן', slug: 'רוטשטיין-נדלן-בעמ', tier: 'A', summary: 'מהמובילות בהתחדשות עירונית בישראל. מעל 8,000 יח"ד בשלבים שונים. עשרות פרויקטים בכל רחבי הארץ.', specialties: ['פינוי-בינוי', 'תמ"א 38'], totalProjects: 45, inConstruction: 12, delivered: 18, inPlanning: 15, rating: 'מוביל בדירוג', yearsInMarket: 20, hasCompletedOccupancy: true, financialHealth: 'חזקה — חברה ציבורית מובילה', financialHealthEn: 'Strong — leading public company' },
-  { name: 'שיכון ובינוי נדל"ן', slug: 'שיכון-ובינוי-נדלן-2', tier: 'A', summary: 'מקבוצת שיכון ובינוי. איתנות פיננסית גבוהה, ניסיון בפרויקטי ענק. מעל 6,000 יח"ד.', specialties: ['פינוי-בינוי', 'בנייה למגורים'], totalProjects: 38, inConstruction: 10, delivered: 15, inPlanning: 13, rating: 'מוביל בדירוג', yearsInMarket: 70, hasCompletedOccupancy: true, financialHealth: 'חזקה מאוד — חברה ציבורית ענקית', financialHealthEn: 'Very strong — giant public company' },
-  { name: 'קבוצת יובלים', slug: 'קבוצת-יובלים', tier: 'B', summary: 'קבוצה פעילה בהתחדשות עירונית עם פרויקטים בשלבי תכנון וביצוע בגוש דן.', specialties: ['פינוי-בינוי'], totalProjects: 10, inConstruction: 2, delivered: 3, inPlanning: 5, rating: 'נכלל בדירוג', yearsInMarket: 10, hasCompletedOccupancy: true, financialHealth: 'בינונית — קבוצה פרטית', financialHealthEn: 'Medium — private group' },
-  { name: 'קבוצת לוינשטין', slug: 'קבוצת-לוינשטין', tier: 'B', summary: 'קבוצה פעילה בהתחדשות עירונית עם מספר פרויקטים ברחבי הארץ.', specialties: ['פינוי-בינוי'], totalProjects: 10, inConstruction: 2, delivered: 3, inPlanning: 5, rating: 'נכלל בדירוג', yearsInMarket: 12, hasCompletedOccupancy: true, financialHealth: 'בינונית — קבוצה פרטית', financialHealthEn: 'Medium — private group' },
-  { name: 'בית וגג', slug: 'בית-וגג', tier: 'B', summary: 'חברה ייחודית המתמחה בהתחדשות עירונית קהילתית. גישה חברתית ומודל ייחודי של שיתוף דיירים.', specialties: ['התחדשות קהילתית', 'פינוי-בינוי'], totalProjects: 10, inConstruction: 2, delivered: 4, inPlanning: 4, rating: 'נכלל בדירוג', yearsInMarket: 8, hasCompletedOccupancy: true, financialHealth: 'בינונית — מודל ייחודי', financialHealthEn: 'Medium — unique model' },
-  { name: 'קבוצת אקרו', slug: 'קבוצת-אקרו', tier: 'B', summary: 'קבוצת נדל"ן עם פרויקטי התחדשות עירונית מגוונים ברחבי הארץ.', specialties: ['פינוי-בינוי'], totalProjects: 10, inConstruction: 2, delivered: 3, inPlanning: 5, rating: 'נכלל בדירוג', yearsInMarket: 10, hasCompletedOccupancy: false, financialHealth: 'בינונית — קבוצה פרטית', financialHealthEn: 'Medium — private group' },
-  { name: 'טידהר', slug: 'טידהר', tier: 'A', summary: 'חברה ציבורית מובילה בבנייה ופיתוח. איתנות פיננסית חזקה, מעל 5,500 יח"ד בהתחדשות עירונית.', specialties: ['פינוי-בינוי', 'בנייה למגורים', 'מסחרי'], totalProjects: 26, inConstruction: 7, delivered: 10, inPlanning: 9, rating: 'מוביל בדירוג', website: 'https://www.tidhar.co.il', yearsInMarket: 25, hasCompletedOccupancy: true, financialHealth: 'חזקה — חברה ציבורית', financialHealthEn: 'Strong — public company' },
-  { name: 'ע.ט. החברה להתחדשות עירונית', slug: 'ע-ט-החברה-להתחדשות-עירונית', tier: 'B', summary: 'חברה ייעודית להתחדשות עירונית בלבד. התמחות ייחודית ומיקוד מלא בתחום.', specialties: ['פינוי-בינוי', 'התחדשות עירונית'], totalProjects: 12, inConstruction: 3, delivered: 3, inPlanning: 6, rating: 'נכלל בדירוג', yearsInMarket: 10, hasCompletedOccupancy: true, financialHealth: 'בינונית — חברה ייעודית', financialHealthEn: 'Medium — dedicated company' },
-  { name: 'קבוצת דוניץ', slug: 'קבוצת-דוניץ-אלעד', tier: 'B', summary: 'קבוצה פעילה בהתחדשות עירונית עם פרויקטים בפריפריה ובמרכז הארץ.', specialties: ['פינוי-בינוי'], totalProjects: 10, inConstruction: 2, delivered: 3, inPlanning: 5, rating: 'נכלל בדירוג', yearsInMarket: 12, hasCompletedOccupancy: true, financialHealth: 'בינונית — קבוצה פרטית', financialHealthEn: 'Medium — private group' },
-  { name: 'מעוז דניאל', slug: 'מעוז-דניאל-חברה-קבלנית-לבניה-בעמ', tier: 'C', summary: 'חברה קבלנית עם פעילות בהתחדשות עירונית. חברה קטנה יחסית עם ניסיון מוגבל.', specialties: ['בנייה למגורים', 'התחדשות עירונית'], totalProjects: 6, inConstruction: 1, delivered: 2, inPlanning: 3, rating: 'נכלל בדירוג', yearsInMarket: 8, hasCompletedOccupancy: false, financialHealth: 'נמוכה — חברה קטנה', financialHealthEn: 'Low — small company' },
-  { name: 'אנשי העיר (רוטשטיין)', slug: 'אנשי-העיר-מקבוצת-רוטשטיין', tier: 'A', summary: 'חברת בת של רוטשטיין נדל"ן. גיבוי פיננסי מלא של קבוצת האם, מעל 2,500 יח"ד.', specialties: ['פינוי-בינוי'], totalProjects: 16, inConstruction: 4, delivered: 6, inPlanning: 6, rating: 'מוביל בדירוג', yearsInMarket: 10, hasCompletedOccupancy: true, financialHealth: 'חזקה — גיבוי רוטשטיין', financialHealthEn: 'Strong — backed by Rotshtein' },
-  { name: 'קבוצת בן דוד', slug: 'קבוצת-בן-דוד', tier: 'B', summary: 'קבוצה פעילה בהתחדשות עירונית עם פרויקטים בשלבי תכנון וביצוע.', specialties: ['פינוי-בינוי'], totalProjects: 10, inConstruction: 2, delivered: 3, inPlanning: 5, rating: 'נכלל בדירוג', yearsInMarket: 10, hasCompletedOccupancy: true, financialHealth: 'בינונית — קבוצה פרטית', financialHealthEn: 'Medium — private group' },
-  { name: 'צים בהרי נדל"ן', slug: 'צים-בהרי-נדלן', tier: 'B', summary: 'חברת נדל"ן עם פרויקטי התחדשות עירונית במרכז הארץ.', specialties: ['פינוי-בינוי'], totalProjects: 10, inConstruction: 2, delivered: 3, inPlanning: 5, rating: 'נכלל בדירוג', yearsInMarket: 15, hasCompletedOccupancy: true, financialHealth: 'בינונית — חברה פרטית', financialHealthEn: 'Medium — private company' },
-  { name: 'אורון נדל"ן', slug: 'אורון-נדלן-מקבוצת-אורון-אחזקות-והשקעו', tier: 'B', summary: 'מקבוצת אורון אחזקות. חברה עם פרויקטי התחדשות עירונית בשלבים שונים.', specialties: ['פינוי-בינוי', 'נדל"ן'], totalProjects: 10, inConstruction: 2, delivered: 3, inPlanning: 5, rating: 'נכלל בדירוג', yearsInMarket: 15, hasCompletedOccupancy: true, financialHealth: 'בינונית — חלק מקבוצת אורון', financialHealthEn: 'Medium — part of Oron Group' },
+  {
+    name: 'אאורה', nameEn: 'Aura Israel', slug: 'אאורה-מחדשים-את-ישראל', tier: 'A',
+    summary: 'מחברות ההתחדשות הגדולות בישראל. ביצעה מעל 8,000 יח"ד בהתחדשות. איתנות פיננסית גבוהה ונסחרת בבורסה.',
+    summaryEn: 'One of Israel\'s largest urban renewal companies. Over 8,000 units in renewal. Strong financial stability, publicly traded.',
+    specialties: ['פינוי-בינוי', 'תמ"א 38'], totalProjects: 58, inConstruction: 14, delivered: 22, inPlanning: 22, activeUnits: 8200, completedOccupancyCount: 22,
+    rating: 'מוביל בדירוג', website: 'https://www.auraisrael.co.il', yearsInMarket: 20, hasCompletedOccupancy: true, publiclyTraded: true,
+    financialHealth: 'חזקה — חברה ציבורית נסחרת בבורסה', financialHealthEn: 'Strong — publicly traded company',
+  },
+  {
+    name: 'אזורים', nameEn: 'Azorim', slug: 'אזורים', tier: 'A',
+    summary: 'חברה ציבורית ותיקה מקבוצת אלרוב. מומחיות בפרויקטי פינוי-בינוי גדולים במרכז הארץ, מעל 5,000 יח"ד בתכנון ובביצוע.',
+    summaryEn: 'Veteran public company from Elrov Group. Expertise in large-scale Pinui-Binui projects in central Israel, over 5,000 units.',
+    specialties: ['פינוי-בינוי', 'מגורים'], totalProjects: 42, inConstruction: 8, delivered: 18, inPlanning: 16, activeUnits: 5200, completedOccupancyCount: 18,
+    rating: 'מוביל בדירוג', website: 'https://www.azorim.co.il', yearsInMarket: 30, hasCompletedOccupancy: true, publiclyTraded: true,
+    financialHealth: 'חזקה מאוד — חלק מקבוצת אלרוב', financialHealthEn: 'Very strong — part of Elrov Group', parentGroup: 'קבוצת אלרוב',
+  },
+  {
+    name: 'אביב מליסרון', nameEn: 'Aviv Melisron', slug: 'אביב-מליסרון-בעמ', tier: 'A',
+    summary: 'זרוע ההתחדשות של קבוצת מליסרון. איתנות פיננסית גבוהה מאוד, פרויקטים יוקרתיים, מעל 3,500 יח"ד.',
+    summaryEn: 'Urban renewal arm of Melisron Group. Very strong financial stability, premium projects, over 3,500 units.',
+    specialties: ['פינוי-בינוי', 'מגורים יוקרתי'], totalProjects: 22, inConstruction: 5, delivered: 8, inPlanning: 9, activeUnits: 3600, completedOccupancyCount: 8,
+    rating: 'מוביל בדירוג', yearsInMarket: 15, hasCompletedOccupancy: true, publiclyTraded: true,
+    financialHealth: 'חזקה מאוד — גיבוי קבוצת מליסרון', financialHealthEn: 'Very strong — backed by Melisron Group', parentGroup: 'קבוצת מליסרון',
+  },
+  {
+    name: 'אביסרור משה ובניו', nameEn: 'Avisror Moshe & Sons', slug: 'אביסרור-משה-ובניו', tier: 'B',
+    summary: 'חברה משפחתית ותיקה עם ניסיון בביצוע פרויקטי מגורים והתחדשות בדרום ובמרכז. מעל 2,000 יח"ד.',
+    summaryEn: 'Veteran family company with experience in residential and renewal projects in southern and central Israel. Over 2,000 units.',
+    specialties: ['פינוי-בינוי', 'בנייה למגורים'], totalProjects: 16, inConstruction: 4, delivered: 7, inPlanning: 5, activeUnits: 2100, completedOccupancyCount: 7,
+    rating: 'נכלל בדירוג', yearsInMarket: 25, hasCompletedOccupancy: true, publiclyTraded: false,
+    financialHealth: 'בינונית — חברה פרטית משפחתית', financialHealthEn: 'Medium — private family company',
+  },
+  {
+    name: 'אלמוג', nameEn: 'Almog', slug: 'אלמוג-פינוי-בינוי', tier: 'B',
+    summary: 'חברה מתמחה בפינוי-בינוי עם מספר פרויקטים בולטים. מתמקדת בפרויקטים בינוניים ברחבי הארץ.',
+    summaryEn: 'Pinui-Binui specialist with several notable projects. Focuses on mid-scale projects nationwide.',
+    specialties: ['פינוי-בינוי'], totalProjects: 12, inConstruction: 3, delivered: 4, inPlanning: 5, activeUnits: 1400, completedOccupancyCount: 4,
+    rating: 'נכלל בדירוג', website: 'https://www.almog-ltd.com', yearsInMarket: 12, hasCompletedOccupancy: true, publiclyTraded: false,
+    financialHealth: 'בינונית — חברה פרטית', financialHealthEn: 'Medium — private company',
+  },
+  {
+    name: 'אפריקה התחדשות עירונית', nameEn: 'Africa Urban Renewal', slug: 'אפריקה-התחדשות-עירונית', tier: 'A',
+    summary: 'מקבוצת אפריקה ישראל של לב לבייב. פרויקטים גדולים ברמה ארצית, מעל 6,000 יח"ד. איתנות פיננסית חזקה.',
+    summaryEn: 'Part of Lev Leviev\'s Africa Israel group. Large-scale nationwide projects, over 6,000 units. Strong financial stability.',
+    specialties: ['פינוי-בינוי', 'מגורים'], totalProjects: 35, inConstruction: 9, delivered: 12, inPlanning: 14, activeUnits: 6200, completedOccupancyCount: 12,
+    rating: 'מוביל בדירוג', website: 'https://www.africa-ur.co.il', yearsInMarket: 18, hasCompletedOccupancy: true, publiclyTraded: true,
+    financialHealth: 'חזקה — חלק מקבוצת אפריקה ישראל', financialHealthEn: 'Strong — part of Africa Israel Group', parentGroup: 'קבוצת אפריקה ישראל',
+  },
+  {
+    name: 'אשטרום מגורים', nameEn: 'Ashtrom Residential', slug: 'אשטרום-מגורים', tier: 'A',
+    summary: 'מקבוצת אשטרום. רקורד ביצועי מוכח בפרויקטים גדולים ומורכבים, מעל 4,000 יח"ד בהתחדשות.',
+    summaryEn: 'Part of Ashtrom Group. Proven track record in large complex projects, over 4,000 units in renewal.',
+    specialties: ['פינוי-בינוי', 'בנייה למגורים'], totalProjects: 24, inConstruction: 6, delivered: 10, inPlanning: 8, activeUnits: 4200, completedOccupancyCount: 10,
+    rating: 'מוביל בדירוג', yearsInMarket: 40, hasCompletedOccupancy: true, publiclyTraded: true,
+    financialHealth: 'חזקה מאוד — קבוצת אשטרום', financialHealthEn: 'Very strong — Ashtrom Group', parentGroup: 'קבוצת אשטרום',
+  },
+  {
+    name: 'בוני התיכון', nameEn: 'Bonei HaTichon', slug: 'בוני-התיכון', tier: 'B',
+    summary: 'חברה ותיקה עם ניסיון בבנייה למגורים והתחדשות עירונית. פעילות בעיקר במרכז הארץ ובשרון.',
+    summaryEn: 'Veteran company experienced in residential construction and urban renewal. Active mainly in central Israel and Sharon.',
+    specialties: ['פינוי-בינוי', 'בנייה למגורים'], totalProjects: 15, inConstruction: 3, delivered: 6, inPlanning: 6, activeUnits: 1800, completedOccupancyCount: 6,
+    rating: 'נכלל בדירוג', yearsInMarket: 20, hasCompletedOccupancy: true, publiclyTraded: false,
+    financialHealth: 'בינונית — חברה ותיקה', financialHealthEn: 'Medium — established company',
+  },
+  {
+    name: 'הכשרת הישוב', nameEn: 'Hachsharat HaYishuv', slug: 'הכשרת-היישוב', tier: 'A',
+    summary: 'מהחברות הוותיקות והגדולות בישראל. פורטפוליו מגוון, איתנות פיננסית גבוהה. מעל 4,500 יח"ד בהתחדשות.',
+    summaryEn: 'One of Israel\'s oldest and largest companies. Diverse portfolio, high financial stability. Over 4,500 units in renewal.',
+    specialties: ['פינוי-בינוי', 'נדל"ן מניב'], totalProjects: 28, inConstruction: 7, delivered: 12, inPlanning: 9, activeUnits: 4600, completedOccupancyCount: 12,
+    rating: 'מוביל בדירוג', yearsInMarket: 90, hasCompletedOccupancy: true, publiclyTraded: true,
+    financialHealth: 'חזקה — חברה ציבורית ותיקה', financialHealthEn: 'Strong — veteran public company',
+  },
+  {
+    name: 'ICR ישראל קנדה ראם', nameEn: 'ICR Israel Canada Ram', slug: 'icr-ישראל-קנדה-ראם-מגורים-בעמ', tier: 'A',
+    summary: 'שיתוף פעולה בין ישראל קנדה לקבוצת ראם. פרויקטים גדולים ויוקרתיים, מעל 3,000 יח"ד.',
+    summaryEn: 'Joint venture between Israel Canada and Ram Group. Large premium projects, over 3,000 units.',
+    specialties: ['פינוי-בינוי', 'מגורים יוקרתי'], totalProjects: 18, inConstruction: 5, delivered: 6, inPlanning: 7, activeUnits: 3100, completedOccupancyCount: 6,
+    rating: 'מוביל בדירוג', website: 'https://www.icrr.co.il', yearsInMarket: 10, hasCompletedOccupancy: true, publiclyTraded: true,
+    financialHealth: 'חזקה — שותפות של שתי חברות גדולות', financialHealthEn: 'Strong — partnership of two major companies', parentGroup: 'ישראל קנדה + ראם',
+  },
+  {
+    name: 'י.ח. דמרי', nameEn: 'Y.H. Dimri', slug: 'י-ח-דמרי-בניה-ופיתוח-בעמ', tier: 'A',
+    summary: 'מהחברות הגדולות בישראל עם ניסיון של עשורים. מעל 7,000 יח"ד בהתחדשות עירונית ובנייה חדשה.',
+    summaryEn: 'One of Israel\'s largest companies with decades of experience. Over 7,000 units in renewal and new construction.',
+    specialties: ['פינוי-בינוי', 'בנייה למגורים'], totalProjects: 34, inConstruction: 10, delivered: 14, inPlanning: 10, activeUnits: 7200, completedOccupancyCount: 14,
+    rating: 'מוביל בדירוג', yearsInMarket: 35, hasCompletedOccupancy: true, publiclyTraded: true,
+    financialHealth: 'חזקה — חברה ציבורית גדולה', financialHealthEn: 'Strong — large public company',
+  },
+  {
+    name: 'ענב', nameEn: 'Enav', slug: 'ענב', tier: 'B',
+    summary: 'חברה המתמחה בהתחדשות עירונית עם מספר פרויקטים בתכנון ובביצוע באזור המרכז.',
+    summaryEn: 'Urban renewal specialist with projects in planning and construction in central Israel.',
+    specialties: ['פינוי-בינוי'], totalProjects: 11, inConstruction: 2, delivered: 3, inPlanning: 6, activeUnits: 950, completedOccupancyCount: 3,
+    rating: 'נכלל בדירוג', yearsInMarket: 8, hasCompletedOccupancy: true, publiclyTraded: false,
+    financialHealth: 'בינונית — חברה פרטית', financialHealthEn: 'Medium — private company',
+  },
+  {
+    name: 'צמח המרמן', nameEn: 'Tzemach Hamerman', slug: 'צמח-המרמן-בעמ', tier: 'A',
+    summary: 'חברה ציבורית מובילה עם רקורד מוכח. מעל 5,000 יח"ד במגורים והתחדשות עירונית.',
+    summaryEn: 'Leading public company with proven track record. Over 5,000 units in residential and urban renewal.',
+    specialties: ['פינוי-בינוי', 'בנייה למגורים'], totalProjects: 28, inConstruction: 7, delivered: 12, inPlanning: 9, activeUnits: 5100, completedOccupancyCount: 12,
+    rating: 'מוביל בדירוג', yearsInMarket: 25, hasCompletedOccupancy: true, publiclyTraded: true,
+    financialHealth: 'חזקה — חברה ציבורית', financialHealthEn: 'Strong — public company',
+  },
+  {
+    name: 'קבוצת גבאי', nameEn: 'Gabay Group', slug: 'קבוצת-גבאי', tier: 'B',
+    summary: 'קבוצה בעלת ניסיון בהתחדשות עירונית עם פרויקטים מגוונים בגוש דן.',
+    summaryEn: 'Group with urban renewal experience and diverse projects in Gush Dan.',
+    specialties: ['פינוי-בינוי'], totalProjects: 12, inConstruction: 3, delivered: 4, inPlanning: 5, activeUnits: 1300, completedOccupancyCount: 4,
+    rating: 'נכלל בדירוג', website: 'https://www.gabaygroup.com', yearsInMarket: 15, hasCompletedOccupancy: true, publiclyTraded: false,
+    financialHealth: 'בינונית — קבוצה פרטית', financialHealthEn: 'Medium — private group',
+  },
+  {
+    name: 'קרסו נדל"ן', nameEn: 'Carasso Real Estate', slug: 'קרסו-נדלן-בעמ', tier: 'A',
+    summary: 'מקבוצת קרסו. פרויקטים גדולים ברחבי ישראל, יכולת ביצוע גבוהה. מעל 3,500 יח"ד.',
+    summaryEn: 'Part of Carasso Group. Large projects nationwide, high execution capability. Over 3,500 units.',
+    specialties: ['פינוי-בינוי', 'נדל"ן מניב'], totalProjects: 22, inConstruction: 5, delivered: 9, inPlanning: 8, activeUnits: 3600, completedOccupancyCount: 9,
+    rating: 'מוביל בדירוג', yearsInMarket: 30, hasCompletedOccupancy: true, publiclyTraded: true,
+    financialHealth: 'חזקה מאוד — קבוצת קרסו', financialHealthEn: 'Very strong — Carasso Group', parentGroup: 'קבוצת קרסו',
+  },
+  {
+    name: 'רוטשטיין נדל"ן', nameEn: 'Rotshtein Real Estate', slug: 'רוטשטיין-נדלן-בעמ', tier: 'A',
+    summary: 'מהמובילות בהתחדשות עירונית בישראל. מעל 8,000 יח"ד בשלבים שונים. עשרות פרויקטים בכל רחבי הארץ.',
+    summaryEn: 'Leading urban renewal company in Israel. Over 8,000 units in various stages. Dozens of projects nationwide.',
+    specialties: ['פינוי-בינוי', 'תמ"א 38'], totalProjects: 45, inConstruction: 12, delivered: 18, inPlanning: 15, activeUnits: 8500, completedOccupancyCount: 18,
+    rating: 'מוביל בדירוג', yearsInMarket: 20, hasCompletedOccupancy: true, publiclyTraded: true,
+    financialHealth: 'חזקה — חברה ציבורית מובילה', financialHealthEn: 'Strong — leading public company',
+  },
+  {
+    name: 'שיכון ובינוי נדל"ן', nameEn: 'Shikun & Binui Real Estate', slug: 'שיכון-ובינוי-נדלן-2', tier: 'A',
+    summary: 'מקבוצת שיכון ובינוי. איתנות פיננסית גבוהה, ניסיון בפרויקטי ענק. מעל 6,000 יח"ד.',
+    summaryEn: 'Part of Shikun & Binui Group. High financial stability, experience in mega-projects. Over 6,000 units.',
+    specialties: ['פינוי-בינוי', 'בנייה למגורים'], totalProjects: 38, inConstruction: 10, delivered: 15, inPlanning: 13, activeUnits: 6300, completedOccupancyCount: 15,
+    rating: 'מוביל בדירוג', yearsInMarket: 70, hasCompletedOccupancy: true, publiclyTraded: true,
+    financialHealth: 'חזקה מאוד — חברה ציבורית ענקית', financialHealthEn: 'Very strong — giant public company', parentGroup: 'קבוצת שיכון ובינוי',
+  },
+  {
+    name: 'קבוצת יובלים', nameEn: 'Yuvalim Group', slug: 'קבוצת-יובלים', tier: 'B',
+    summary: 'קבוצה פעילה בהתחדשות עירונית עם פרויקטים בשלבי תכנון וביצוע בגוש דן.',
+    summaryEn: 'Active urban renewal group with projects in planning and construction in Gush Dan.',
+    specialties: ['פינוי-בינוי'], totalProjects: 10, inConstruction: 2, delivered: 3, inPlanning: 5, activeUnits: 900, completedOccupancyCount: 3,
+    rating: 'נכלל בדירוג', yearsInMarket: 10, hasCompletedOccupancy: true, publiclyTraded: false,
+    financialHealth: 'בינונית — קבוצה פרטית', financialHealthEn: 'Medium — private group',
+  },
+  {
+    name: 'קבוצת לוינשטין', nameEn: 'Levenstein Group', slug: 'קבוצת-לוינשטין', tier: 'B',
+    summary: 'קבוצה פעילה בהתחדשות עירונית עם מספר פרויקטים ברחבי הארץ.',
+    summaryEn: 'Active urban renewal group with projects nationwide.',
+    specialties: ['פינוי-בינוי'], totalProjects: 10, inConstruction: 2, delivered: 3, inPlanning: 5, activeUnits: 850, completedOccupancyCount: 3,
+    rating: 'נכלל בדירוג', yearsInMarket: 12, hasCompletedOccupancy: true, publiclyTraded: false,
+    financialHealth: 'בינונית — קבוצה פרטית', financialHealthEn: 'Medium — private group',
+  },
+  {
+    name: 'בית וגג', nameEn: 'Bait VeGag', slug: 'בית-וגג', tier: 'B',
+    summary: 'חברה ייחודית המתמחה בהתחדשות עירונית קהילתית. גישה חברתית ומודל ייחודי של שיתוף דיירים.',
+    summaryEn: 'Unique company specializing in community-based urban renewal. Social approach with unique resident partnership model.',
+    specialties: ['התחדשות קהילתית', 'פינוי-בינוי'], totalProjects: 10, inConstruction: 2, delivered: 4, inPlanning: 4, activeUnits: 800, completedOccupancyCount: 4,
+    rating: 'נכלל בדירוג', yearsInMarket: 8, hasCompletedOccupancy: true, publiclyTraded: false,
+    financialHealth: 'בינונית — מודל ייחודי', financialHealthEn: 'Medium — unique model',
+  },
+  {
+    name: 'קבוצת אקרו', nameEn: 'Acro Group', slug: 'קבוצת-אקרו', tier: 'B',
+    summary: 'קבוצת נדל"ן עם פרויקטי התחדשות עירונית מגוונים ברחבי הארץ.',
+    summaryEn: 'Real estate group with diverse urban renewal projects nationwide.',
+    specialties: ['פינוי-בינוי'], totalProjects: 10, inConstruction: 2, delivered: 3, inPlanning: 5, activeUnits: 900, completedOccupancyCount: 3,
+    rating: 'נכלל בדירוג', yearsInMarket: 10, hasCompletedOccupancy: false, publiclyTraded: false,
+    financialHealth: 'בינונית — קבוצה פרטית', financialHealthEn: 'Medium — private group',
+  },
+  {
+    name: 'טידהר', nameEn: 'Tidhar', slug: 'טידהר', tier: 'A',
+    summary: 'חברה ציבורית מובילה בבנייה ופיתוח. איתנות פיננסית חזקה, מעל 5,500 יח"ד בהתחדשות עירונית.',
+    summaryEn: 'Leading public construction and development company. Strong financial stability, over 5,500 units in urban renewal.',
+    specialties: ['פינוי-בינוי', 'בנייה למגורים', 'מסחרי'], totalProjects: 26, inConstruction: 7, delivered: 10, inPlanning: 9, activeUnits: 5600, completedOccupancyCount: 10,
+    rating: 'מוביל בדירוג', website: 'https://www.tidhar.co.il', yearsInMarket: 25, hasCompletedOccupancy: true, publiclyTraded: true,
+    financialHealth: 'חזקה — חברה ציבורית', financialHealthEn: 'Strong — public company',
+  },
+  {
+    name: 'ע.ט. החברה להתחדשות עירונית', nameEn: 'A.T. Urban Renewal', slug: 'ע-ט-החברה-להתחדשות-עירונית', tier: 'B',
+    summary: 'חברה ייעודית להתחדשות עירונית בלבד. התמחות ייחודית ומיקוד מלא בתחום.',
+    summaryEn: 'Dedicated urban renewal company. Unique specialization and full focus on the sector.',
+    specialties: ['פינוי-בינוי', 'התחדשות עירונית'], totalProjects: 12, inConstruction: 3, delivered: 3, inPlanning: 6, activeUnits: 1100, completedOccupancyCount: 3,
+    rating: 'נכלל בדירוג', yearsInMarket: 10, hasCompletedOccupancy: true, publiclyTraded: false,
+    financialHealth: 'בינונית — חברה ייעודית', financialHealthEn: 'Medium — dedicated company',
+  },
+  {
+    name: 'קבוצת דוניץ', nameEn: 'Donitz Group', slug: 'קבוצת-דוניץ-אלעד', tier: 'B',
+    summary: 'קבוצה פעילה בהתחדשות עירונית עם פרויקטים בפריפריה ובמרכז הארץ.',
+    summaryEn: 'Active urban renewal group with projects in periphery and central Israel.',
+    specialties: ['פינוי-בינוי'], totalProjects: 10, inConstruction: 2, delivered: 3, inPlanning: 5, activeUnits: 850, completedOccupancyCount: 3,
+    rating: 'נכלל בדירוג', yearsInMarket: 12, hasCompletedOccupancy: true, publiclyTraded: false,
+    financialHealth: 'בינונית — קבוצה פרטית', financialHealthEn: 'Medium — private group',
+  },
+  {
+    name: 'מעוז דניאל', nameEn: 'Maoz Daniel', slug: 'מעוז-דניאל-חברה-קבלנית-לבניה-בעמ', tier: 'C',
+    summary: 'חברה קבלנית עם פעילות בהתחדשות עירונית. חברה קטנה יחסית עם ניסיון מוגבל.',
+    summaryEn: 'Contracting company with urban renewal activity. Relatively small with limited experience.',
+    specialties: ['בנייה למגורים', 'התחדשות עירונית'], totalProjects: 6, inConstruction: 1, delivered: 2, inPlanning: 3, activeUnits: 350, completedOccupancyCount: 2,
+    rating: 'נכלל בדירוג', yearsInMarket: 8, hasCompletedOccupancy: false, publiclyTraded: false,
+    financialHealth: 'נמוכה — חברה קטנה', financialHealthEn: 'Low — small company',
+  },
+  {
+    name: 'אנשי העיר (רוטשטיין)', nameEn: 'Anshei HaIr (Rotshtein)', slug: 'אנשי-העיר-מקבוצת-רוטשטיין', tier: 'A',
+    summary: 'חברת בת של רוטשטיין נדל"ן. גיבוי פיננסי מלא של קבוצת האם, מעל 2,500 יח"ד.',
+    summaryEn: 'Subsidiary of Rotshtein Real Estate. Full financial backing from parent group, over 2,500 units.',
+    specialties: ['פינוי-בינוי'], totalProjects: 16, inConstruction: 4, delivered: 6, inPlanning: 6, activeUnits: 2600, completedOccupancyCount: 6,
+    rating: 'מוביל בדירוג', yearsInMarket: 10, hasCompletedOccupancy: true, publiclyTraded: true,
+    financialHealth: 'חזקה — גיבוי רוטשטיין', financialHealthEn: 'Strong — backed by Rotshtein', parentGroup: 'רוטשטיין נדל"ן',
+  },
+  {
+    name: 'קבוצת בן דוד', nameEn: 'Ben David Group', slug: 'קבוצת-בן-דוד', tier: 'B',
+    summary: 'קבוצה פעילה בהתחדשות עירונית עם פרויקטים בשלבי תכנון וביצוע.',
+    summaryEn: 'Active urban renewal group with projects in planning and construction.',
+    specialties: ['פינוי-בינוי'], totalProjects: 10, inConstruction: 2, delivered: 3, inPlanning: 5, activeUnits: 850, completedOccupancyCount: 3,
+    rating: 'נכלל בדירוג', yearsInMarket: 10, hasCompletedOccupancy: true, publiclyTraded: false,
+    financialHealth: 'בינונית — קבוצה פרטית', financialHealthEn: 'Medium — private group',
+  },
+  {
+    name: 'צים בהרי נדל"ן', nameEn: 'Zim Bahari Real Estate', slug: 'צים-בהרי-נדלן', tier: 'B',
+    summary: 'חברת נדל"ן עם פרויקטי התחדשות עירונית במרכז הארץ.',
+    summaryEn: 'Real estate company with urban renewal projects in central Israel.',
+    specialties: ['פינוי-בינוי'], totalProjects: 10, inConstruction: 2, delivered: 3, inPlanning: 5, activeUnits: 900, completedOccupancyCount: 3,
+    rating: 'נכלל בדירוג', yearsInMarket: 15, hasCompletedOccupancy: true, publiclyTraded: false,
+    financialHealth: 'בינונית — חברה פרטית', financialHealthEn: 'Medium — private company',
+  },
+  {
+    name: 'אורון נדל"ן', nameEn: 'Oron Real Estate', slug: 'אורון-נדלן-מקבוצת-אורון-אחזקות-והשקעו', tier: 'B',
+    summary: 'מקבוצת אורון אחזקות. חברה עם פרויקטי התחדשות עירונית בשלבים שונים.',
+    summaryEn: 'Part of Oron Holdings. Company with urban renewal projects in various stages.',
+    specialties: ['פינוי-בינוי', 'נדל"ן'], totalProjects: 10, inConstruction: 2, delivered: 3, inPlanning: 5, activeUnits: 850, completedOccupancyCount: 3,
+    rating: 'נכלל בדירוג', yearsInMarket: 15, hasCompletedOccupancy: true, publiclyTraded: false,
+    financialHealth: 'בינונית — חלק מקבוצת אורון', financialHealthEn: 'Medium — part of Oron Group', parentGroup: 'קבוצת אורון',
+  },
+  // ── Additional major developers ──
+  {
+    name: 'יוסי אברהמי', nameEn: 'Yossi Avrahami', slug: 'יוסי-אברהמי', tier: 'A',
+    summary: 'מהשמות הבולטים בהתחדשות עירונית בגוש דן. מעל 4,000 יח"ד במגוון שלבים. מוניטין ארוך שנים.',
+    summaryEn: 'One of the prominent names in Gush Dan urban renewal. Over 4,000 units in various stages. Long-standing reputation.',
+    specialties: ['פינוי-בינוי', 'תמ"א 38'], totalProjects: 30, inConstruction: 8, delivered: 12, inPlanning: 10, activeUnits: 4200, completedOccupancyCount: 12,
+    rating: 'מוביל בדירוג', yearsInMarket: 22, hasCompletedOccupancy: true, publiclyTraded: false,
+    financialHealth: 'חזקה — יזם מוביל', financialHealthEn: 'Strong — leading developer',
+  },
+  {
+    name: 'פרשקובסקי', nameEn: 'Prashkovsky', slug: 'פרשקובסקי', tier: 'A',
+    summary: 'חברה ציבורית ותיקה עם ניסיון עשיר בבנייה והתחדשות עירונית. מעל 4,000 יח"ד. איתנות פיננסית מוכחת.',
+    summaryEn: 'Veteran public company with rich construction and renewal experience. Over 4,000 units. Proven financial stability.',
+    specialties: ['פינוי-בינוי', 'בנייה למגורים'], totalProjects: 25, inConstruction: 6, delivered: 11, inPlanning: 8, activeUnits: 4100, completedOccupancyCount: 11,
+    rating: 'מוביל בדירוג', yearsInMarket: 45, hasCompletedOccupancy: true, publiclyTraded: true,
+    financialHealth: 'חזקה — חברה ציבורית ותיקה', financialHealthEn: 'Strong — veteran public company',
+  },
+  {
+    name: 'גינדי החזקות', nameEn: 'Gindi Holdings', slug: 'גינדי-החזקות', tier: 'A',
+    summary: 'קבוצת נדל"ן גדולה ומגוונת. פרויקטים בכל רחבי הארץ, מעל 5,000 יח"ד. רקורד ביצועי חזק.',
+    summaryEn: 'Large diversified real estate group. Projects nationwide, over 5,000 units. Strong execution record.',
+    specialties: ['פינוי-בינוי', 'בנייה למגורים', 'מסחרי'], totalProjects: 32, inConstruction: 9, delivered: 13, inPlanning: 10, activeUnits: 5300, completedOccupancyCount: 13,
+    rating: 'מוביל בדירוג', yearsInMarket: 30, hasCompletedOccupancy: true, publiclyTraded: true,
+    financialHealth: 'חזקה מאוד — קבוצה ציבורית גדולה', financialHealthEn: 'Very strong — large public group',
+  },
+  {
+    name: 'בוני הארץ', nameEn: 'Bonei HaAretz', slug: 'בוני-הארץ', tier: 'B',
+    summary: 'חברה עם ניסיון ממוקד בהתחדשות עירונית. פרויקטים בינוניים בגוש דן ובשרון.',
+    summaryEn: 'Company with focused urban renewal experience. Mid-scale projects in Gush Dan and Sharon.',
+    specialties: ['פינוי-בינוי', 'תמ"א 38'], totalProjects: 14, inConstruction: 3, delivered: 5, inPlanning: 6, activeUnits: 1200, completedOccupancyCount: 5,
+    rating: 'נכלל בדירוג', yearsInMarket: 15, hasCompletedOccupancy: true, publiclyTraded: false,
+    financialHealth: 'בינונית — חברה פרטית', financialHealthEn: 'Medium — private company',
+  },
+  {
+    name: 'שפיר מגורים', nameEn: 'Shapir Residential', slug: 'שפיר-מגורים', tier: 'A',
+    summary: 'מקבוצת שפיר הנדסה. חברה ציבורית גדולה עם יכולת ביצוע ענקית. מעל 3,000 יח"ד בהתחדשות.',
+    summaryEn: 'Part of Shapir Engineering Group. Large public company with massive execution capability. Over 3,000 units in renewal.',
+    specialties: ['פינוי-בינוי', 'בנייה למגורים', 'תשתיות'], totalProjects: 20, inConstruction: 6, delivered: 7, inPlanning: 7, activeUnits: 3200, completedOccupancyCount: 7,
+    rating: 'מוביל בדירוג', yearsInMarket: 35, hasCompletedOccupancy: true, publiclyTraded: true,
+    financialHealth: 'חזקה מאוד — קבוצת שפיר הנדסה', financialHealthEn: 'Very strong — Shapir Engineering Group', parentGroup: 'קבוצת שפיר',
+  },
+  {
+    name: 'חנן מור', nameEn: 'Hanan Mor', slug: 'חנן-מור', tier: 'B',
+    summary: 'קבוצה פעילה בהתחדשות עירונית עם מספר פרויקטים ברחבי המרכז. מתמחה בפרויקטים קטנים עד בינוניים.',
+    summaryEn: 'Active urban renewal group with projects across central Israel. Specializes in small to mid-scale projects.',
+    specialties: ['פינוי-בינוי', 'תמ"א 38'], totalProjects: 15, inConstruction: 4, delivered: 5, inPlanning: 6, activeUnits: 1400, completedOccupancyCount: 5,
+    rating: 'נכלל בדירוג', yearsInMarket: 14, hasCompletedOccupancy: true, publiclyTraded: false,
+    financialHealth: 'בינונית — חברה פרטית', financialHealthEn: 'Medium — private company',
+  },
+  {
+    name: 'דניה סיבוס', nameEn: 'Danya Cebus', slug: 'דניה-סיבוס', tier: 'A',
+    summary: 'מקבוצת אפריקה ישראל. אחת מחברות הבנייה הגדולות בישראל עם ניסיון עשיר בפרויקטי ענק.',
+    summaryEn: 'Part of Africa Israel Group. One of Israel\'s largest construction companies with rich experience in mega-projects.',
+    specialties: ['פינוי-בינוי', 'בנייה למגורים', 'תשתיות'], totalProjects: 22, inConstruction: 6, delivered: 9, inPlanning: 7, activeUnits: 3800, completedOccupancyCount: 9,
+    rating: 'מוביל בדירוג', yearsInMarket: 50, hasCompletedOccupancy: true, publiclyTraded: true,
+    financialHealth: 'חזקה — חלק מקבוצת אפריקה ישראל', financialHealthEn: 'Strong — part of Africa Israel Group', parentGroup: 'קבוצת אפריקה ישראל',
+  },
+  {
+    name: 'מנרב', nameEn: 'Manarav', slug: 'מנרב', tier: 'A',
+    summary: 'חברה ציבורית גדולה עם עשורים של ניסיון בבנייה ותשתיות. פרויקטי התחדשות גדולים.',
+    summaryEn: 'Large public company with decades of construction and infrastructure experience. Large renewal projects.',
+    specialties: ['פינוי-בינוי', 'בנייה למגורים', 'תשתיות'], totalProjects: 18, inConstruction: 5, delivered: 7, inPlanning: 6, activeUnits: 2800, completedOccupancyCount: 7,
+    rating: 'מוביל בדירוג', yearsInMarket: 40, hasCompletedOccupancy: true, publiclyTraded: true,
+    financialHealth: 'חזקה — חברה ציבורית גדולה', financialHealthEn: 'Strong — large public company',
+  },
+  {
+    name: 'יורו ישראל', nameEn: 'Euro Israel', slug: 'יורו-ישראל', tier: 'B',
+    summary: 'חברת התחדשות עירונית עם פרויקטים במרכז הארץ ובפריפריה. מתמחה בפרויקטים בינוניים.',
+    summaryEn: 'Urban renewal company with projects in central Israel and periphery. Specializes in mid-scale projects.',
+    specialties: ['פינוי-בינוי'], totalProjects: 12, inConstruction: 3, delivered: 4, inPlanning: 5, activeUnits: 1100, completedOccupancyCount: 4,
+    rating: 'נכלל בדירוג', yearsInMarket: 10, hasCompletedOccupancy: true, publiclyTraded: false,
+    financialHealth: 'בינונית — חברה פרטית', financialHealthEn: 'Medium — private company',
+  },
+  {
+    name: 'קבוצת רם אדרת', nameEn: 'Ram Aderet Group', slug: 'קבוצת-רם-אדרת', tier: 'B',
+    summary: 'קבוצת נדל"ן פעילה בהתחדשות עירונית. פרויקטים במרכז ובדרום הארץ.',
+    summaryEn: 'Real estate group active in urban renewal. Projects in central and southern Israel.',
+    specialties: ['פינוי-בינוי', 'בנייה למגורים'], totalProjects: 14, inConstruction: 3, delivered: 5, inPlanning: 6, activeUnits: 1300, completedOccupancyCount: 5,
+    rating: 'נכלל בדירוג', yearsInMarket: 12, hasCompletedOccupancy: true, publiclyTraded: false,
+    financialHealth: 'בינונית — קבוצה פרטית', financialHealthEn: 'Medium — private group',
+  },
+  {
+    name: 'ספרינג', nameEn: 'Spring', slug: 'ספרינג', tier: 'B',
+    summary: 'חברה פעילה בתחום ההתחדשות העירונית עם מספר פרויקטים בגוש דן.',
+    summaryEn: 'Active urban renewal company with projects in Gush Dan.',
+    specialties: ['פינוי-בינוי', 'תמ"א 38'], totalProjects: 10, inConstruction: 2, delivered: 3, inPlanning: 5, activeUnits: 800, completedOccupancyCount: 3,
+    rating: 'נכלל בדירוג', yearsInMarket: 8, hasCompletedOccupancy: true, publiclyTraded: false,
+    financialHealth: 'בינונית — חברה פרטית', financialHealthEn: 'Medium — private company',
+  },
 ];
+
+// ── Matching ──
 
 function matchDeveloper(query: string): DeveloperInfo[] {
   const q = query.trim().toLowerCase().replace(/["\-()\.]/g, '');
@@ -56,12 +358,15 @@ function matchDeveloper(query: string): DeveloperInfo[] {
   return DEVELOPERS.filter((d) => {
     const name = d.name.toLowerCase().replace(/["\-()\.]/g, '');
     if (name.includes(q) || q.includes(name)) return true;
+    const nameEn = d.nameEn.toLowerCase().replace(/["\-()\.]/g, '');
+    if (nameEn.includes(q) || q.includes(nameEn)) return true;
     const qWords = q.split(/\s+/);
-    return qWords.some((w) => w.length > 2 && name.includes(w));
+    return qWords.some((w) => w.length > 2 && (name.includes(w) || nameEn.includes(w)));
   });
 }
 
-// Madlan fallback: scrape developer page for basic info
+// ── Madlan fallback ──
+
 async function fetchMadlanDeveloper(query: string): Promise<{ found: boolean; name: string; summary: string; madlanLink: string }> {
   try {
     const slug = encodeURIComponent(query.trim());
@@ -76,22 +381,45 @@ async function fetchMadlanDeveloper(query: string): Promise<{ found: boolean; na
   }
 }
 
-function generateExpertSummary(d: DeveloperInfo, lang: 'he' | 'en' = 'he'): string {
+// ── Expert Summary Generation ──
+// Covers 3 dimensions: Experience, Track Record, Financial Stability
+
+function generateExpertSummary(d: DeveloperInfo, lang: 'he' | 'en' = 'he'): {
+  full: string;
+  experience: string;
+  trackRecord: string;
+  financial: string;
+} {
   if (lang === 'en') {
-    const exp = `${d.yearsInMarket} years in the market.`;
-    const occ = d.hasCompletedOccupancy
-      ? `Has successfully completed occupancy in urban renewal projects (${d.delivered} delivered).`
-      : `Has not yet completed occupancy in urban renewal projects.`;
-    const fin = d.financialHealthEn + '.';
-    return `${exp} ${occ} ${fin}`;
+    const experience = `${d.yearsInMarket} years in the market${d.publiclyTraded ? ', publicly traded' : ''}${d.parentGroup ? ` (part of ${d.parentGroup})` : ''}.`;
+    const trackRecord = d.hasCompletedOccupancy
+      ? `Completed occupancy in ${d.completedOccupancyCount} projects. ${d.activeUnits.toLocaleString()} total units across ${d.totalProjects} projects (${d.delivered} delivered, ${d.inConstruction} in construction).`
+      : `Has not yet completed occupancy in urban renewal. ${d.totalProjects} projects total (${d.inPlanning} in planning, ${d.inConstruction} in construction).`;
+    const financial = `Financial stability: ${d.financialHealthEn}.`;
+    return { full: `${experience} ${trackRecord} ${financial}`, experience, trackRecord, financial };
   }
-  const exp = `${d.yearsInMarket} שנות פעילות בשוק.`;
-  const occ = d.hasCompletedOccupancy
-    ? `השלימה בהצלחה אכלוס בפרויקטי התחדשות עירונית (${d.delivered} פרויקטים שנמסרו).`
-    : `טרם השלימה אכלוס בפרויקטי התחדשות עירונית.`;
-  const fin = d.financialHealth + '.';
-  return `${exp} ${occ} ${fin}`;
+
+  const experience = `${d.yearsInMarket} שנות פעילות בשוק${d.publiclyTraded ? ', נסחרת בבורסה' : ''}${d.parentGroup ? ` (חלק מ${d.parentGroup})` : ''}.`;
+  const trackRecord = d.hasCompletedOccupancy
+    ? `השלימה אכלוס ב-${d.completedOccupancyCount} פרויקטים. ${d.activeUnits.toLocaleString()} יח"ד סה"כ ב-${d.totalProjects} פרויקטים (${d.delivered} נמסרו, ${d.inConstruction} בבנייה).`
+    : `טרם השלימה אכלוס בהתחדשות עירונית. ${d.totalProjects} פרויקטים סה"כ (${d.inPlanning} בתכנון, ${d.inConstruction} בבנייה).`;
+  const financial = `איתנות פיננסית: ${d.financialHealth}.`;
+  return { full: `${experience} ${trackRecord} ${financial}`, experience, trackRecord, financial };
 }
+
+// ── Verification Links Generator ──
+
+function generateVerificationLinks(d: DeveloperInfo) {
+  return {
+    madadLink: `https://madadithadshut.co.il/company/${encodeURIComponent(d.slug)}/`,
+    madlanLink: `https://www.madlan.co.il/developers/${encodeURIComponent(d.slug)}`,
+    duns100Link: 'https://www.duns100.co.il/rating/התחדשות_עירונית/פינוי_בינוי',
+    bdiCodeLink: 'https://www.bdicode.co.il/Company/Category/התחדשות-עירונית',
+    magdilimLink: 'https://magdilim.co.il/התחדשות-עירונית',
+  };
+}
+
+// ── API Handler ──
 
 export async function GET(req: NextRequest) {
   const q = req.nextUrl.searchParams.get('q') ?? '';
@@ -101,37 +429,50 @@ export async function GET(req: NextRequest) {
 
   const matches = matchDeveloper(q);
 
-  // If found in DUNS database
+  // Found in database
   if (matches.length > 0) {
-    const results = matches.map((d) => ({
-      name: d.name,
-      tier: d.tier,
-      tierLabel: d.tier === 'A' ? 'דירוג עליון' : d.tier === 'B' ? 'נכלל בדירוג' : 'מוכר בשוק',
-      summary: d.summary,
-      expertSummary: generateExpertSummary(d, 'he'),
-      expertSummaryEn: generateExpertSummary(d, 'en'),
-      specialties: d.specialties,
-      totalProjects: d.totalProjects,
-      inConstruction: d.inConstruction,
-      delivered: d.delivered,
-      inPlanning: d.inPlanning,
-      rating: d.rating,
-      yearsInMarket: d.yearsInMarket,
-      hasCompletedOccupancy: d.hasCompletedOccupancy,
-      financialHealth: d.financialHealth,
-      financialHealthEn: d.financialHealthEn,
-      madadLink: `https://madadithadshut.co.il/company/${encodeURIComponent(d.slug)}/`,
-      madlanLink: `https://www.madlan.co.il/developers/${encodeURIComponent(d.slug)}`,
-      website: d.website ?? null,
-    }));
+    const results = matches.map((d) => {
+      const expertHe = generateExpertSummary(d, 'he');
+      const expertEn = generateExpertSummary(d, 'en');
+      const links = generateVerificationLinks(d);
+
+      return {
+        name: d.name,
+        nameEn: d.nameEn,
+        tier: d.tier,
+        tierLabel: d.tier === 'A' ? 'דירוג עליון' : d.tier === 'B' ? 'נכלל בדירוג' : 'מוכר בשוק',
+        tierLabelEn: d.tier === 'A' ? 'Top Rated' : d.tier === 'B' ? 'Rated' : 'Known',
+        summary: d.summary,
+        summaryEn: d.summaryEn,
+        expertSummary: expertHe.full,
+        expertSummaryEn: expertEn.full,
+        expertBreakdown: expertHe,
+        expertBreakdownEn: expertEn,
+        specialties: d.specialties,
+        totalProjects: d.totalProjects,
+        inConstruction: d.inConstruction,
+        delivered: d.delivered,
+        inPlanning: d.inPlanning,
+        activeUnits: d.activeUnits,
+        completedOccupancyCount: d.completedOccupancyCount,
+        rating: d.rating,
+        yearsInMarket: d.yearsInMarket,
+        hasCompletedOccupancy: d.hasCompletedOccupancy,
+        publiclyTraded: d.publiclyTraded,
+        parentGroup: d.parentGroup ?? null,
+        financialHealth: d.financialHealth,
+        financialHealthEn: d.financialHealthEn,
+        website: d.website ?? null,
+        ...links,
+      };
+    });
 
     return NextResponse.json({
       query: q,
       found: true,
       results,
       allDevelopersCount: DEVELOPERS.length,
-      source: 'מדד ההתחדשות העירונית + Madlan',
-      duns100Link: 'https://www.duns100.co.il/rating/התחדשות_עירונית/פינוי_בינוי',
+      source: 'מדד ההתחדשות העירונית + DUNS 100 + BDI Code',
     });
   }
 
@@ -143,27 +484,48 @@ export async function GET(req: NextRequest) {
     found: madlan.found,
     results: madlan.found ? [{
       name: madlan.name,
+      nameEn: '',
       tier: 'C' as const,
-      tierLabel: 'לא נמצא בדירוג DUNS',
+      tierLabel: 'לא נמצא בדירוג',
+      tierLabelEn: 'Not Rated',
       summary: madlan.summary,
-      expertSummary: `יזם שלא נמצא במאגר DUNS100. מומלץ לבדוק היסטוריה וביצועים באתר Madlan ולוודא איתנות פיננסית בטרם התקשרות.`,
-      expertSummaryEn: `Developer not found in DUNS100 database. Recommended to check history and performance on Madlan and verify financial stability before engagement.`,
+      summaryEn: 'Developer found on Madlan. Recommended to check full profile for details.',
+      expertSummary: `יזם שלא נמצא במאגרי הדירוג (DUNS 100, BDI Code, מדד ההתחדשות). מומלץ לבדוק היסטוריה וביצועים באתר Madlan ולוודא איתנות פיננסית בטרם התקשרות.`,
+      expertSummaryEn: `Developer not found in rating databases (DUNS 100, BDI Code, Urban Renewal Index). Recommended to check history and performance on Madlan and verify financial stability before engagement.`,
+      expertBreakdown: {
+        full: `יזם לא מדורג. מומלץ לבדוק ב-Madlan.`,
+        experience: 'לא ידוע — לא נמצא במאגרים',
+        trackRecord: 'לא ידוע — לא נמצא במאגרים',
+        financial: 'לא ידוע — לא נמצא במאגרים',
+      },
+      expertBreakdownEn: {
+        full: `Unrated developer. Check Madlan for details.`,
+        experience: 'Unknown — not found in databases',
+        trackRecord: 'Unknown — not found in databases',
+        financial: 'Unknown — not found in databases',
+      },
       specialties: [],
       totalProjects: 0,
       inConstruction: 0,
       delivered: 0,
       inPlanning: 0,
+      activeUnits: 0,
+      completedOccupancyCount: 0,
       rating: 'לא מדורג',
       yearsInMarket: 0,
       hasCompletedOccupancy: false,
+      publiclyTraded: false,
+      parentGroup: null,
       financialHealth: 'לא ידוע — לא נמצא במאגרים',
       financialHealthEn: 'Unknown — not found in databases',
-      madadLink: `https://madadithadshut.co.il/`,
-      madlanLink: madlan.madlanLink,
       website: null,
+      madadLink: 'https://madadithadshut.co.il/',
+      madlanLink: madlan.madlanLink,
+      duns100Link: 'https://www.duns100.co.il/rating/התחדשות_עירונית/פינוי_בינוי',
+      bdiCodeLink: 'https://www.bdicode.co.il/Company/Category/התחדשות-עירונית',
+      magdilimLink: 'https://magdilim.co.il/התחדשות-עירונית',
     }] : [],
     allDevelopersCount: DEVELOPERS.length,
     source: 'Madlan (fallback)',
-    duns100Link: 'https://www.duns100.co.il/rating/התחדשות_עירונית/פינוי_בינוי',
   });
 }
