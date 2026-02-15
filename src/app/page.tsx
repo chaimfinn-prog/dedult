@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Building2, ChevronLeft, Search, CalendarDays, BarChart3, Globe } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { useLang } from '@/lib/i18n';
 
 const VIDEO_SRC = 'https://videos.pexels.com/video-files/3571264/3571264-hd_1920_1080_25fps.mp4';
@@ -57,15 +58,15 @@ export default function Home() {
                 <Globe className="w-3.5 h-3.5" />
                 {lang === 'he' ? 'EN' : 'עב'}
               </button>
-              <a href="/about" className="text-xs text-foreground-muted hover:text-foreground transition-colors">{t('אודות', 'About')}</a>
-              <a href="/prices" className="text-xs text-foreground-muted hover:text-foreground transition-colors flex items-center gap-1">
+              <Link href="/about" className="text-xs text-foreground-muted hover:text-foreground transition-colors">{t('אודות', 'About')}</Link>
+              <Link href="/prices" className="text-xs text-foreground-muted hover:text-foreground transition-colors flex items-center gap-1">
                 <BarChart3 className="w-3.5 h-3.5" />
                 {t('מקורות מידע', 'Resources')}
-              </a>
-              <a href="/booking" className="text-xs text-foreground-muted hover:text-foreground transition-colors flex items-center gap-1">
+              </Link>
+              <Link href="/booking" className="text-xs text-foreground-muted hover:text-foreground transition-colors flex items-center gap-1">
                 <CalendarDays className="w-3.5 h-3.5" />
                 {t('קביעת ייעוץ', 'Book Consultation')}
-              </a>
+              </Link>
             </div>
           </div>
         </div>
@@ -113,6 +114,16 @@ export default function Home() {
               <span>{t('התחל בדיקה', 'Start Check')}</span>
               <ChevronLeft className="w-4 h-4" />
             </button>
+          </div>
+
+          <div className="mt-6">
+            <Link
+              href="/foreign"
+              className="inline-flex items-center gap-2 px-5 py-3 rounded-xl border border-green/40 text-green hover:bg-green/10 transition-colors"
+            >
+              <Globe className="w-4 h-4" />
+              {t('רכישת דירה מחו"ל', 'Buy Apartment Abroad')}
+            </Link>
           </div>
 
           <div className="mt-8 flex items-center justify-center gap-8 text-xs text-foreground-muted font-medium tracking-widest uppercase">
