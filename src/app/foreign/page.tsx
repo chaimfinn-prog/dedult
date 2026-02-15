@@ -1,234 +1,300 @@
 'use client';
 
-import { FormEvent, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { ArrowRight, Globe, ShieldAlert } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
+import { ArrowRight, Globe, PlayCircle } from 'lucide-react';
 import { useLang } from '@/lib/i18n';
 import { Country } from '@/domain/enums/Country';
 
-type TaxRoute = 'FLAT_15' | 'MARGINAL';
+type LocalizedText = { he: string; en: string };
 
-interface RiskFactorView {
+type RiskSlide = {
   id: string;
-  category: string;
-  severity: number;
-  title: string;
-  description: string;
-}
+  title: LocalizedText;
+  description: LocalizedText;
+  bullets: LocalizedText[];
+  video: string;
+};
 
-interface RiskResponse {
-  overallScore: number;
-  factors: RiskFactorView[];
-  warnings?: string[];
-}
+const COUNTRY_RISK_SLIDES: Record<Country, RiskSlide[]> = {
+  [Country.CYPRUS]: [
+    {
+      id: 'cyprus-closed-market',
+      title: { he: 'שוק סגור למשקיעים ישראלים', en: 'Closed Israeli-focused sub-market' },
+      description: {
+        he: 'כשפרויקט משווק כמעט רק לישראלים, היציאה תלויה בגל משקיעים דומה ולא בביקוש מקומי טבעי.',
+        en: 'When a project is marketed mostly to Israelis, exits depend on similar investor waves rather than natural local demand.',
+      },
+      bullets: [
+        { he: 'סיכון נזילות במכירה מחדש.', en: 'Higher resale liquidity risk.' },
+        { he: 'פער תמחור מול שוק מקומי.', en: 'Potential pricing gap from local market.' },
+        { he: 'רגישות גבוהה לשינויי סנטימנט.', en: 'High sensitivity to sentiment shifts.' },
+      ],
+      video: 'https://videos.pexels.com/video-files/7578552/7578552-hd_1920_1080_30fps.mp4',
+    },
+    {
+      id: 'cyprus-regulatory',
+      title: { he: 'סיכון רגולטורי', en: 'Regulatory uncertainty' },
+      description: {
+        he: 'רגולציה משתנה לגבי רוכשים זרים יכולה להשפיע על היקף הרכישה, זכאות ותנאי שוק.',
+        en: 'Evolving foreign-buyer regulation can affect purchase scope, eligibility and market conditions.',
+      },
+      bullets: [
+        { he: 'מגבלות אפשריות על מספר יחידות.', en: 'Possible limits on number of units.' },
+        { he: 'מגבלות גודל/מיקום.', en: 'Potential size/location restrictions.' },
+        { he: 'צורך בבדיקת עדכון רגולציה שוטפת.', en: 'Need continuous legal updates.' },
+      ],
+      video: 'https://videos.pexels.com/video-files/8730837/8730837-hd_1920_1080_25fps.mp4',
+    },
+    {
+      id: 'cyprus-operations',
+      title: { he: 'ניהול מרחוק ושחיקת תשואה', en: 'Remote management and yield erosion' },
+      description: {
+        he: 'ניהול נכס מרחוק, תחזוקה וחברת ניהול יכולים לשחוק משמעותית את הנטו בפועל.',
+        en: 'Remote operations, maintenance and management fees can materially erode net returns.',
+      },
+      bullets: [
+        { he: 'דמי ניהול גבוהים בהשכרה קצרה.', en: 'Higher management fees for short-term rentals.' },
+        { he: 'עלויות ועד בית ותחזוקה שנתית.', en: 'Annual HOA and maintenance costs.' },
+        { he: 'פער בין תשואת ברוטו לנטו.', en: 'Meaningful gross-to-net gap.' },
+      ],
+      video: 'https://videos.pexels.com/video-files/7656928/7656928-hd_1920_1080_24fps.mp4',
+    },
+  ],
+  [Country.GREECE]: [
+    {
+      id: 'greece-title',
+      title: { he: 'סיכוני רישום וזכויות', en: 'Title and registry risks' },
+      description: {
+        he: 'בחלק מהעסקאות קיימים פערי רישום, עיקולים סמויים או חריגות בנייה שלא הוסדרו.',
+        en: 'Some deals include registry gaps, hidden liens, or unresolved building deviations.',
+      },
+      bullets: [
+        { he: 'נדרש עו״ד מקומי בלתי תלוי.', en: 'Independent local legal review is essential.' },
+        { he: 'חובה לבדוק נסח/רישום מלא.', en: 'Full registry/title extraction required.' },
+        { he: 'בדיקת התאמה הנדסית לנכס.', en: 'Engineering compliance check is critical.' },
+      ],
+      video: 'https://videos.pexels.com/video-files/7195341/7195341-hd_1920_1080_25fps.mp4',
+    },
+    {
+      id: 'greece-bureaucracy',
+      title: { he: 'מורכבות בירוקרטית', en: 'Bureaucratic complexity' },
+      description: {
+        he: 'תהליכי קנייה, רישום והשלמה מערבים מספר גורמים ועלולים להתארך.',
+        en: 'Purchase, registration and closing involve multiple actors and can be delayed.',
+      },
+      bullets: [
+        { he: 'עו״ד + נוטריון + מהנדס – כולם חשובים.', en: 'Lawyer + notary + engineer are all key.' },
+        { he: 'שלבי אישור עם תלות ברשויות.', en: 'Approval stages depend on authorities.' },
+        { he: 'זמן סגירה עלול להתארך.', en: 'Closing timeline may stretch.' },
+      ],
+      video: 'https://videos.pexels.com/video-files/3045163/3045163-hd_1920_1080_24fps.mp4',
+    },
+    {
+      id: 'greece-exit',
+      title: { he: 'סיכון נזילות ביציאה', en: 'Exit liquidity risk' },
+      description: {
+        he: 'תנאי שוק, דמוגרפיה וספי כניסה למשקיעים זרים יכולים להשפיע על קצב המכירה בעתיד.',
+        en: 'Market conditions, demographics and foreign-investor thresholds can impact future exit pace.',
+      },
+      bullets: [
+        { he: 'ביקוש לא אחיד בין אזורים.', en: 'Demand is uneven across locations.' },
+        { he: 'רגישות למחזוריות תיירותית.', en: 'Sensitive to tourism cycles.' },
+        { he: 'היצע מתחרה פוגע במהירות מכירה.', en: 'Competing supply may slow resale.' },
+      ],
+      video: 'https://videos.pexels.com/video-files/5804040/5804040-hd_1920_1080_25fps.mp4',
+    },
+  ],
+  [Country.NORTH_CYPRUS]: [
+    {
+      id: 'north-cyprus-legal',
+      title: { he: 'סיכון משפטי חמור', en: 'Severe legal risk' },
+      description: {
+        he: 'ברכישה בצפון קפריסין קיימים סיכונים משפטיים מהותיים סביב זכויות בעלות והכרה בינלאומית.',
+        en: 'North Cyprus acquisitions carry substantial legal exposure around ownership rights and recognition.',
+      },
+      bullets: [
+        { he: 'סיכון לבעלות שאינה מוכרת בינלאומית.', en: 'Risk of internationally disputed title.' },
+        { he: 'חשיפה למחלוקות בעלות עתידיות.', en: 'Exposure to future ownership disputes.' },
+        { he: 'מורכבות משפטית חוצת מדינות.', en: 'Cross-border legal complexity.' },
+      ],
+      video: 'https://videos.pexels.com/video-files/855564/855564-hd_1920_1080_25fps.mp4',
+    },
+    {
+      id: 'north-cyprus-finance',
+      title: { he: 'סיכון פיננסי ונזילות', en: 'Financial and liquidity risk' },
+      description: {
+        he: 'מימון, ביטוח ואפשרויות יציאה מוגבלות משמעותית ביחס לשווקים מוכרים.',
+        en: 'Financing, insurance and exit options are materially weaker than recognized markets.',
+      },
+      bullets: [
+        { he: 'נגישות מוגבלת למימון בנקאי.', en: 'Limited access to mainstream bank financing.' },
+        { he: 'ביטוח מורכב או יקר.', en: 'Insurance may be limited or expensive.' },
+        { he: 'קושי במימוש מהיר במכירה.', en: 'Fast exit can be difficult.' },
+      ],
+      video: 'https://videos.pexels.com/video-files/7578815/7578815-hd_1920_1080_30fps.mp4',
+    },
+  ],
+};
 
 export default function ForeignPurchasePage() {
   const { lang, toggle } = useLang();
   const t = (he: string, en: string) => (lang === 'he' ? he : en);
 
   const [country, setCountry] = useState<Country>(Country.CYPRUS);
-  const [priceEur, setPriceEur] = useState(250000);
-  const [grossYieldPct, setGrossYieldPct] = useState(7.5);
-  const [rentalMode, setRentalMode] = useState<'LONG_TERM' | 'AIRBNB'>('AIRBNB');
-  const [viaCompany, setViaCompany] = useState(true);
-  const [isIsraeliOnlyProject, setIsIsraeliOnlyProject] = useState(true);
-  const [isNorthCyprus, setIsNorthCyprus] = useState(false);
-  const [usesCyprus60DayRule, setUsesCyprus60DayRule] = useState(false);
-  const [taxRoute, setTaxRoute] = useState<TaxRoute>('MARGINAL');
-  const [holdsViaForeignCompany, setHoldsViaForeignCompany] = useState(false);
-  const [foreignCompanyIsCfc, setForeignCompanyIsCfc] = useState(false);
+  const [started, setStarted] = useState(false);
+  const [slideIndex, setSlideIndex] = useState(0);
 
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [report, setReport] = useState<RiskResponse | null>(null);
+  const slides = useMemo(() => COUNTRY_RISK_SLIDES[country], [country]);
+  const activeSlide = slides[slideIndex];
 
-  const normalizedNorthCyprus = useMemo(
-    () => isNorthCyprus || country === Country.NORTH_CYPRUS,
-    [country, isNorthCyprus],
-  );
 
-  const onSubmit = async (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    setError(null);
-    setLoading(true);
-
-    try {
-      const response = await fetch(`/api/risk/evaluate?locale=${lang}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          profile: {
-            country,
-            priceEur,
-            grossYieldPct,
-            rentalMode,
-            viaCompany,
-            isIsraeliOnlyProject,
-            isNorthCyprus: normalizedNorthCyprus,
-            usesCyprus60DayRule,
-          },
-          israelTax: {
-            taxRoute,
-            holdsViaForeignCompany,
-            foreignCompanyIsCfc,
-          },
-        }),
-      });
-
-      const json = (await response.json()) as RiskResponse & { error?: string };
-
-      if (!response.ok) {
-        throw new Error(json.error ?? t('אירעה שגיאה בחישוב.', 'Failed to evaluate risk.'));
-      }
-
-      setReport(json);
-    } catch (submitError) {
-      setReport(null);
-      setError(submitError instanceof Error ? submitError.message : t('שגיאה לא ידועה.', 'Unknown error.'));
-    } finally {
-      setLoading(false);
+  useEffect(() => {
+    if (!started || slides.length <= 1) {
+      return;
     }
-  };
 
-  return (
-    <main className="min-h-screen px-6 py-10 max-w-6xl mx-auto">
-      <header className="flex items-center justify-between mb-8">
-        <Link href="/" className="text-sm text-foreground-muted hover:text-foreground flex items-center gap-2">
-          <ArrowRight className="w-4 h-4" />
-          {t('חזרה לדף הבית', 'Back to Home')}
-        </Link>
-        <button onClick={toggle} className="text-xs text-foreground-muted hover:text-foreground flex items-center gap-1 bg-transparent border-0">
-          <Globe className="w-4 h-4" />
-          {lang === 'he' ? 'EN' : 'עב'}
-        </button>
-      </header>
+    const timer = window.setInterval(() => {
+      setSlideIndex((current) => (current + 1) % slides.length);
+    }, 8000);
 
-      <section className="grid lg:grid-cols-2 gap-6">
-        <form onSubmit={onSubmit} className="db-card p-6 space-y-4">
-          <h1 className="text-2xl font-bold">{t('רכישת דירה מחו״ל — בדיקת סיכונים', 'Foreign Apartment Purchase — Risk Check')}</h1>
-          <p className="text-sm text-foreground-muted">
-            {t('מלא/י את הפרופיל וקבל/י ציון סיכון וניתוח גורמים מרכזיים.', 'Fill profile data to get a risk score and key risk factors.')}
+    return () => window.clearInterval(timer);
+  }, [started, slides.length]);
+
+  const next = () => setSlideIndex((current) => (current + 1) % slides.length);
+  const prev = () => setSlideIndex((current) => (current - 1 + slides.length) % slides.length);
+
+  if (!started) {
+    return (
+      <main className="min-h-screen flex items-center justify-center px-6 py-10">
+        <section className="w-full max-w-xl db-card p-8 text-center">
+          <div className="flex items-center justify-between mb-6">
+            <Link href="/" className="text-sm text-foreground-muted hover:text-foreground inline-flex items-center gap-2">
+              <ArrowRight className="w-4 h-4" />
+              {t('חזרה לדף הבית', 'Back to Home')}
+            </Link>
+            <button onClick={toggle} className="text-xs text-foreground-muted hover:text-foreground inline-flex items-center gap-1 bg-transparent border-0">
+              <Globe className="w-4 h-4" />
+              {lang === 'he' ? 'EN' : 'עב'}
+            </button>
+          </div>
+
+          <h1 className="text-3xl font-bold mb-3">{t('דוח סיכונים בהשקעה בחו״ל', 'Foreign Investment Risk Report')}</h1>
+          <p className="text-sm text-foreground-muted mb-6">
+            {t('בחר/י מדינה וקבל/י דוח ברור של כל הסיכונים המרכזיים — בפורמט מצגת מונפשת.', 'Choose a country and get a clear slide-style report of the key risks.')}
           </p>
 
-          <label className="block text-sm">
-            {t('מדינה', 'Country')}
-            <select className="w-full mt-1 p-2 rounded-lg bg-black/20 border border-white/10" value={country} onChange={(e) => setCountry(e.target.value as Country)}>
+          <label className="block text-start text-sm mb-4">
+            {t('באיזו מדינה ההשקעה?', 'Which country is the investment in?')}
+            <select
+              className="w-full mt-2 p-3 rounded-lg bg-black/20 border border-white/10"
+              value={country}
+              onChange={(e) => {
+                setCountry(e.target.value as Country);
+                setSlideIndex(0);
+              }}
+            >
               <option value={Country.CYPRUS}>{t('קפריסין', 'Cyprus')}</option>
               <option value={Country.GREECE}>{t('יוון', 'Greece')}</option>
               <option value={Country.NORTH_CYPRUS}>{t('צפון קפריסין', 'North Cyprus')}</option>
             </select>
           </label>
 
-          <div className="grid grid-cols-2 gap-3">
-            <label className="text-sm">
-              {t('מחיר (EUR)', 'Price (EUR)')}
-              <input className="w-full mt-1 p-2 rounded-lg bg-black/20 border border-white/10" type="number" min={1} value={priceEur} onChange={(e) => setPriceEur(Number(e.target.value))} />
-            </label>
-            <label className="text-sm">
-              {t('תשואה גולמית (%)', 'Gross Yield (%)')}
-              <input className="w-full mt-1 p-2 rounded-lg bg-black/20 border border-white/10" type="number" min={0} max={30} step="0.1" value={grossYieldPct} onChange={(e) => setGrossYieldPct(Number(e.target.value))} />
-            </label>
-          </div>
-
-          <label className="block text-sm">
-            {t('מצב השכרה', 'Rental Mode')}
-            <select className="w-full mt-1 p-2 rounded-lg bg-black/20 border border-white/10" value={rentalMode} onChange={(e) => setRentalMode(e.target.value as 'LONG_TERM' | 'AIRBNB')}>
-              <option value="LONG_TERM">{t('לטווח ארוך', 'Long Term')}</option>
-              <option value="AIRBNB">Airbnb</option>
-            </select>
-          </label>
-
-          <div className="grid grid-cols-2 gap-3">
-            <label className="flex items-center gap-2 text-sm">
-              <input type="checkbox" checked={viaCompany} onChange={(e) => setViaCompany(e.target.checked)} />
-              {t('דרך חברה', 'Via company')}
-            </label>
-            <label className="flex items-center gap-2 text-sm">
-              <input type="checkbox" checked={isIsraeliOnlyProject} onChange={(e) => setIsIsraeliOnlyProject(e.target.checked)} />
-              {t('פרויקט ישראלי סגור', 'Israeli-only project')}
-            </label>
-            <label className="flex items-center gap-2 text-sm">
-              <input type="checkbox" checked={isNorthCyprus} onChange={(e) => setIsNorthCyprus(e.target.checked)} />
-              {t('השקעה בצפון קפריסין', 'North Cyprus exposure')}
-            </label>
-            <label className="flex items-center gap-2 text-sm">
-              <input type="checkbox" checked={usesCyprus60DayRule} onChange={(e) => setUsesCyprus60DayRule(e.target.checked)} />
-              {t('שימוש בכלל 60 יום', 'Using 60-day rule')}
-            </label>
-          </div>
-
-          <label className="block text-sm">
-            {t('מסלול מס ישראלי', 'Israel tax route')}
-            <select className="w-full mt-1 p-2 rounded-lg bg-black/20 border border-white/10" value={taxRoute} onChange={(e) => setTaxRoute(e.target.value as TaxRoute)}>
-              <option value="MARGINAL">{t('מסלול שולי', 'Marginal')}</option>
-              <option value="FLAT_15">{t('15% קבוע', 'Flat 15%')}</option>
-            </select>
-          </label>
-
-          <div className="grid grid-cols-2 gap-3">
-            <label className="flex items-center gap-2 text-sm">
-              <input type="checkbox" checked={holdsViaForeignCompany} onChange={(e) => setHoldsViaForeignCompany(e.target.checked)} />
-              {t('החזקה דרך חברה זרה', 'Hold via foreign company')}
-            </label>
-            <label className="flex items-center gap-2 text-sm">
-              <input type="checkbox" checked={foreignCompanyIsCfc} onChange={(e) => setForeignCompanyIsCfc(e.target.checked)} />
-              {t('החברה מוגדרת CFC', 'Foreign company is CFC')}
-            </label>
-          </div>
-
-          <button disabled={loading} className="btn-green w-full h-12 rounded-xl disabled:opacity-60">
-            {loading ? t('מחשב...', 'Calculating...') : t('חשב סיכונים', 'Evaluate Risks')}
+          <button onClick={() => setStarted(true)} className="btn-green w-full h-12 rounded-xl inline-flex items-center justify-center gap-2">
+            <PlayCircle className="w-4 h-4" />
+            {t('הצג דוח סיכונים', 'Show Risk Report')}
           </button>
-
-          {error && <p className="text-sm text-red-400">{error}</p>}
-        </form>
-
-        <section className="db-card p-6 space-y-4">
-          <h2 className="text-xl font-semibold">{t('תוצאות ניתוח', 'Analysis Result')}</h2>
-
-          {!report && (
-            <p className="text-sm text-foreground-muted">
-              {t('לאחר חישוב יוצגו כאן ציון הסיכון והגורמים המרכזיים.', 'Run evaluation to view score and detailed risk factors here.')}
-            </p>
-          )}
-
-          {report && (
-            <>
-              <div className="rounded-xl border border-white/10 p-4 bg-black/20">
-                <p className="text-sm text-foreground-muted">{t('ציון סיכון כולל', 'Overall Risk Score')}</p>
-                <p className="text-4xl font-bold">{report.overallScore}/100</p>
-              </div>
-
-              {report.warnings?.length ? (
-                <div className="rounded-xl border border-amber-500/30 p-4 bg-amber-500/5 text-sm">
-                  {report.warnings.map((warning) => (
-                    <p key={warning}>{warning}</p>
-                  ))}
-                </div>
-              ) : null}
-
-              <div className="space-y-3 max-h-[55vh] overflow-auto pr-1">
-                {report.factors.map((factor) => (
-                  <article key={factor.id} className="rounded-xl border border-white/10 p-4 bg-black/20">
-                    <div className="flex items-start justify-between gap-2">
-                      <h3 className="font-semibold">{factor.title}</h3>
-                      <span className="text-xs px-2 py-1 rounded-full bg-red-500/15 text-red-300">
-                        {t('חומרה', 'Severity')}: {factor.severity}/5
-                      </span>
-                    </div>
-                    <p className="text-sm text-foreground-muted mt-2">{factor.description}</p>
-                    <p className="text-xs text-foreground-muted mt-2">{t('קטגוריה', 'Category')}: {factor.category}</p>
-                  </article>
-                ))}
-              </div>
-            </>
-          )}
-
-          <div className="text-xs text-foreground-muted flex items-center gap-2 pt-2">
-            <ShieldAlert className="w-4 h-4" />
-            {t('הפלט אינפורמטיבי בלבד ואינו ייעוץ משפטי/מס.', 'Output is informational only and not legal/tax advice.')}
-          </div>
         </section>
+      </main>
+    );
+  }
+
+  return (
+    <main className="relative min-h-screen overflow-hidden">
+      <AnimatePresence mode="wait">
+        <motion.video
+          key={activeSlide.id}
+          autoPlay
+          muted
+          loop
+          playsInline
+          className="absolute inset-0 w-full h-full object-cover"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.45 }}
+        >
+          <source src={activeSlide.video} type="video/mp4" />
+        </motion.video>
+      </AnimatePresence>
+
+      <div className="absolute inset-0 bg-black/65" />
+
+      <section className="relative z-10 min-h-screen max-w-5xl mx-auto px-6 py-8 flex flex-col">
+        <header className="flex items-center justify-between mb-6">
+          <Link href="/foreign" onClick={() => setStarted(false)} className="text-sm text-foreground-muted hover:text-foreground inline-flex items-center gap-2">
+            <ArrowRight className="w-4 h-4" />
+            {t('בחירת מדינה מחדש', 'Choose Country Again')}
+          </Link>
+
+          <div className="flex items-center gap-3">
+            <button onClick={toggle} className="text-xs text-foreground-muted hover:text-foreground inline-flex items-center gap-1 bg-transparent border-0">
+              <Globe className="w-4 h-4" />
+              {lang === 'he' ? 'EN' : 'עב'}
+            </button>
+            <span className="text-xs px-3 py-1 rounded-full border border-white/20">
+              {t('דוח סיכונים בלבד', 'Risk report only')}
+            </span>
+          </div>
+        </header>
+
+        <AnimatePresence mode="wait">
+          <motion.article
+            key={activeSlide.id + lang}
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.35 }}
+            className="db-card p-8 backdrop-blur-md bg-[rgba(0,0,0,0.45)] border border-white/20"
+          >
+            <p className="text-xs text-foreground-muted mb-2">
+              {t('שקופית', 'Slide')} {slideIndex + 1} / {slides.length}
+            </p>
+            <h2 className="text-3xl font-bold mb-3">{activeSlide.title[lang]}</h2>
+            <p className="text-lg text-foreground-muted mb-6">{activeSlide.description[lang]}</p>
+
+            <ul className="space-y-3">
+              {activeSlide.bullets.map((bullet) => (
+                <li key={bullet.he} className="p-4 rounded-xl bg-black/35 border border-white/10">
+                  {bullet[lang]}
+                </li>
+              ))}
+            </ul>
+          </motion.article>
+        </AnimatePresence>
+
+        <footer className="mt-6 flex flex-col gap-4">
+          <div className="flex items-center justify-center gap-2">
+            {slides.map((slide, idx) => (
+              <button
+                key={slide.id}
+                onClick={() => setSlideIndex(idx)}
+                className={`h-2 rounded-full transition-all ${idx === slideIndex ? 'w-8 bg-green' : 'w-2 bg-white/40'}`}
+                aria-label={`slide-${idx + 1}`}
+              />
+            ))}
+          </div>
+
+          <div className="flex items-center justify-between gap-3">
+            <button onClick={prev} className="px-4 py-2 rounded-lg border border-white/20 hover:bg-white/10 transition-colors">
+              {t('הקודם', 'Previous')}
+            </button>
+            <button onClick={next} className="px-4 py-2 rounded-lg border border-white/20 hover:bg-white/10 transition-colors">
+              {t('הבא', 'Next')}
+            </button>
+          </div>
+        </footer>
       </section>
     </main>
   );

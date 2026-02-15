@@ -122,7 +122,7 @@ export default function Home() {
               className="inline-flex items-center gap-2 px-5 py-3 rounded-xl border border-green/40 text-green hover:bg-green/10 transition-colors"
             >
               <Globe className="w-4 h-4" />
-              {t('רכישת דירה מחו"ל', 'Buy Apartment Abroad')}
+              {t('דוח סיכונים בהשקעה בחו"ל', 'Foreign Investment Risk Report')}
             </Link>
           </div>
 
