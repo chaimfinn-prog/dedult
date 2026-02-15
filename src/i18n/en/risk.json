@@ -1,0 +1,80 @@
+{
+  "risk": {
+    "cyprus": {
+      "closed_israeli_market": {
+        "title": "Closed Israeli-only sub-market",
+        "description": "The asset sits in a project marketed almost exclusively to Israelis, detached from local housing demand, which creates exit liquidity risk."
+      },
+      "corporate_tax_2026": {
+        "title": "Cyprus corporate tax hike impact",
+        "description": "Cyprus corporate tax increased to 15% from 2026, eroding net yields for company-based structures."
+      },
+      "personal_tax_reporting_2026": {
+        "title": "Personal tax and reporting burden",
+        "description": "Using the 60-day route can trigger annual filing duties and local progressive tax exposure."
+      },
+      "foreign_purchase_restrictions": {
+        "title": "Regulatory restrictions for non-EU buyers",
+        "description": "2026 proposals include one-unit limits, area caps and restrictions near sensitive infrastructure."
+      },
+      "remote_management_costs": {
+        "title": "Remote management yield erosion",
+        "description": "Cross-border management fees, HOA and maintenance reserve materially reduce gross-to-net yield."
+      }
+    },
+    "greece": {
+      "ktimatologio_title_gaps": {
+        "title": "Greek land registry and title gaps",
+        "description": "Many properties still suffer from imperfect registration, hidden liens, inheritance issues and unregularized building deviations."
+      },
+      "bureaucracy_complexity": {
+        "title": "Bureaucratic complexity",
+        "description": "Greek transactions typically require independent local lawyer, notary and engineer workflows."
+      },
+      "high_closing_costs": {
+        "title": "High closing costs",
+        "description": "Acquisition and closing costs can reach 8% to 12% of deal value in Greece."
+      },
+      "municipal_debts_tap": {
+        "title": "Hidden municipal debt (TAP)",
+        "description": "Municipal debt can transfer to new owners and create unexpected liabilities."
+      },
+      "demographic_headwinds": {
+        "title": "Demographic headwinds",
+        "description": "Negative natural growth and youth emigration can impact long-term demand in some segments."
+      },
+      "remote_management_costs": {
+        "title": "Remote management and maintenance",
+        "description": "Remote operation from Israel can materially compress net rental returns."
+      },
+      "golden_visa_thresholds": {
+        "title": "Golden Visa threshold exit risk",
+        "description": "Higher minimum investment thresholds can reduce foreign demand in hot zones and hurt exit liquidity."
+      }
+    },
+    "north_cyprus": {
+      "criminal_ownership": {
+        "title": "Criminal ownership exposure in North Cyprus",
+        "description": "Acquiring disputed property can lead to criminal and cross-border enforcement risk."
+      },
+      "black_market_liquidity": {
+        "title": "Severe black-market liquidity risk",
+        "description": "Limited institutional financing and insurance can make exits exceptionally difficult."
+      }
+    },
+    "israel": {
+      "form150_cfc_enforcement": {
+        "title": "Form 150 / CFC enforcement exposure",
+        "description": "CRS data matching and stricter Form 150 enforcement increase reporting and penalty risk."
+      },
+      "flat15_double_tax": {
+        "title": "Flat 15% route: double-tax risk",
+        "description": "The gross 15% route without foreign tax credit can materially increase total effective tax burden."
+      },
+      "marginal_route_complexity": {
+        "title": "Marginal route compliance complexity",
+        "description": "Marginal taxation is operationally heavier but allows deductions and foreign tax credit alignment."
+      }
+    }
+  }
+}
