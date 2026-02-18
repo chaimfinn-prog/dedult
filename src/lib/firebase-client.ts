@@ -1,6 +1,7 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getAnalytics, isSupported, Analytics } from 'firebase/analytics';
 import { getDatabase, Database } from 'firebase/database';
+import { getStorage, FirebaseStorage } from 'firebase/storage';
 
 const firebaseConfig = {
   apiKey: 'AIzaSyClyYBe-mKyR0lRyjg70JHlcbJMbLLUvp4',
@@ -18,6 +19,9 @@ const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
 
 // Realtime Database
 export const db: Database = getDatabase(app);
+
+// Storage
+export const storage: FirebaseStorage = getStorage(app);
 
 // Analytics — only in browser (not during SSR)
 let analyticsInstance: Analytics | null = null;

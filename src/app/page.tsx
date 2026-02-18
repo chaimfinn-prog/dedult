@@ -1,6 +1,6 @@
 'use client';
 
-import { Building2, Globe, CalendarDays, Home as HomeIcon, Plane, Hammer, Sprout, ChevronLeft, ArrowRight } from 'lucide-react';
+import { Building2, Globe, CalendarDays, Home as HomeIcon, Plane, Hammer, Sprout, HardHat, ChevronLeft, ArrowRight } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useLang } from '@/lib/i18n';
 
@@ -59,6 +59,19 @@ const TILES = [
     bgGradient: 'linear-gradient(135deg, rgba(248,81,73,0.12) 0%, rgba(248,81,73,0.04) 100%)',
     borderColor: 'rgba(248,81,73,0.25)',
     image: 'https://images.unsplash.com/photo-1500382017468-9049fed747ef?auto=format&fit=crop&w=800&q=80',
+  },
+  {
+    id: 'developer',
+    href: '/developer-portal',
+    icon: HardHat,
+    labelHe: 'פורטל יזמים',
+    labelEn: 'Developer Portal',
+    subtitleHe: 'זכויות בנייה וכדאיות כלכלית',
+    subtitleEn: 'Building Rights & Feasibility',
+    color: '#a78bfa',
+    bgGradient: 'linear-gradient(135deg, rgba(167,139,250,0.12) 0%, rgba(167,139,250,0.04) 100%)',
+    borderColor: 'rgba(167,139,250,0.25)',
+    image: 'https://images.unsplash.com/photo-1541888946425-d81bb19240f5?auto=format&fit=crop&w=800&q=80',
   },
 ];
 
@@ -122,15 +135,16 @@ export default function Home() {
             </p>
           </div>
 
-          {/* 4-Tile Decision Matrix */}
+          {/* Decision Matrix */}
           <div className="w-full max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-5">
-            {TILES.map((tile) => {
+            {TILES.map((tile, idx) => {
               const Icon = tile.icon;
+              const isLast = idx === TILES.length - 1 && TILES.length % 2 === 1;
               return (
                 <button
                   key={tile.id}
                   onClick={() => router.push(tile.href)}
-                  className="group relative rounded-2xl overflow-hidden text-right transition-all duration-300 cursor-pointer border-0 hover:scale-[1.02] hover:shadow-2xl"
+                  className={`group relative rounded-2xl overflow-hidden text-right transition-all duration-300 cursor-pointer border-0 hover:scale-[1.02] hover:shadow-2xl${isLast ? ' md:col-span-2 md:max-w-[calc(50%-10px)] md:mx-auto' : ''}`}
                   style={{
                     background: tile.bgGradient,
                     border: `1px solid ${tile.borderColor}`,
