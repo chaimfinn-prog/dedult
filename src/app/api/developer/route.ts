@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { DEVELOPERS_DB, NAME_GROUPS, type DeveloperRecord } from '@/data/developers-db';
 
 interface DeveloperInfo {
   name: string;
@@ -497,6 +498,151 @@ function matchDeveloper(query: string): DeveloperInfo[] {
   return fuzzy;
 }
 
+// ── DEVELOPERS_DB Cross-Reference & Direct Matching ──
+
+/** Find a developer in DEVELOPERS_DB by name, using NAME_GROUPS for variant resolution */
+function findInDevelopersDB(name: string): DeveloperRecord | null {
+  const q = normalizeName(name);
+  if (!q) return null;
+
+  // Direct exact match
+  const direct = DEVELOPERS_DB.find(d => normalizeName(d.name) === q);
+  if (direct) return direct;
+
+  // Substring match (with length sanity check)
+  const substring = DEVELOPERS_DB.find(d => {
+    const dn = normalizeName(d.name);
+    return (dn.includes(q) || q.includes(dn)) && Math.abs(dn.length - q.length) < 10;
+  });
+  if (substring) return substring;
+
+  // Check NAME_GROUPS: resolve variant names to canonical entry
+  for (const [canonical, variants] of Object.entries(NAME_GROUPS) as [string, string[]][]) {
+    const allNames = [canonical, ...variants];
+    for (const vname of allNames) {
+      const vn = normalizeName(vname);
+      if (vn === q || (vn.includes(q) && Math.abs(vn.length - q.length) < 10) ||
+          (q.includes(vn) && Math.abs(vn.length - q.length) < 10)) {
+        const canonicalNorm = normalizeName(canonical);
+        return DEVELOPERS_DB.find(d => normalizeName(d.name) === canonicalNorm) ?? null;
+      }
+    }
+  }
+
+  return null;
+}
+
+/** Match developers directly from DEVELOPERS_DB (for names not in old DEVELOPERS array) */
+function matchDevelopersDBDirect(query: string): DeveloperRecord[] {
+  const q = normalizeName(query);
+  if (!q) return [];
+
+  const matched = new Set<string>();
+  const results: DeveloperRecord[] = [];
+
+  // Phase 1: Exact/substring match
+  for (const d of DEVELOPERS_DB) {
+    const name = normalizeName(d.name);
+    if (name.includes(q) || q.includes(name)) {
+      if (!matched.has(d.name)) { matched.add(d.name); results.push(d); }
+    } else {
+      const qWords = q.split(/\s+/);
+      if (qWords.some(w => w.length > 2 && name.includes(w))) {
+        if (!matched.has(d.name)) { matched.add(d.name); results.push(d); }
+      }
+    }
+  }
+
+  // Also check NAME_GROUPS variants
+  for (const [canonical, variants] of Object.entries(NAME_GROUPS) as [string, string[]][]) {
+    const allNames = [canonical, ...variants];
+    for (const vname of allNames) {
+      const vn = normalizeName(vname);
+      if (vn.includes(q) || q.includes(vn) || q.split(/\s+/).some(w => w.length > 2 && vn.includes(w))) {
+        const canonicalNorm = normalizeName(canonical);
+        const entry = DEVELOPERS_DB.find(d => normalizeName(d.name) === canonicalNorm);
+        if (entry && !matched.has(entry.name)) {
+          matched.add(entry.name); results.push(entry);
+        }
+        break;
+      }
+    }
+  }
+
+  if (results.length > 0) return results;
+
+  // Phase 2: Fuzzy match (Levenshtein distance ≤ 2)
+  const fuzzy: DeveloperRecord[] = [];
+  for (const d of DEVELOPERS_DB) {
+    const name = normalizeName(d.name);
+    if (q.length >= 3 && name.length >= 3 && levenshtein(q, name) <= 2) {
+      fuzzy.push(d);
+      continue;
+    }
+    const qWords = q.split(/\s+/).filter(w => w.length >= 3);
+    const nameWords = name.split(/\s+/).filter(w => w.length >= 3);
+    if (qWords.some(qw => nameWords.some(nw => levenshtein(qw, nw) <= 2))) {
+      fuzzy.push(d);
+    }
+  }
+
+  return fuzzy;
+}
+
+/** Count total unique developers across both databases */
+function getUniqueDeveloperCount(): number {
+  const allNames = new Set<string>();
+  for (const d of DEVELOPERS) allNames.add(normalizeName(d.name));
+  for (const d of DEVELOPERS_DB) allNames.add(normalizeName(d.name));
+  return allNames.size;
+}
+
+/** Convert a DEVELOPERS_DB record to a response object with defaults for missing fields */
+function dbRecordToResponseFields(d: DeveloperRecord) {
+  return {
+    name: d.name,
+    nameEn: '',
+    tier: d.tier,
+    tierLabel: d.tier === 'A' ? 'דירוג עליון' : d.tier === 'B' ? 'נכלל בדירוג' : 'מוכר בשוק',
+    tierLabelEn: d.tier === 'A' ? 'Top Rated' : d.tier === 'B' ? 'Rated' : 'Known',
+    summary: d.expertOpinion,
+    summaryEn: '',
+    expertSummary: d.expertOpinion,
+    expertSummaryEn: '',
+    expertBreakdown: {
+      full: d.expertOpinion,
+      experience: 'נתון ממאגר יזמים',
+      trackRecord: `${d.totalProjects} פרויקטים סה"כ (${d.delivered} נמסרו, ${d.inConstruction} בבנייה)`,
+      financial: `איתנות פיננסית: ${d.financialHealth}`,
+    },
+    expertBreakdownEn: {
+      full: '',
+      experience: 'From developer database',
+      trackRecord: `${d.totalProjects} total projects (${d.delivered} delivered, ${d.inConstruction} in construction)`,
+      financial: `Financial health: ${d.financialHealth}`,
+    },
+    specialties: ['התחדשות עירונית'],
+    totalProjects: d.totalProjects,
+    inConstruction: d.inConstruction,
+    delivered: d.delivered,
+    inPlanning: 0,
+    activeUnits: 0,
+    completedOccupancyCount: d.delivered,
+    rating: d.rating,
+    overallScore: d.overallScore,
+    riskLevel: d.riskLevel,
+    yearsInMarket: 0,
+    hasCompletedOccupancy: d.delivered > 0,
+    publiclyTraded: false,
+    parentGroup: null,
+    financialHealth: d.financialHealth,
+    financialHealthEn: '',
+    website: null,
+    databaseAppearances: d.databaseAppearances,
+    expertOpinion: d.expertOpinion,
+  };
+}
+
 // ── Madlan fallback ──
 
 async function fetchMadlanDeveloper(query: string): Promise<{ found: boolean; name: string; summary: string; madlanLink: string }> {
@@ -607,14 +753,29 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Missing query parameter (q)' }, { status: 400 });
   }
 
+  const uniqueCount = getUniqueDeveloperCount();
+
+  // ── Step 1: Try matching in old DEVELOPERS array (richest data) ──
   const matches = matchDeveloper(q);
 
-  // Found in database
   if (matches.length > 0) {
     const results = await Promise.all(matches.map(async (d) => {
       const expertHe = generateExpertSummary(d, 'he');
       const expertEn = generateExpertSummary(d, 'en');
       const links = await generateVerificationLinks(d);
+
+      // Cross-reference with DEVELOPERS_DB for authoritative scores
+      const dbMatch = findInDevelopersDB(d.name);
+
+      // Merge authoritative data from DEVELOPERS_DB when available
+      const overallScore = dbMatch?.overallScore ?? 0;
+      const riskLevel = dbMatch?.riskLevel ?? (d.tier === 'A' ? 'סיכון נמוך' : d.tier === 'B' ? 'סיכון בינוני' : 'סיכון גבוה');
+      const mergedRating = dbMatch?.rating ?? d.rating;
+      const mergedTotalProjects = dbMatch?.totalProjects ?? d.totalProjects;
+      const mergedInConstruction = dbMatch?.inConstruction ?? d.inConstruction;
+      const mergedDelivered = dbMatch?.delivered ?? d.delivered;
+      const mergedFinancialHealth = dbMatch?.financialHealth ?? d.financialHealth;
+      const mergedExpertOpinion = dbMatch?.expertOpinion ?? d.expertOpinion;
 
       return {
         name: d.name,
@@ -629,22 +790,24 @@ export async function GET(req: NextRequest) {
         expertBreakdown: expertHe,
         expertBreakdownEn: expertEn,
         specialties: d.specialties,
-        totalProjects: d.totalProjects,
-        inConstruction: d.inConstruction,
-        delivered: d.delivered,
+        totalProjects: mergedTotalProjects,
+        inConstruction: mergedInConstruction,
+        delivered: mergedDelivered,
         inPlanning: d.inPlanning,
         activeUnits: d.activeUnits,
         completedOccupancyCount: d.completedOccupancyCount,
-        rating: d.rating,
+        rating: mergedRating,
+        overallScore,
+        riskLevel,
         yearsInMarket: d.yearsInMarket,
         hasCompletedOccupancy: d.hasCompletedOccupancy,
         publiclyTraded: d.publiclyTraded,
         parentGroup: d.parentGroup ?? null,
-        financialHealth: d.financialHealth,
+        financialHealth: mergedFinancialHealth,
         financialHealthEn: d.financialHealthEn,
         website: d.website ?? null,
         databaseAppearances: d.databaseAppearances ?? [],
-        expertOpinion: d.expertOpinion ?? '',
+        expertOpinion: mergedExpertOpinion,
         ...links,
       };
     }));
@@ -653,12 +816,47 @@ export async function GET(req: NextRequest) {
       query: q,
       found: true,
       results,
-      allDevelopersCount: DEVELOPERS.length,
-      source: 'מדד ההתחדשות העירונית + DUNS 100 + BDI Code',
+      allDevelopersCount: uniqueCount,
+      source: 'מדד ההתחדשות העירונית + DUNS 100 + BDI Code + מאגר יזמים',
     });
   }
 
-  // Fallback: Try Madlan
+  // ── Step 2: Try matching directly in DEVELOPERS_DB ──
+  const dbMatches = matchDevelopersDBDirect(q);
+
+  if (dbMatches.length > 0) {
+    const results = await Promise.all(dbMatches.map(async (d) => {
+      const resp = dbRecordToResponseFields(d);
+
+      // Generate verification links using slug from the new DB
+      const madadUrl = `https://madadithadshut.co.il/company/${encodeURIComponent(d.slug)}/`;
+      const madlanUrl = `https://www.madlan.co.il/developers/${encodeURIComponent(d.slug)}`;
+      const [madadValid, madlanValid] = await Promise.all([
+        validateLink(madadUrl),
+        validateLink(madlanUrl),
+      ]);
+
+      return {
+        ...resp,
+        madadLink: madadValid ? madadUrl : PORTAL_FALLBACKS.madadLink,
+        madlanLink: madlanValid ? madlanUrl : PORTAL_FALLBACKS.madlanLink,
+        duns100Link: PORTAL_FALLBACKS.duns100Link,
+        bdiCodeLink: PORTAL_FALLBACKS.bdiCodeLink,
+        magdilimLink: PORTAL_FALLBACKS.magdilimLink,
+        linksValidated: true,
+      };
+    }));
+
+    return NextResponse.json({
+      query: q,
+      found: true,
+      results,
+      allDevelopersCount: uniqueCount,
+      source: 'מאגר יזמי התחדשות עירונית',
+    });
+  }
+
+  // ── Step 3: Fallback to Madlan ──
   const madlan = await fetchMadlanDeveloper(q);
 
   return NextResponse.json({
@@ -694,6 +892,8 @@ export async function GET(req: NextRequest) {
       activeUnits: 0,
       completedOccupancyCount: 0,
       rating: 'לא מדורג',
+      overallScore: 0,
+      riskLevel: 'לא ידוע',
       yearsInMarket: 0,
       hasCompletedOccupancy: false,
       publiclyTraded: false,
@@ -709,7 +909,7 @@ export async function GET(req: NextRequest) {
       bdiCodeLink: 'https://www.bdicode.co.il/Company/Category/התחדשות-עירונית',
       magdilimLink: 'https://magdilim.co.il/התחדשות-עירונית',
     }] : [],
-    allDevelopersCount: DEVELOPERS.length,
+    allDevelopersCount: uniqueCount,
     source: 'Madlan (fallback)',
   });
 }

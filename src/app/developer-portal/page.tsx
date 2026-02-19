@@ -2,7 +2,7 @@
 
 import {
   Building2, ArrowRight, Globe, Ruler, Calculator,
-  ChevronLeft, HardHat, ExternalLink, Clock,
+  ChevronLeft, HardHat, ExternalLink,
 } from 'lucide-react';
 import { useLang } from '@/lib/i18n';
 
@@ -160,15 +160,14 @@ export default function DeveloperPortalPage() {
             </div>
           </div>
 
-          {/* Card 2 — Economic Feasibility (Coming Soon) */}
+          {/* Card 2 — Economic Feasibility */}
           <div
-            className="rounded-2xl overflow-hidden relative"
+            className="rounded-2xl overflow-hidden transition-all duration-300 hover:scale-[1.02] hover:shadow-2xl"
             style={{
-              background: 'rgba(255,255,255,0.50)',
+              background: 'rgba(255,255,255,0.88)',
               backdropFilter: 'blur(16px)',
-              border: '1px solid rgba(255,255,255,0.15)',
+              border: '1px solid rgba(255,255,255,0.3)',
               color: '#1a1a2e',
-              opacity: 0.7,
             }}
           >
             <div className="p-6 sm:p-8">
@@ -177,52 +176,50 @@ export default function DeveloperPortalPage() {
                 <div
                   className="w-14 h-14 rounded-xl flex items-center justify-center flex-shrink-0"
                   style={{
-                    background: 'rgba(0,0,0,0.05)',
-                    border: '1px solid rgba(0,0,0,0.08)',
+                    background: 'rgba(167,139,250,0.12)',
+                    border: '1px solid rgba(167,139,250,0.25)',
                   }}
                 >
-                  <Calculator className="w-7 h-7" style={{ color: '#9ca3af' }} />
+                  <Calculator className="w-7 h-7" style={{ color: '#a78bfa' }} />
                 </div>
                 <span
-                  className="text-[10px] font-bold px-2.5 py-1 rounded-full flex items-center gap-1"
+                  className="text-[10px] font-bold px-2.5 py-1 rounded-full"
                   style={{
-                    background: 'rgba(0,0,0,0.06)',
-                    color: '#6b7280',
-                    border: '1px solid rgba(0,0,0,0.08)',
+                    background: 'rgba(167,139,250,0.1)',
+                    color: '#7c3aed',
+                    border: '1px solid rgba(167,139,250,0.25)',
                   }}
                 >
-                  <Clock className="w-3 h-3" />
-                  {t('\u05D1\u05E7\u05E8\u05D5\u05D1', 'Coming Soon')}
+                  {t('תמ"א 38/2', 'TMA 38/2')}
                 </span>
               </div>
 
               {/* Title */}
-              <h3 className="text-lg font-bold mb-2" style={{ color: '#6b7280' }}>
-                {t(
-                  '\u05D1\u05D3\u05D9\u05E7\u05EA \u05DB\u05D3\u05D0\u05D9\u05D5\u05EA \u05DB\u05DC\u05DB\u05DC\u05D9\u05EA',
-                  'Economic Feasibility Check'
-                )}
+              <h3 className="text-lg font-bold mb-2" style={{ color: '#1a1a2e' }}>
+                {t('בדיקת כדאיות כלכלית', 'Economic Feasibility Check')}
               </h3>
 
               {/* Description */}
-              <p className="text-sm leading-relaxed mb-6" style={{ color: '#9ca3af' }}>
+              <p className="text-sm leading-relaxed mb-6" style={{ color: '#4a4a6a' }}>
                 {t(
-                  '\u05E0\u05D9\u05EA\u05D5\u05D7 \u05DB\u05DC\u05DB\u05DC\u05D9 \u05DE\u05E7\u05D9\u05E3 \u05DC\u05E4\u05E8\u05D5\u05D9\u05E7\u05D8 \u05D4\u05EA\u05D7\u05D3\u05E9\u05D5\u05EA \u2014 \u05D4\u05DB\u05E0\u05E1\u05D5\u05EA, \u05E2\u05DC\u05D5\u05D9\u05D5\u05EA \u05D5\u05E8\u05D5\u05D5\u05D7\u05D9\u05D5\u05EA',
-                  'Comprehensive economic analysis for renewal projects \u2014 revenue, costs & profitability'
+                  'ניתוח כלכלי מקיף לפרויקט התחדשות — הכנסות, עלויות בנייה, מיסים, היטלים ורווחיות צפויה. כל ההנחות ניתנות לעריכה.',
+                  'Comprehensive economic analysis for renewal projects — revenue, construction costs, taxes, levies & profitability. All assumptions editable.'
                 )}
               </p>
 
-              {/* Disabled CTA */}
-              <span
-                className="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-bold"
+              {/* CTA Button */}
+              <a
+                href="/developer-portal/rights-calculator"
+                className="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-bold text-white transition-all duration-200 hover:shadow-lg hover:opacity-90"
                 style={{
-                  background: 'rgba(0,0,0,0.06)',
-                  color: '#9ca3af',
-                  cursor: 'not-allowed',
+                  background: 'linear-gradient(135deg, #a78bfa 0%, #7c3aed 100%)',
+                  boxShadow: '0 4px 16px rgba(167,139,250,0.35)',
+                  textDecoration: 'none',
                 }}
               >
-                {t('\u05D1\u05E7\u05E8\u05D5\u05D1', 'Coming Soon')}
-              </span>
+                {t('חשב זכויות → כדאיות', 'Calculate Rights → Feasibility')}
+                <ChevronLeft className="w-4 h-4" />
+              </a>
             </div>
           </div>
         </div>

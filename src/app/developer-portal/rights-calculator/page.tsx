@@ -67,6 +67,7 @@ function getBuildingCoefficient(floors: number): number {
 interface CalcResult {
   // Step 1
   coveragePercentage: number;
+  coverageArea: number;
   // Step 2
   buildingCoefficient: number;
   // Step 3
@@ -85,6 +86,8 @@ interface CalcResult {
   balconiesDeduction: number;
   laundryDeduction: number;
   spacesDeduction: number;
+  storageDeduction: number;
+  undergroundParkingArea: number;
   totalDeductions: number;
   netBuildableArea: number;
   numFloors: number;
@@ -100,6 +103,12 @@ interface CalcResult {
   // Step 10
   parkingSpaces: number;
   undergroundLevels: number;
+  parkingAreaTotal: number;
+  // Extra: existing building info
+  existingBuildArea: number;
+  newAddedArea: number;
+  // Constraint flag
+  constraintReduction: number;
 }
 
 // ── Component ────────────────────────────────────────────────
@@ -117,9 +126,15 @@ export default function RightsCalculatorPage() {
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [blockNumber, setBlockNumber] = useState('');
   const [parcelNumber, setParcelNumber] = useState('');
+  const [addressRaw, setAddressRaw] = useState('');
   const [plotWidthRaw, setPlotWidthRaw] = useState('');
   const [aptsPerFloorRaw, setAptsPerFloorRaw] = useState('');
+  const [existingAptsRaw, setExistingAptsRaw] = useState('');
+  const [existingPenthousesRaw, setExistingPenthousesRaw] = useState('');
+  const [typicalFloorAreaRaw, setTypicalFloorAreaRaw] = useState('');
   const [isCornerPlot, setIsCornerPlot] = useState(false);
+  const [mergeWithAdjacent, setMergeWithAdjacent] = useState(false);
+  const [hasSpecialConstraint, setHasSpecialConstraint] = useState(false);
 
   // ── Calculation state ──
   const [hasCalculated, setHasCalculated] = useState(false);
@@ -129,6 +144,9 @@ export default function RightsCalculatorPage() {
   const plotArea = parseNum(plotAreaRaw);
   const existingFloors = parseInt(existingFloorsRaw, 10) || 0;
   const aptsPerFloor = parseInt(aptsPerFloorRaw, 10) || 7;
+  const existingApts = parseInt(existingAptsRaw, 10) || 0;
+  const existingPenthouses = parseInt(existingPenthousesRaw, 10) || 0;
+  const typicalFloorArea = parseNum(typicalFloorAreaRaw) || 0;
 
   // ── Validation ──
   const plotAreaValid = plotArea >= 100 && plotArea <= 10000;
@@ -137,60 +155,95 @@ export default function RightsCalculatorPage() {
   const floorsTouched = existingFloorsRaw.length > 0;
   const formValid = plotAreaValid && floorsValid;
 
-  // ── Calculation engine (useMemo) ──
+  // ── Calculation engine (useMemo) — TABA 416-1060052 precise ──
   const calc: CalcResult | null = useMemo(() => {
     if (!hasCalculated || !formValid) return null;
 
-    // Step 1 — Coverage Percentage
-    const coveragePercentage = plotArea <= 2000 ? 0.55 : 0.50;
+    const plotDunam = plotArea / 1000;
 
-    // Step 2 — Building Coefficient
+    // Step 1 — Coverage Percentage (§ coverage rules)
+    // ≤2 dunam → 55%, >2 dunam → 50%
+    const coveragePercentage = plotArea <= 2000 ? 0.55 : 0.50;
+    const coverageArea = plotArea * coveragePercentage;
+
+    // Step 2 — Building Coefficient (§ coefficient table)
+    // 1fl→5.5, 2fl→6.5, 3fl→7.5, 4fl→8.5, 5fl→9.5, 6+→10.5
     const buildingCoefficient = getBuildingCoefficient(existingFloors);
 
-    // Step 3 — Base Rights
+    // Step 3 — Base Rights = Plot Area × Coverage% × Coefficient
     const baseRights = plotArea * coveragePercentage * buildingCoefficient;
 
     // Step 4 — Bonuses
+    // Rooftop balconies: 5% of base rights (not included in base)
     const rooftopBonus = baseRights * 0.05;
+    // Shared spaces: fixed 50 sqm
     const sharedSpaces = 50;
+    // Public use: 450 sqm only if plot > 2 dunam
     const publicUseSpaces = plotArea > 2000 ? 450 : 0;
 
     // Step 5 — Total Building Rights
-    const totalRights = baseRights + rooftopBonus + sharedSpaces + publicUseSpaces;
+    let totalRights = baseRights + rooftopBonus + sharedSpaces + publicUseSpaces;
 
-    // Step 6 — Max Units
-    const maxUnits = Math.floor((plotArea / 1000) * 45);
+    // Special constraint reduction (preservation/protected tree/infrastructure): -5%
+    const constraintReduction = hasSpecialConstraint ? totalRights * 0.05 : 0;
+    totalRights -= constraintReduction;
 
-    // Step 7 — Max Floors
-    const maxFloors = 1 + Math.round(buildingCoefficient) + 1;
+    // Step 6 — Max Units = plot dunam × 45
+    const maxUnits = Math.floor(plotDunam * 45);
 
-    // Step 8 — Practical Deductions
+    // Step 7 — Max Floors: coefficient determines above-ground floors
+    // Formula: ground floor + (coefficient rounded) residential floors + rooftop/technical
     const numFloors = Math.round(buildingCoefficient);
-    const balconiesDeduction = aptsPerFloor * numFloors * 15;
+    const maxFloors = numFloors + 2; // +1 ground/pilotis + 1 rooftop/technical
+
+    // Step 8 — Practical Deductions (not counted in building rights)
+    // Balconies: max 14 sqm per apartment (per TABA), so per floor: aptsPerFloor × 14
+    const balconiesPerApt = 14; // max 14 sqm per apartment
+    const balconiesDeduction = aptsPerFloor * numFloors * balconiesPerApt;
+    // Laundry rooms: ~14 sqm per building
     const laundryDeduction = 14;
-    const spacesDeduction = 120;
-    const totalDeductions = balconiesDeduction + laundryDeduction + spacesDeduction;
+    // Spaces & deductions (lobbies, stairs, shafts, walls): estimated
+    // More precise: ~18% of typical floor area × numFloors for circulation
+    const typFloor = typicalFloorArea > 0 ? typicalFloorArea : coverageArea;
+    const spacesDeduction = Math.round(typFloor * 0.18 * numFloors / numFloors) * numFloors;
+    // Storage rooms: 6 sqm per unit
+    const storageDeduction = maxUnits * 6;
+    // Underground parking area: 55 sqm per space (including circulation)
+    const parkingSpaces = maxUnits; // 1 space per unit (Ring 2)
+    const parkingAreaPerSpace = 55; // sqm per space including ramps/circulation
+    const parkingAreaTotal = parkingSpaces * parkingAreaPerSpace;
+    const parkingPerLevel = plotArea * 0.85; // 85% max underground coverage
+    const undergroundLevels = Math.min(
+      Math.ceil(parkingAreaTotal / parkingPerLevel),
+      5
+    );
+    const undergroundParkingArea = parkingAreaTotal;
+
+    const totalDeductions = balconiesDeduction + laundryDeduction + spacesDeduction + storageDeduction;
     const netBuildableArea = totalRights - totalDeductions;
 
-    // Step 9 — Apartment Mix
-    const smallUnits = Math.round(maxUnits * 0.30);
-    const mediumUnits = Math.round(maxUnits * 0.40);
-    const largeUnits = Math.round(maxUnits * 0.20);
-    const penthouseUnits = Math.max(maxUnits - smallUnits - mediumUnits - largeUnits, 0);
+    // Existing building area estimation
+    const existingBuildArea = existingApts > 0 && typicalFloorArea > 0
+      ? typicalFloorArea * existingFloors
+      : (typicalFloorArea > 0 ? typicalFloorArea * existingFloors : coverageArea * existingFloors * 0.85);
+    const newAddedArea = totalRights - existingBuildArea;
+
+    // Step 9 — Apartment Mix (TABA requires 25-35% small ≤3 rooms)
+    const smallPct = 0.30; // 30% target (within 25-35% range)
+    const smallUnits = Math.round(maxUnits * smallPct);
+    const penthouseUnits = existingPenthouses > 0 ? existingPenthouses : Math.max(Math.round(maxUnits * 0.05), 1);
+    const remainingAfterSmallPH = maxUnits - smallUnits - penthouseUnits;
+    const mediumUnits = Math.round(remainingAfterSmallPH * 0.55);
+    const largeUnits = Math.max(remainingAfterSmallPH - mediumUnits, 0);
+
     const smallArea = smallUnits * 65;
     const mediumArea = mediumUnits * 95;
     const largeArea = largeUnits * 115;
-    const penthouseArea = penthouseUnits * 90;
-
-    // Step 10 — Parking
-    const parkingSpaces = maxUnits * 1;
-    const undergroundLevels = Math.min(
-      Math.ceil(parkingSpaces / ((plotArea * 0.85) / 25)),
-      5
-    );
+    const penthouseArea = penthouseUnits * 130;
 
     return {
       coveragePercentage,
+      coverageArea,
       buildingCoefficient,
       baseRights,
       rooftopBonus,
@@ -202,6 +255,8 @@ export default function RightsCalculatorPage() {
       balconiesDeduction,
       laundryDeduction,
       spacesDeduction,
+      storageDeduction,
+      undergroundParkingArea,
       totalDeductions,
       netBuildableArea,
       numFloors,
@@ -215,8 +270,12 @@ export default function RightsCalculatorPage() {
       penthouseArea,
       parkingSpaces,
       undergroundLevels,
+      parkingAreaTotal,
+      existingBuildArea,
+      newAddedArea,
+      constraintReduction,
     };
-  }, [hasCalculated, formValid, plotArea, existingFloors, aptsPerFloor]);
+  }, [hasCalculated, formValid, plotArea, existingFloors, aptsPerFloor, existingApts, existingPenthouses, typicalFloorArea, hasSpecialConstraint]);
 
   // ── Handlers ──
   const handlePlotArea = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -557,94 +616,79 @@ export default function RightsCalculatorPage() {
                       marginBottom: '16px',
                     }}
                   />
+                  {/* Row 1: Address */}
+                  <div className="mb-4">
+                    <label className="block text-[11px] font-semibold mb-1" style={labelStyle}>
+                      {t('כתובת', 'Address')}
+                    </label>
+                    <input
+                      type="text"
+                      dir={isHe ? 'rtl' : 'ltr'}
+                      placeholder={t('לדוגמה: הר סיני 22 רעננה', 'e.g. Har Sinai 22, Raanana')}
+                      value={addressRaw}
+                      onChange={(e) => setAddressRaw(e.target.value)}
+                      style={inputStyle(false)}
+                      onFocus={(e) => { e.target.style.borderColor = PURPLE; }}
+                      onBlur={(e) => { e.target.style.borderColor = 'rgba(0,0,0,0.12)'; }}
+                    />
+                  </div>
+
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                     {/* Block Number */}
                     <div>
-                      <label
-                        className="block text-[11px] font-semibold mb-1"
-                        style={labelStyle}
-                      >
+                      <label className="block text-[11px] font-semibold mb-1" style={labelStyle}>
                         {t('גוש', 'Block Number')}
                       </label>
                       <input
-                        type="text"
-                        dir="ltr"
+                        type="text" dir="ltr"
                         placeholder={t('מספר גוש', 'Block #')}
                         value={blockNumber}
                         onChange={(e) => setBlockNumber(e.target.value)}
                         style={inputStyle(false)}
-                        onFocus={(e) => {
-                          e.target.style.borderColor = PURPLE;
-                        }}
-                        onBlur={(e) => {
-                          e.target.style.borderColor = 'rgba(0,0,0,0.12)';
-                        }}
+                        onFocus={(e) => { e.target.style.borderColor = PURPLE; }}
+                        onBlur={(e) => { e.target.style.borderColor = 'rgba(0,0,0,0.12)'; }}
                       />
                     </div>
 
                     {/* Parcel Number */}
                     <div>
-                      <label
-                        className="block text-[11px] font-semibold mb-1"
-                        style={labelStyle}
-                      >
+                      <label className="block text-[11px] font-semibold mb-1" style={labelStyle}>
                         {t('חלקה', 'Parcel Number')}
                       </label>
                       <input
-                        type="text"
-                        dir="ltr"
+                        type="text" dir="ltr"
                         placeholder={t('מספר חלקה', 'Parcel #')}
                         value={parcelNumber}
                         onChange={(e) => setParcelNumber(e.target.value)}
                         style={inputStyle(false)}
-                        onFocus={(e) => {
-                          e.target.style.borderColor = PURPLE;
-                        }}
-                        onBlur={(e) => {
-                          e.target.style.borderColor = 'rgba(0,0,0,0.12)';
-                        }}
+                        onFocus={(e) => { e.target.style.borderColor = PURPLE; }}
+                        onBlur={(e) => { e.target.style.borderColor = 'rgba(0,0,0,0.12)'; }}
                       />
                     </div>
 
                     {/* Plot Width */}
                     <div>
-                      <label
-                        className="block text-[11px] font-semibold mb-1"
-                        style={labelStyle}
-                      >
+                      <label className="block text-[11px] font-semibold mb-1" style={labelStyle}>
                         {t('רוחב מגרש (מ\')', 'Plot Width (m)')}
                       </label>
                       <input
-                        type="text"
-                        inputMode="numeric"
-                        dir="ltr"
+                        type="text" inputMode="numeric" dir="ltr"
                         placeholder={t('מטרים', 'meters')}
                         value={plotWidthRaw}
-                        onChange={(e) =>
-                          setPlotWidthRaw(commaFormat(e.target.value))
-                        }
+                        onChange={(e) => setPlotWidthRaw(commaFormat(e.target.value))}
                         style={inputStyle(false)}
-                        onFocus={(e) => {
-                          e.target.style.borderColor = PURPLE;
-                        }}
-                        onBlur={(e) => {
-                          e.target.style.borderColor = 'rgba(0,0,0,0.12)';
-                        }}
+                        onFocus={(e) => { e.target.style.borderColor = PURPLE; }}
+                        onBlur={(e) => { e.target.style.borderColor = 'rgba(0,0,0,0.12)'; }}
                       />
                     </div>
 
                     {/* Apartments Per Floor */}
                     <div>
-                      <label
-                        className="block text-[11px] font-semibold mb-1"
-                        style={labelStyle}
-                      >
+                      <label className="block text-[11px] font-semibold mb-1" style={labelStyle}>
                         {t('דירות בקומה', 'Apartments Per Floor')}
                       </label>
                       <input
-                        type="text"
-                        inputMode="numeric"
-                        dir="ltr"
+                        type="text" inputMode="numeric" dir="ltr"
                         placeholder="7"
                         value={aptsPerFloorRaw}
                         onChange={(e) => {
@@ -653,38 +697,99 @@ export default function RightsCalculatorPage() {
                           setHasCalculated(false);
                         }}
                         style={inputStyle(false)}
-                        onFocus={(e) => {
-                          e.target.style.borderColor = PURPLE;
-                        }}
-                        onBlur={(e) => {
-                          e.target.style.borderColor = 'rgba(0,0,0,0.12)';
-                        }}
+                        onFocus={(e) => { e.target.style.borderColor = PURPLE; }}
+                        onBlur={(e) => { e.target.style.borderColor = 'rgba(0,0,0,0.12)'; }}
                       />
                     </div>
                   </div>
 
-                  {/* Corner Plot Toggle */}
-                  <div className="mt-4 flex items-center gap-3">
-                    <button
-                      onClick={() => setIsCornerPlot(!isCornerPlot)}
-                      className="flex items-center gap-2 cursor-pointer bg-transparent border-0 text-xs font-medium"
-                      style={{ color: '#4a4a6a' }}
-                    >
-                      <div
-                        className="w-5 h-5 rounded flex items-center justify-center transition-all"
-                        style={{
-                          background: isCornerPlot ? PURPLE : 'rgba(0,0,0,0.06)',
-                          border: `1px solid ${
-                            isCornerPlot ? PURPLE : 'rgba(0,0,0,0.15)'
-                          }`,
+                  {/* Row 2: New fields */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-4">
+                    {/* Existing Apartments */}
+                    <div>
+                      <label className="block text-[11px] font-semibold mb-1" style={labelStyle}>
+                        {t('דירות קיימות בבניין', 'Existing Apartments')}
+                      </label>
+                      <input
+                        type="text" inputMode="numeric" dir="ltr"
+                        placeholder={t('לדוגמה: 16', 'e.g. 16')}
+                        value={existingAptsRaw}
+                        onChange={(e) => {
+                          const v = e.target.value.replace(/[^\d]/g, '');
+                          setExistingAptsRaw(v);
+                          setHasCalculated(false);
                         }}
+                        style={inputStyle(false)}
+                        onFocus={(e) => { e.target.style.borderColor = PURPLE; }}
+                        onBlur={(e) => { e.target.style.borderColor = 'rgba(0,0,0,0.12)'; }}
+                      />
+                    </div>
+
+                    {/* Existing Penthouses */}
+                    <div>
+                      <label className="block text-[11px] font-semibold mb-1" style={labelStyle}>
+                        {t('מספר דירות גג קיימות', 'Existing Penthouses')}
+                      </label>
+                      <input
+                        type="text" inputMode="numeric" dir="ltr"
+                        placeholder={t('לדוגמה: 2', 'e.g. 2')}
+                        value={existingPenthousesRaw}
+                        onChange={(e) => {
+                          const v = e.target.value.replace(/[^\d]/g, '');
+                          setExistingPenthousesRaw(v);
+                          setHasCalculated(false);
+                        }}
+                        style={inputStyle(false)}
+                        onFocus={(e) => { e.target.style.borderColor = PURPLE; }}
+                        onBlur={(e) => { e.target.style.borderColor = 'rgba(0,0,0,0.12)'; }}
+                      />
+                    </div>
+
+                    {/* Typical Floor Area */}
+                    <div>
+                      <label className="block text-[11px] font-semibold mb-1" style={labelStyle}>
+                        {t('שטח טיפוסי קומה רגילה (מ"ר)', 'Typical Floor Area (sqm)')}
+                      </label>
+                      <input
+                        type="text" inputMode="numeric" dir="ltr"
+                        placeholder={t('לדוגמה: 200', 'e.g. 200')}
+                        value={typicalFloorAreaRaw}
+                        onChange={(e) => {
+                          setTypicalFloorAreaRaw(commaFormat(e.target.value));
+                          setHasCalculated(false);
+                        }}
+                        style={inputStyle(false)}
+                        onFocus={(e) => { e.target.style.borderColor = PURPLE; }}
+                        onBlur={(e) => { e.target.style.borderColor = 'rgba(0,0,0,0.12)'; }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Checkboxes row */}
+                  <div className="mt-4 flex flex-wrap items-center gap-5">
+                    {[
+                      { state: isCornerPlot, setter: () => setIsCornerPlot(!isCornerPlot), label: t('מגרש פינתי', 'Corner Plot') },
+                      { state: mergeWithAdjacent, setter: () => { setMergeWithAdjacent(!mergeWithAdjacent); setHasCalculated(false); }, label: t('כוונה לאיחוד עם חלקה סמוכה', 'Merge with Adjacent Plot') },
+                      { state: hasSpecialConstraint, setter: () => { setHasSpecialConstraint(!hasSpecialConstraint); setHasCalculated(false); }, label: t('אילוץ מיוחד (שימור/עץ מוגן/תשתית)', 'Special Constraint (preservation/tree/infra)') },
+                    ].map((cb, i) => (
+                      <button
+                        key={i}
+                        onClick={cb.setter}
+                        className="flex items-center gap-2 cursor-pointer bg-transparent border-0 text-xs font-medium"
+                        style={{ color: '#4a4a6a' }}
                       >
-                        {isCornerPlot && (
-                          <Check className="w-3 h-3" style={{ color: '#fff' }} />
-                        )}
-                      </div>
-                      {t('מגרש פינתי', 'Corner Plot')}
-                    </button>
+                        <div
+                          className="w-5 h-5 rounded flex items-center justify-center transition-all flex-shrink-0"
+                          style={{
+                            background: cb.state ? PURPLE : 'rgba(0,0,0,0.06)',
+                            border: `1px solid ${cb.state ? PURPLE : 'rgba(0,0,0,0.15)'}`,
+                          }}
+                        >
+                          {cb.state && <Check className="w-3 h-3" style={{ color: '#fff' }} />}
+                        </div>
+                        {cb.label}
+                      </button>
+                    ))}
                   </div>
                 </div>
               )}
@@ -960,15 +1065,32 @@ export default function RightsCalculatorPage() {
                               : t('שטח ≤ 2,000 מ"ר → 0', 'Area ≤ 2,000 sqm → 0'),
                           value: fmtNum(calc.publicUseSpaces),
                         },
+                        ...(calc.constraintReduction > 0 ? [{
+                          label: t('הפחתת אילוץ מיוחד (-5%)', 'Special Constraint (-5%)'),
+                          formula: t('שימור / עץ מוגן / תשתית מגבילה', 'Preservation / tree / limiting infra'),
+                          value: `-${fmtNum(Math.round(calc.constraintReduction))}`,
+                        }] : []),
                         {
                           label: t('סה"כ זכויות בנייה', 'Total Building Rights'),
                           formula: t(
-                            'בסיס + מרפסות + משותפים + ציבור',
-                            'Base + Rooftop + Shared + Public'
+                            'בסיס + מרפסות + משותפים + ציבור' + (calc.constraintReduction > 0 ? ' - אילוץ' : ''),
+                            'Base + Rooftop + Shared + Public' + (calc.constraintReduction > 0 ? ' - Constraint' : '')
                           ),
                           value: fmtNum(Math.round(calc.totalRights)),
                           isTotal: true,
                         },
+                        ...(calc.existingBuildArea > 0 ? [{
+                          label: t('שטח בנוי קיים (הערכה)', 'Existing Built Area (est.)'),
+                          formula: `${existingFloors} ${t('קומות', 'floors')} × ${fmtNum(Math.round(calc.coverageArea * 0.85))} ${t('מ"ר', 'sqm')}`,
+                          value: fmtNum(Math.round(calc.existingBuildArea)),
+                          isMeta: true,
+                        },
+                        {
+                          label: t('תוספת שטח חדש', 'New Added Area'),
+                          formula: t('סה"כ זכויות - קיים', 'Total Rights - Existing'),
+                          value: fmtNum(Math.round(calc.newAddedArea)),
+                          isMeta: true,
+                        }] : []),
                       ].map((row, i) => (
                         <tr
                           key={i}
@@ -1037,11 +1159,11 @@ export default function RightsCalculatorPage() {
                     'Areas not included in building rights'
                   )}
                 />
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
                   {[
                     {
                       label: t('מרפסות', 'Balconies'),
-                      formula: `${aptsPerFloor} × ${calc.numFloors} × 15`,
+                      formula: `${aptsPerFloor} × ${calc.numFloors} × 14`,
                       value: calc.balconiesDeduction,
                     },
                     {
@@ -1050,10 +1172,20 @@ export default function RightsCalculatorPage() {
                       value: calc.laundryDeduction,
                     },
                     {
-                      label: t('מרחבים וניכויים', 'Spaces & Deductions'),
-                      formula: t('קבוע — 120 מ"ר', 'Fixed — 120 sqm'),
+                      label: t('לובי, מדרגות, פירים', 'Lobbies, Stairs, Shafts'),
+                      formula: `18% × ${fmtNum(Math.round(calc.coverageArea))} × ${calc.numFloors}`,
                       value: calc.spacesDeduction,
                     },
+                    {
+                      label: t('מחסנים', 'Storage Rooms'),
+                      formula: `${calc.maxUnits} × 6 ${t('מ"ר', 'sqm')}`,
+                      value: calc.storageDeduction,
+                    },
+                    ...(calc.constraintReduction > 0 ? [{
+                      label: t('הפחתת אילוץ מיוחד (5%)', 'Special Constraint (-5%)'),
+                      formula: t('שימור/עץ מוגן/תשתית', 'Preservation/tree/infra'),
+                      value: Math.round(calc.constraintReduction),
+                    }] : []),
                     {
                       label: t('סה"כ ניכויים', 'Total Deductions'),
                       formula: '',
@@ -1184,21 +1316,21 @@ export default function RightsCalculatorPage() {
                           count: calc.mediumUnits,
                           avg: 95,
                           total: calc.mediumArea,
-                          pct: '40%',
+                          pct: `${Math.round(calc.mediumUnits / calc.maxUnits * 100)}%`,
                         },
                         {
                           type: t('גדולות (5 חדרים)', 'Large (5 rooms)'),
                           count: calc.largeUnits,
                           avg: 115,
                           total: calc.largeArea,
-                          pct: '20%',
+                          pct: `${Math.round(calc.largeUnits / calc.maxUnits * 100)}%`,
                         },
                         {
                           type: t('פנטהאוזים', 'Penthouses'),
                           count: calc.penthouseUnits,
-                          avg: 90,
+                          avg: 130,
                           total: calc.penthouseArea,
-                          pct: '10%',
+                          pct: `${Math.round(calc.penthouseUnits / calc.maxUnits * 100)}%`,
                         },
                       ].map((row, i) => (
                         <tr
@@ -1401,8 +1533,8 @@ export default function RightsCalculatorPage() {
                       }}
                     >
                       {t(
-                        'עד 5 קומות, 85% כיסוי',
-                        'Up to 5 levels, 85% coverage'
+                        `עד 5 קומות, 85% כיסוי | ${fmtNum(calc.parkingAreaTotal)} מ"ר`,
+                        `Up to 5 levels, 85% coverage | ${fmtNum(calc.parkingAreaTotal)} sqm`
                       )}
                     </div>
                     <div
@@ -1467,40 +1599,79 @@ export default function RightsCalculatorPage() {
                 }}
               />
 
-              {/* ── CTA ── */}
+              {/* ── Merge note ── */}
+              {mergeWithAdjacent && (
+                <div className="px-6 sm:px-8 pb-4 fade-in-up" style={{ animationDelay: '0.55s' }}>
+                  <div className="p-4 rounded-lg flex items-start gap-3"
+                    style={{ background: `${PURPLE}08`, border: `1px solid ${PURPLE}15` }}>
+                    <Info className="w-4 h-4 mt-0.5 flex-shrink-0" style={{ color: PURPLE }} />
+                    <p className="text-[11px] leading-relaxed" style={{ color: '#4a4a6a' }}>
+                      {t(
+                        'סומן כוונה לאיחוד עם חלקה סמוכה. יש לחשב מחדש עם השטח המאוחד הכולל. איחוד חלקות עשוי לשנות את אחוז הכיסוי (מעל 2 דונם → 50%) ולאפשר שטחי ציבור נוספים.',
+                        'Merge with adjacent plot is indicated. Recalculate with combined total area. Plot merger may change coverage % (above 2 dunam → 50%) and enable additional public spaces.'
+                      )}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Divider */}
+              <div style={{ height: 1, background: 'rgba(0,0,0,0.08)', margin: '0 24px' }} />
+
+              {/* ── CTA: Economic Feasibility ── */}
               <div className="p-6 sm:p-8 text-center fade-in-up" style={{ animationDelay: '0.6s' }}>
-                <h3
-                  className="text-base font-bold mb-2"
-                  style={{ color: '#1a1a2e' }}
-                >
-                  {t(
-                    'רוצים ניתוח מקצועי מלא?',
-                    'Want a full professional analysis?'
-                  )}
+                <h3 className="text-base font-bold mb-2" style={{ color: '#1a1a2e' }}>
+                  {t('המשך לניתוח כלכלי', 'Continue to Economic Analysis')}
                 </h3>
-                <p
-                  className="text-xs mb-4 max-w-md mx-auto"
-                  style={{ color: '#6b7280' }}
-                >
+                <p className="text-xs mb-4 max-w-md mx-auto" style={{ color: '#6b7280' }}>
                   {t(
-                    'צוות המומחים שלנו יכין עבורכם דו"ח היתכנות מפורט הכולל ניתוח כלכלי, תמהיל אופטימלי וליווי מול הרשויות.',
-                    'Our expert team will prepare a detailed feasibility report including economic analysis, optimal mix, and regulatory guidance.'
+                    'על בסיס חישוב הזכויות, הפק דו"ח היתכנות כלכלי מלא הכולל עלויות בנייה, הכנסות, מיסים, היטלים ורווחיות צפויה.',
+                    'Based on the rights calculation, generate a full economic feasibility report including construction costs, revenue, taxes, levies, and projected profitability.'
                   )}
                 </p>
-                <a
-                  href="/booking"
-                  className="inline-flex items-center gap-2 px-8 py-3 rounded-xl text-sm font-bold transition-all"
-                  style={{
-                    background: `linear-gradient(135deg, ${PURPLE}, #7c3aed)`,
-                    color: '#fff',
-                    boxShadow: `0 4px 20px ${PURPLE}40`,
-                    textDecoration: 'none',
-                  }}
-                >
-                  <Calculator className="w-4 h-4" />
-                  {t('קבעו פגישת ייעוץ', 'Book a Consultation')}
-                  <ArrowRight className="w-4 h-4" />
-                </a>
+                <div className="flex flex-wrap items-center justify-center gap-3">
+                  <button
+                    onClick={() => {
+                      // Store rights data in sessionStorage for the economic feasibility page
+                      if (calc) {
+                        sessionStorage.setItem('rightsCalcData', JSON.stringify({
+                          plotArea,
+                          existingFloors,
+                          existingApts,
+                          existingPenthouses,
+                          typicalFloorArea,
+                          address: addressRaw,
+                          blockNumber,
+                          parcelNumber,
+                          ...calc,
+                        }));
+                        window.location.href = '/developer-portal/economic-feasibility';
+                      }
+                    }}
+                    className="inline-flex items-center gap-2 px-8 py-3 rounded-xl text-sm font-bold transition-all cursor-pointer border-0"
+                    style={{
+                      background: `linear-gradient(135deg, ${PURPLE}, #7c3aed)`,
+                      color: '#fff',
+                      boxShadow: `0 4px 20px ${PURPLE}40`,
+                    }}
+                  >
+                    <Calculator className="w-4 h-4" />
+                    {t('ניתוח כדאיות כלכלית', 'Economic Feasibility')}
+                    <ArrowRight className="w-4 h-4" />
+                  </button>
+                  <a
+                    href="/booking"
+                    className="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-semibold transition-all"
+                    style={{
+                      background: 'rgba(0,0,0,0.05)',
+                      color: '#4a4a6a',
+                      border: '1px solid rgba(0,0,0,0.1)',
+                      textDecoration: 'none',
+                    }}
+                  >
+                    {t('פגישת ייעוץ מקצועית', 'Professional Consultation')}
+                  </a>
+                </div>
               </div>
             </>
           )}
