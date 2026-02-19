@@ -1,8 +1,9 @@
 'use client';
 
-import { Building2, Globe, CalendarDays, Home as HomeIcon, Plane, Hammer, Sprout, HardHat, ChevronLeft, ArrowRight } from 'lucide-react';
+import { Building2, Globe, CalendarDays, Home as HomeIcon, Plane, Hammer, Sprout, HardHat, ChevronLeft, ArrowRight, LogIn, User } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useLang } from '@/lib/i18n';
+import { useAuth } from '@/lib/auth';
 
 const VIDEO_SRC = 'https://videos.pexels.com/video-files/3571264/3571264-hd_1920_1080_25fps.mp4';
 const FALLBACK_IMG = 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=2000&q=80';
@@ -78,6 +79,7 @@ const TILES = [
 export default function Home() {
   const router = useRouter();
   const { lang, toggle } = useLang();
+  const { user, signInWithGoogle, signOut } = useAuth();
   const t = (he: string, en: string) => lang === 'he' ? he : en;
 
   return (
@@ -97,10 +99,10 @@ export default function Home() {
         {/* Nav */}
         <div className="relative z-20 px-6 py-4">
           <div className="max-w-6xl mx-auto flex items-center justify-between">
-            <div className="flex items-center gap-2">
+            <a href="/" className="flex items-center gap-2 no-underline text-inherit">
               <Building2 className="w-5 h-5 text-green" />
               <span className="font-bold text-sm tracking-tight">PROPCHECK</span>
-            </div>
+            </a>
             <div className="flex items-center gap-4">
               <button onClick={toggle} className="flex items-center gap-1 text-xs text-foreground-muted hover:text-foreground transition-colors cursor-pointer bg-transparent border-0">
                 <Globe className="w-3.5 h-3.5" />
@@ -111,6 +113,21 @@ export default function Home() {
                 <CalendarDays className="w-3.5 h-3.5" />
                 {t('ייעוץ', 'Consult')}
               </a>
+              {user ? (
+                <button onClick={signOut} className="flex items-center gap-1.5 text-xs text-foreground-muted hover:text-foreground transition-colors cursor-pointer bg-transparent border-0">
+                  {user.photoURL ? (
+                    <img src={user.photoURL} alt="" className="w-5 h-5 rounded-full" referrerPolicy="no-referrer" />
+                  ) : (
+                    <User className="w-3.5 h-3.5" />
+                  )}
+                  <span className="hidden sm:inline">{user.displayName?.split(' ')[0]}</span>
+                </button>
+              ) : (
+                <button onClick={signInWithGoogle} className="flex items-center gap-1 text-xs text-foreground-muted hover:text-foreground transition-colors cursor-pointer bg-transparent border-0">
+                  <LogIn className="w-3.5 h-3.5" />
+                  {t('התחבר', 'Sign In')}
+                </button>
+              )}
             </div>
           </div>
         </div>

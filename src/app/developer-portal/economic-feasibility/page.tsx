@@ -96,51 +96,56 @@ interface RightsData {
 // ── Default Assumptions ──────────────────────────────────────
 
 interface Assumptions {
-  // Construction costs per sqm
+  // ── Direct Construction Costs ──
   costMainBuildSqm: number;       // עלות בנייה עיקרית למ"ר
   costServiceAreaSqm: number;     // עלות שטחי שירות למ"ר
   costBalconySqm: number;         // עלות מרפסות למ"ר
   costRoofBalconySqm: number;     // עלות מרפסות גג למ"ר
-  costParkingSqm: number;         // עלות חניון למ"ר
+  costParkingSqm: number;         // עלות חניון תת-קרקעי למ"ר
   costLandscapingSqm: number;     // עלות פיתוח סביבתי למ"ר
-  costDemolitionPerUnit: number;  // עלות הריסה ליח"ד
+  costDemolitionPerUnit: number;  // עלות הריסה ליח"ד קיימת
 
-  // Sale prices per sqm
+  // ── Soft Costs (% of direct construction) ──
+  softCostsPct: number;           // עלויות רכות (% מבנייה ישירה)
+  contingencyPct: number;         // בלת"מ — בצ"מ (%)
+
+  // ── Sale Prices ──
   salePriceMainSqm: number;      // מחיר מכירה למ"ר עיקרי
-  salePriceBalconySqm: number;    // מחיר מכירה מרפסת למ"ר
+  salePriceBalconySqm: number;    // מחיר מכירה מרפסת למ"ר (50% of main)
   salePriceParkingSpace: number;  // מחיר חניה
   salePriceStorageUnit: number;   // מחיר מחסן
+  avgAptSizeSqm: number;         // שטח ממוצע דירה
 
-  // Planning & supervision costs
+  // ── Planning & Supervision ──
   planningPerUnit: number;        // תכנון כללי ליח"ד
   architectPerUnit: number;       // פיקוח אדריכל ליח"ד
-  residentSupervision: number;    // פיקוח דיירים (סכום כולל)
-  residentLawyers: number;        // עו"ד דיירים (סכום כולל)
+  residentSupervision: number;    // פיקוח דיירים (סה"כ)
+  residentLawyers: number;        // עו"ד דיירים (סה"כ)
 
-  // Tax rates
+  // ── Taxes & Levies ──
   bettermentLevyRate: number;     // היטל השבחה (%)
-  purchaseTaxRate: number;        // מס רכישה (%)
   vatRate: number;                // מע"מ (%)
-  bankFeeRate: number;            // עמלת בנק (%)
 
-  // Resident costs
+  // ── Financing ──
+  seniorDebtRate: number;         // ריבית ליווי בנקאי (שנתי)
+  seniorDebtLtvPct: number;       // אחוז מימון בנקאי (LTV)
+  salesLawGuaranteePct: number;   // ערבות חוק מכר (% מהכנסות)
+  equityReturnRate: number;       // תשואה נדרשת על הון עצמי (שנתי)
+
+  // ── Revenue Milestones (Hok HaMecer) ──
+  presalePct: number;             // % מכירה מוקדמת (חתימה)
+
+  // ── Resident Costs ──
   rentPerMonth: number;           // שכ"ד חודשי לדייר
   constructionMonths: number;     // חודשי בנייה
-  movingCostPerUnit: number;      // הובלה ליח"ד
+  movingCostPerUnit: number;      // הובלה ליח"ד (הלוך + חזור)
 
-  // Bank & guarantees
-  salesLawGuaranteePct: number;   // ערבות חוק מכר (%)
-  accompanyFeeRate: number;       // ליווי בנקאי (%)
-  equityReturnRate: number;       // תשואה על הון עצמי (%)
-
-  // Marketing
-  marketingPct: number;           // שיווק ומכירות (%)
-
-  // Avg apartment size for betterment levy
-  avgAptSizeSqm: number;         // שטח ממוצע דירה
+  // ── Marketing ──
+  marketingPct: number;           // שיווק ומכירות (% מהכנסות)
 }
 
 const DEFAULT_ASSUMPTIONS: Assumptions = {
+  // Direct construction
   costMainBuildSqm: 8000,
   costServiceAreaSqm: 8000,
   costBalconySqm: 3500,
@@ -149,32 +154,43 @@ const DEFAULT_ASSUMPTIONS: Assumptions = {
   costLandscapingSqm: 500,
   costDemolitionPerUnit: 300000,
 
-  salePriceMainSqm: 14000,
-  salePriceBalconySqm: 7000,
+  // Soft costs
+  softCostsPct: 0.15,        // 15% of direct = consultants, fees, permits
+  contingencyPct: 0.05,      // 5% unforeseen
+
+  // Sale prices
+  salePriceMainSqm: 38000,
+  salePriceBalconySqm: 19000,
   salePriceParkingSpace: 150000,
   salePriceStorageUnit: 80000,
+  avgAptSizeSqm: 84,
 
+  // Planning
   planningPerUnit: 30000,
   architectPerUnit: 22000,
   residentSupervision: 500000,
   residentLawyers: 640000,
 
-  bettermentLevyRate: 0.25,
-  purchaseTaxRate: 0.05,
+  // Taxes
+  bettermentLevyRate: 0.50,   // 50% of value increase (standard)
   vatRate: 0.18,
-  bankFeeRate: 0.01,
 
+  // Financing
+  seniorDebtRate: 0.065,      // 6.5% annual interest on construction loan
+  seniorDebtLtvPct: 0.70,     // Bank finances 70% of direct costs
+  salesLawGuaranteePct: 0.015,
+  equityReturnRate: 0.12,     // Required equity return 12%
+
+  // Hok HaMecer milestones
+  presalePct: 0.20,           // 20% at signing
+
+  // Resident costs
   rentPerMonth: 8000,
   constructionMonths: 32,
   movingCostPerUnit: 6000,
 
-  salesLawGuaranteePct: 0.015,
-  accompanyFeeRate: 0.04,
-  equityReturnRate: 0.08,
-
-  marketingPct: 0.02,
-
-  avgAptSizeSqm: 84,
+  // Marketing
+  marketingPct: 0.025,
 };
 
 // ── Component ────────────────────────────────────────────────
@@ -217,20 +233,22 @@ export default function EconomicFeasibilityPage() {
     setSectionsOpen(prev => ({ ...prev, [key]: !prev[key] }));
   };
 
-  // ── Financial Model Calculation ──
+  // ── Financial Model Calculation (Professional "Doch Efes") ──
   const model = useMemo(() => {
     if (!rights) return null;
 
     const a = assumptions;
     const totalUnits = rights.maxUnits;
     const existingUnits = rights.existingApts || (rights.existingFloors * 7);
+    const newUnits = Math.max(totalUnits - existingUnits, 0);
+    const constructionYears = a.constructionMonths / 12;
 
-    // ─── REVENUE ───────────────────────────────────────────
+    // ═══════════════════════════════════════════════════════════
+    // 1. REVENUE (הכנסות)
+    // ═══════════════════════════════════════════════════════════
 
-    // Apartment sales revenue (new units only = total - existing)
-    const newUnits = totalUnits - existingUnits;
     const avgAptArea = a.avgAptSizeSqm;
-    const balconyAreaPerApt = 14; // per TABA
+    const balconyAreaPerApt = 14; // per TABA Ra/Ra/B
     const totalSaleableMainArea = newUnits * avgAptArea;
     const totalSaleableBalconyArea = newUnits * balconyAreaPerApt;
 
@@ -241,38 +259,54 @@ export default function EconomicFeasibilityPage() {
 
     const totalRevenue = revenueMainArea + revenueBalconies + revenueParking + revenueStorage;
 
-    // ─── CONSTRUCTION COSTS ────────────────────────────────
+    // Hok HaMecer cash flow milestones (for financing calc)
+    // 20% at presale signing, rest distributed over construction
+    const presaleRevenue = totalRevenue * a.presalePct;
+    const constructionRevenue = totalRevenue - presaleRevenue;
+    // Weighted average: presale comes at month 0, rest is spread (avg midpoint)
+    const avgRevenueCollectionMonth = (a.constructionMonths * 0.55); // Weighted midpoint
 
-    // Main building area (net buildable)
+    // ═══════════════════════════════════════════════════════════
+    // 2. DIRECT CONSTRUCTION COSTS (עלויות בנייה ישירות)
+    // ═══════════════════════════════════════════════════════════
+
     const mainBuildArea = rights.netBuildableArea;
     const costMainBuild = mainBuildArea * a.costMainBuildSqm;
 
-    // Service areas (shared spaces, lobbies, stairs etc.)
     const serviceArea = rights.sharedSpaces + (rights.publicUseSpaces || 0);
     const costServiceArea = serviceArea * a.costServiceAreaSqm;
 
-    // Balconies
     const totalBalconyArea = rights.balconiesDeduction;
     const costBalconies = totalBalconyArea * a.costBalconySqm;
 
-    // Rooftop balconies (5% bonus area)
     const rooftopBalconyArea = rights.rooftopBonus;
     const costRoofBalconies = rooftopBalconyArea * a.costRoofBalconySqm;
 
-    // Parking
     const costParking = rights.parkingAreaTotal * a.costParkingSqm;
-
-    // Landscaping (plot area)
     const costLandscaping = rights.plotArea * a.costLandscapingSqm;
-
-    // Demolition
     const costDemolition = existingUnits * a.costDemolitionPerUnit;
 
-    const totalConstructionCost =
+    const totalDirectCost =
       costMainBuild + costServiceArea + costBalconies + costRoofBalconies +
       costParking + costLandscaping + costDemolition;
 
-    // ─── PLANNING & SUPERVISION ────────────────────────────
+    // ═══════════════════════════════════════════════════════════
+    // 3. SOFT COSTS (עלויות רכות — ~15% of direct)
+    // ═══════════════════════════════════════════════════════════
+    // Includes: consultants, permits, engineering, legal, insurance, design
+    const softCosts = totalDirectCost * a.softCostsPct;
+
+    // ═══════════════════════════════════════════════════════════
+    // 4. CONTINGENCY / בלת"מ — בצ"מ (~5%)
+    // ═══════════════════════════════════════════════════════════
+    const contingency = totalDirectCost * a.contingencyPct;
+
+    // Total construction = direct + soft + contingency
+    const totalConstructionCost = totalDirectCost + softCosts + contingency;
+
+    // ═══════════════════════════════════════════════════════════
+    // 5. PLANNING & SUPERVISION (תכנון ופיקוח)
+    // ═══════════════════════════════════════════════════════════
 
     const costPlanning = totalUnits * a.planningPerUnit;
     const costArchitect = totalUnits * a.architectPerUnit;
@@ -282,112 +316,112 @@ export default function EconomicFeasibilityPage() {
     const totalPlanningCost =
       costPlanning + costArchitect + costResidentSupervision + costResidentLawyers;
 
-    // ─── MARKETING ─────────────────────────────────────────
-
+    // ═══════════════════════════════════════════════════════════
+    // 6. MARKETING & SALES (שיווק ומכירות)
+    // ═══════════════════════════════════════════════════════════
     const costMarketing = totalRevenue * a.marketingPct;
 
-    // ─── BANK & GUARANTEES ─────────────────────────────────
+    // ═══════════════════════════════════════════════════════════
+    // 7. FINANCING COSTS (עלויות מימון)
+    // ═══════════════════════════════════════════════════════════
 
+    // Senior debt (ליווי בנקאי): bank finances LTV% of direct costs
+    // S-curve: avg outstanding balance ~55% of peak over construction period
+    const peakDebt = totalDirectCost * a.seniorDebtLtvPct;
+    const avgOutstandingDebt = peakDebt * 0.55; // S-curve avg utilization
+    const seniorDebtInterest = avgOutstandingDebt * a.seniorDebtRate * constructionYears;
+
+    // Sales law guarantee (ערבות חוק מכר)
     const costSalesLawGuarantee = totalRevenue * a.salesLawGuaranteePct;
-    const costAccompanyFee = totalConstructionCost * a.accompanyFeeRate;
-    // Return on equity: equity is ~20% of total project cost, annualized over construction period
-    const estimatedEquity = totalConstructionCost * 0.20;
-    const costEquityReturn = estimatedEquity * a.equityReturnRate * (a.constructionMonths / 12);
 
-    const totalBankCost = costSalesLawGuarantee + costAccompanyFee + costEquityReturn;
+    // Equity cost: developer's equity = total costs - bank debt
+    const developerEquity = totalConstructionCost - peakDebt;
+    const equityCost = Math.max(developerEquity, 0) * a.equityReturnRate * constructionYears;
 
-    // ─── TAXES & LEVIES ────────────────────────────────────
+    const totalFinancingCost = seniorDebtInterest + costSalesLawGuarantee + equityCost;
 
-    // Betterment levy (היטל השבחה): based on value increase from new rights
-    // Calculated on the added value (new area × sale price - construction costs) × rate
-    const addedValueForLevy = (rights.newAddedArea > 0 ? rights.newAddedArea : rights.totalRights - rights.existingBuildArea) * a.salePriceMainSqm * 0.5;
-    const costBettermentLevy = Math.max(addedValueForLevy * a.bettermentLevyRate, 0);
+    // ═══════════════════════════════════════════════════════════
+    // 8. TAXES & LEVIES (מיסים והיטלים)
+    // ═══════════════════════════════════════════════════════════
 
-    // Purchase tax on land value (estimated)
-    const estimatedLandValue = totalRevenue * 0.15; // ~15% of revenue
-    const costPurchaseTax = estimatedLandValue * a.purchaseTaxRate;
+    // Betterment Levy (היטל השבחה):
+    // Standard: 50% × (value_after - value_before) for developer's new rights
+    // Value increase = added_sqm × price_per_sqm (gross, before costs)
+    // The new municipal plans do NOT grant sweeping exemptions
+    const addedSqm = rights.newAddedArea > 0
+      ? rights.newAddedArea
+      : Math.max(rights.totalRights - rights.existingBuildArea, 0);
+    const valueIncrease = addedSqm * a.salePriceMainSqm;
+    const costBettermentLevy = valueIncrease * a.bettermentLevyRate;
 
-    // Bank fees
-    const costBankFees = totalConstructionCost * a.bankFeeRate;
+    // VAT: on developer's profit (not a pass-through for residential)
+    // Simplified: VAT is embedded in sale prices; for the model we show the net effect
+    // Developer pays VAT on inputs but collects on sales - net is on added value
+    // Approximation: VAT on profit margin
+    const estimatedVatOnProfit = 0; // VAT is typically pass-through, excluded from P&L
 
-    const totalTaxesCost = costBettermentLevy + costPurchaseTax + costBankFees;
+    const totalTaxesCost = costBettermentLevy + estimatedVatOnProfit;
 
-    // ─── RESIDENT COSTS ────────────────────────────────────
+    // ═══════════════════════════════════════════════════════════
+    // 9. RESIDENT COSTS (עלויות דיירים)
+    // ═══════════════════════════════════════════════════════════
 
     const rentTotal = existingUnits * a.rentPerMonth * a.constructionMonths;
-    const movingTotal = existingUnits * a.movingCostPerUnit * 2; // ×2 for move out + move in
+    const movingTotal = existingUnits * a.movingCostPerUnit * 2; // out + in
 
     const totalResidentCost = rentTotal + movingTotal;
 
-    // ─── TOTALS ────────────────────────────────────────────
+    // ═══════════════════════════════════════════════════════════
+    // 10. TOTALS & PROFITABILITY
+    // ═══════════════════════════════════════════════════════════
 
     const totalExpenses =
       totalConstructionCost + totalPlanningCost + costMarketing +
-      totalBankCost + totalTaxesCost + totalResidentCost;
+      totalFinancingCost + totalTaxesCost + totalResidentCost;
 
     const grossProfit = totalRevenue - totalExpenses;
     const profitMargin = totalRevenue > 0 ? grossProfit / totalRevenue : 0;
+    const roi = totalExpenses > 0 ? grossProfit / totalExpenses : 0;
     const profitPerUnit = newUnits > 0 ? grossProfit / newUnits : 0;
 
     return {
-      // Revenue
-      totalSaleableMainArea,
-      totalSaleableBalconyArea,
-      revenueMainArea,
-      revenueBalconies,
-      revenueParking,
-      revenueStorage,
-      totalRevenue,
-      newUnits,
-      existingUnits,
-      totalUnits,
+      // Units
+      newUnits, existingUnits, totalUnits,
 
-      // Construction
-      mainBuildArea,
-      serviceArea,
-      totalBalconyArea,
-      rooftopBalconyArea,
-      costMainBuild,
-      costServiceArea,
-      costBalconies,
-      costRoofBalconies,
-      costParking,
-      costLandscaping,
-      costDemolition,
-      totalConstructionCost,
+      // Revenue
+      totalSaleableMainArea, totalSaleableBalconyArea,
+      revenueMainArea, revenueBalconies, revenueParking, revenueStorage,
+      totalRevenue, presaleRevenue, constructionRevenue,
+
+      // Direct construction
+      mainBuildArea, serviceArea, totalBalconyArea, rooftopBalconyArea,
+      costMainBuild, costServiceArea, costBalconies, costRoofBalconies,
+      costParking, costLandscaping, costDemolition,
+      totalDirectCost,
+
+      // Soft + contingency
+      softCosts, contingency, totalConstructionCost,
 
       // Planning
-      costPlanning,
-      costArchitect,
-      costResidentSupervision,
-      costResidentLawyers,
+      costPlanning, costArchitect, costResidentSupervision, costResidentLawyers,
       totalPlanningCost,
 
       // Marketing
       costMarketing,
 
-      // Bank
-      costSalesLawGuarantee,
-      costAccompanyFee,
-      costEquityReturn,
-      totalBankCost,
+      // Financing
+      peakDebt, seniorDebtInterest, costSalesLawGuarantee, equityCost,
+      totalFinancingCost,
 
       // Taxes
-      costBettermentLevy,
-      costPurchaseTax,
-      costBankFees,
+      addedSqm, valueIncrease, costBettermentLevy,
       totalTaxesCost,
 
       // Resident
-      rentTotal,
-      movingTotal,
-      totalResidentCost,
+      rentTotal, movingTotal, totalResidentCost,
 
       // Totals
-      totalExpenses,
-      grossProfit,
-      profitMargin,
-      profitPerUnit,
+      totalExpenses, grossProfit, profitMargin, roi, profitPerUnit,
     };
   }, [rights, assumptions]);
 
@@ -546,8 +580,10 @@ export default function EconomicFeasibilityPage() {
         <div className="relative z-10 border-b border-[var(--border)] sticky top-0" style={{ background: 'rgba(13,17,23,0.85)', backdropFilter: 'blur(16px)' }}>
           <div className="max-w-5xl mx-auto px-6 h-14 flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <Building2 className="w-4 h-4 text-green" />
-              <span className="font-bold text-sm">PROPCHECK</span>
+              <a href="/" className="flex items-center gap-2 no-underline text-inherit hover:opacity-80 transition-opacity">
+                <Building2 className="w-4 h-4 text-green" />
+                <span className="font-bold text-sm">PROPCHECK</span>
+              </a>
               <span className="text-foreground-muted text-xs">{t('| כדאיות כלכלית', '| Economic Feasibility')}</span>
             </div>
             <div className="flex items-center gap-4">
@@ -609,8 +645,10 @@ export default function EconomicFeasibilityPage() {
       <div className="relative z-10 border-b border-[var(--border)] sticky top-0" style={{ background: 'rgba(13,17,23,0.85)', backdropFilter: 'blur(16px)' }}>
         <div className="max-w-6xl mx-auto px-6 h-14 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Building2 className="w-4 h-4 text-green" />
-            <span className="font-bold text-sm">PROPCHECK</span>
+            <a href="/" className="flex items-center gap-2 no-underline text-inherit hover:opacity-80 transition-opacity">
+              <Building2 className="w-4 h-4 text-green" />
+              <span className="font-bold text-sm">PROPCHECK</span>
+            </a>
             <span className="text-foreground-muted text-xs">{t('| כדאיות כלכלית — תמ"א 38/2', '| Economic Feasibility — TMA 38/2')}</span>
           </div>
           <div className="flex items-center gap-4">
@@ -698,9 +736,9 @@ export default function EconomicFeasibilityPage() {
 
               <div className="divide-y" style={{ borderColor: 'rgba(0,0,0,0.06)' }}>
 
-                {/* ── Construction Costs ── */}
+                {/* ── Direct Construction Costs ── */}
                 <div className="px-6">
-                  <SectionToggle id="construction" icon={Hammer} title="עלויות בנייה" titleEn="Construction Costs" total={model?.totalConstructionCost} />
+                  <SectionToggle id="construction" icon={Hammer} title="עלויות בנייה ישירות" titleEn="Direct Construction Costs" total={model?.totalDirectCost} />
                   {sectionsOpen.construction && (
                     <div className="pb-4 space-y-0.5">
                       <AssumptionRow label="בנייה עיקרית למ״ר" labelEn="Main build / sqm" field="costMainBuildSqm" suffix="₪" />
@@ -709,7 +747,11 @@ export default function EconomicFeasibilityPage() {
                       <AssumptionRow label="מרפסות גג למ״ר" labelEn="Roof balconies / sqm" field="costRoofBalconySqm" suffix="₪" />
                       <AssumptionRow label="חניון תת-קרקעי למ״ר" labelEn="Underground parking / sqm" field="costParkingSqm" suffix="₪" />
                       <AssumptionRow label="פיתוח סביבתי למ״ר" labelEn="Landscaping / sqm" field="costLandscapingSqm" suffix="₪" />
-                      <AssumptionRow label="הריסה ליח״ד" labelEn="Demolition / unit" field="costDemolitionPerUnit" suffix="₪" />
+                      <AssumptionRow label="הריסה ליח״ד קיימת" labelEn="Demolition / existing unit" field="costDemolitionPerUnit" suffix="₪" />
+                      <div className="pt-2 mt-1" style={{ borderTop: '1px dashed rgba(0,0,0,0.08)' }}>
+                        <AssumptionRow label="עלויות רכות (% מישיר)" labelEn="Soft costs (% of direct)" field="softCostsPct" suffix="%" isPercent />
+                        <AssumptionRow label='בלת"מ / בצ"מ (%)' labelEn="Contingency (%)" field="contingencyPct" suffix="%" isPercent />
+                      </div>
                     </div>
                   )}
                 </div>
@@ -724,6 +766,9 @@ export default function EconomicFeasibilityPage() {
                       <AssumptionRow label="חניה" labelEn="Parking space" field="salePriceParkingSpace" suffix="₪" />
                       <AssumptionRow label="מחסן" labelEn="Storage unit" field="salePriceStorageUnit" suffix="₪" />
                       <AssumptionRow label="שטח ממוצע דירה" labelEn="Avg apartment sqm" field="avgAptSizeSqm" suffix='מ"ר' />
+                      <div className="pt-2 mt-1" style={{ borderTop: '1px dashed rgba(0,0,0,0.08)' }}>
+                        <AssumptionRow label="מכירה מוקדמת (חוק המכר)" labelEn="Presale (Hok HaMecer)" field="presalePct" suffix="%" isPercent />
+                      </div>
                     </div>
                   )}
                 </div>
@@ -741,27 +786,26 @@ export default function EconomicFeasibilityPage() {
                   )}
                 </div>
 
+                {/* ── Financing ── */}
+                <div className="px-6">
+                  <SectionToggle id="bank" icon={Landmark} title="מימון ובנק" titleEn="Financing & Bank" total={model?.totalFinancingCost} />
+                  {sectionsOpen.bank && (
+                    <div className="pb-4 space-y-0.5">
+                      <AssumptionRow label="ריבית ליווי בנקאי (שנתי)" labelEn="Senior debt rate (annual)" field="seniorDebtRate" suffix="%" isPercent />
+                      <AssumptionRow label="אחוז מימון בנקאי (LTV)" labelEn="Bank LTV (%)" field="seniorDebtLtvPct" suffix="%" isPercent />
+                      <AssumptionRow label="ערבות חוק מכר" labelEn="Sales law guarantee" field="salesLawGuaranteePct" suffix="%" isPercent />
+                      <AssumptionRow label="תשואה נדרשת הון עצמי" labelEn="Required equity return" field="equityReturnRate" suffix="%" isPercent />
+                    </div>
+                  )}
+                </div>
+
                 {/* ── Taxes & Levies ── */}
                 <div className="px-6">
                   <SectionToggle id="taxes" icon={Landmark} title="מיסים והיטלים" titleEn="Taxes & Levies" total={model?.totalTaxesCost} color="#dc2626" />
                   {sectionsOpen.taxes && (
                     <div className="pb-4 space-y-0.5">
-                      <AssumptionRow label="היטל השבחה" labelEn="Betterment levy" field="bettermentLevyRate" suffix="%" isPercent />
-                      <AssumptionRow label="מס רכישה" labelEn="Purchase tax" field="purchaseTaxRate" suffix="%" isPercent />
+                      <AssumptionRow label="היטל השבחה (% מעליית ערך)" labelEn="Betterment levy (% of value increase)" field="bettermentLevyRate" suffix="%" isPercent />
                       <AssumptionRow label='מע"מ' labelEn="VAT" field="vatRate" suffix="%" isPercent />
-                      <AssumptionRow label="עמלת בנק" labelEn="Bank fee" field="bankFeeRate" suffix="%" isPercent />
-                    </div>
-                  )}
-                </div>
-
-                {/* ── Bank & Guarantees ── */}
-                <div className="px-6">
-                  <SectionToggle id="bank" icon={Landmark} title="בנק וערבויות" titleEn="Bank & Guarantees" total={model?.totalBankCost} />
-                  {sectionsOpen.bank && (
-                    <div className="pb-4 space-y-0.5">
-                      <AssumptionRow label="ערבות חוק מכר" labelEn="Sales law guarantee" field="salesLawGuaranteePct" suffix="%" isPercent />
-                      <AssumptionRow label="ליווי בנקאי" labelEn="Bank accompaniment" field="accompanyFeeRate" suffix="%" isPercent />
-                      <AssumptionRow label="תשואה על הון עצמי" labelEn="Equity return" field="equityReturnRate" suffix="%" isPercent />
                     </div>
                   )}
                 </div>
@@ -773,7 +817,7 @@ export default function EconomicFeasibilityPage() {
                     <div className="pb-4 space-y-0.5">
                       <AssumptionRow label="שכ״ד חודשי לדייר" labelEn="Monthly rent / tenant" field="rentPerMonth" suffix="₪" />
                       <AssumptionRow label="חודשי בנייה" labelEn="Construction months" field="constructionMonths" suffix={t('חודשים', 'mo.')} />
-                      <AssumptionRow label="הובלה ליח״ד" labelEn="Moving cost / unit" field="movingCostPerUnit" suffix="₪" />
+                      <AssumptionRow label="הובלה ליח״ד (×2)" labelEn="Moving cost / unit (×2)" field="movingCostPerUnit" suffix="₪" />
                     </div>
                   )}
                 </div>
@@ -821,9 +865,12 @@ export default function EconomicFeasibilityPage() {
                   >
                     ₪{fmtMoney(model.grossProfit)}
                   </div>
-                  <div className="flex items-center justify-center gap-4 text-xs" style={{ color: '#6b7280' }}>
+                  <div className="flex items-center justify-center gap-4 text-xs flex-wrap" style={{ color: '#6b7280' }}>
                     <span>
                       {t('שיעור רווח', 'Margin')}: <strong style={{ color: model.profitMargin >= 0.15 ? '#16a34a' : model.profitMargin >= 0.10 ? '#f59e0b' : '#dc2626' }}>{fmtPct(model.profitMargin)}</strong>
+                    </span>
+                    <span>
+                      ROI: <strong style={{ color: model.roi >= 0.20 ? '#16a34a' : model.roi >= 0.12 ? '#f59e0b' : '#dc2626' }}>{fmtPct(model.roi)}</strong>
                     </span>
                     <span>
                       {t('רווח ליח"ד', 'Profit/Unit')}: <strong>₪{fmtNum(model.profitPerUnit)}</strong>
@@ -894,10 +941,12 @@ export default function EconomicFeasibilityPage() {
                   </h3>
                 </div>
                 <div className="space-y-1">
-                  <ResultRow label="בנייה ישירה" labelEn="Direct Construction" value={`₪${fmtMoney(model.totalConstructionCost)}`} />
+                  <ResultRow label="בנייה ישירה" labelEn="Direct Construction" value={`₪${fmtMoney(model.totalDirectCost)}`} />
+                  <ResultRow label="עלויות רכות (15%)" labelEn="Soft Costs (15%)" value={`₪${fmtMoney(model.softCosts)}`} />
+                  <ResultRow label='בלת"מ (5%)' labelEn="Contingency (5%)" value={`₪${fmtMoney(model.contingency)}`} />
                   <ResultRow label="תכנון ופיקוח" labelEn="Planning & Supervision" value={`₪${fmtMoney(model.totalPlanningCost)}`} />
+                  <ResultRow label="מימון ובנק" labelEn="Financing & Bank" value={`₪${fmtMoney(model.totalFinancingCost)}`} />
                   <ResultRow label="שיווק ומכירות" labelEn="Marketing" value={`₪${fmtMoney(model.costMarketing)}`} />
-                  <ResultRow label="בנק וערבויות" labelEn="Bank & Guarantees" value={`₪${fmtMoney(model.totalBankCost)}`} />
                   <ResultRow label="מיסים והיטלים" labelEn="Taxes & Levies" value={`₪${fmtMoney(model.totalTaxesCost)}`} />
                   <ResultRow label="עלויות דיירים" labelEn="Resident Costs" value={`₪${fmtMoney(model.totalResidentCost)}`} />
                   <ResultRow label='סה"כ הוצאות' labelEn="Total Expenses" value={`₪${fmtMoney(model.totalExpenses)}`} bold color="#dc2626" />
@@ -925,7 +974,34 @@ export default function EconomicFeasibilityPage() {
                   <ResultRow label={`חניון (${fmtNum(rights.parkingAreaTotal)} מ"ר)`} labelEn={`Parking (${fmtNum(rights.parkingAreaTotal)} sqm)`} value={`₪${fmtMoney(model.costParking)}`} />
                   <ResultRow label={`פיתוח סביבתי (${fmtNum(rights.plotArea)} מ"ר)`} labelEn={`Landscaping (${fmtNum(rights.plotArea)} sqm)`} value={`₪${fmtMoney(model.costLandscaping)}`} />
                   <ResultRow label={`הריסה (${fmtNum(model.existingUnits)} יח"ד)`} labelEn={`Demolition (${fmtNum(model.existingUnits)} units)`} value={`₪${fmtMoney(model.costDemolition)}`} />
-                  <ResultRow label='סה"כ בנייה' labelEn="Total Construction" value={`₪${fmtMoney(model.totalConstructionCost)}`} bold />
+                  <ResultRow label='סה"כ ישיר' labelEn="Total Direct" value={`₪${fmtMoney(model.totalDirectCost)}`} bold />
+                  <ResultRow label={`עלויות רכות (${Math.round(assumptions.softCostsPct * 100)}%)`} labelEn={`Soft costs (${Math.round(assumptions.softCostsPct * 100)}%)`} value={`₪${fmtMoney(model.softCosts)}`} />
+                  <ResultRow label={`בלת"מ (${Math.round(assumptions.contingencyPct * 100)}%)`} labelEn={`Contingency (${Math.round(assumptions.contingencyPct * 100)}%)`} value={`₪${fmtMoney(model.contingency)}`} />
+                  <ResultRow label='סה"כ בנייה כולל' labelEn="Total Construction (All-in)" value={`₪${fmtMoney(model.totalConstructionCost)}`} bold color={PURPLE} />
+                </div>
+              </div>
+            )}
+
+            {/* ── Financing Detail ── */}
+            {model && (
+              <div
+                className="rounded-2xl p-5"
+                style={{ background: 'rgba(255,255,255,0.88)', backdropFilter: 'blur(16px)', border: '1px solid rgba(255,255,255,0.3)', color: '#1a1a2e' }}
+              >
+                <div className="flex items-center gap-2 mb-3">
+                  <Landmark className="w-4 h-4" style={{ color: PURPLE }} />
+                  <h3 className="text-xs font-bold" style={{ color: '#1a1a2e' }}>
+                    {t('פירוט מימון ומיסים', 'Financing & Tax Detail')}
+                  </h3>
+                </div>
+                <div className="space-y-1">
+                  <ResultRow label={`ריבית ליווי (S-curve, ${fmtPct(assumptions.seniorDebtRate)})`} labelEn={`Senior debt interest (S-curve, ${fmtPct(assumptions.seniorDebtRate)})`} value={`₪${fmtMoney(model.seniorDebtInterest)}`} />
+                  <ResultRow label="ערבות חוק מכר" labelEn="Sales law guarantee" value={`₪${fmtMoney(model.costSalesLawGuarantee)}`} />
+                  <ResultRow label="עלות הון עצמי" labelEn="Equity cost" value={`₪${fmtMoney(model.equityCost)}`} />
+                  <ResultRow label='סה"כ מימון' labelEn="Total Financing" value={`₪${fmtMoney(model.totalFinancingCost)}`} bold />
+                </div>
+                <div className="mt-3 pt-3 space-y-1" style={{ borderTop: '1px solid rgba(0,0,0,0.06)' }}>
+                  <ResultRow label={`היטל השבחה (${fmtNum(model.addedSqm)} מ"ר × ₪${fmtNum(assumptions.salePriceMainSqm)} × ${Math.round(assumptions.bettermentLevyRate * 100)}%)`} labelEn={`Betterment levy (${fmtNum(model.addedSqm)} sqm)`} value={`₪${fmtMoney(model.costBettermentLevy)}`} color="#dc2626" />
                 </div>
               </div>
             )}

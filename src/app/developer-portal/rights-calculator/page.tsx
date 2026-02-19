@@ -41,15 +41,37 @@ function commaFormat(raw: string): string {
 }
 
 function fmtNum(n: number): string {
-  return n.toLocaleString('he-IL');
+  return Math.round(n).toLocaleString('he-IL');
 }
 
 function fmtDec(n: number, decimals = 1): string {
-  return n.toLocaleString('he-IL', {
+  const factor = Math.pow(10, decimals);
+  const rounded = Math.round(n * factor) / factor;
+  return rounded.toLocaleString('he-IL', {
     minimumFractionDigits: decimals,
     maximumFractionDigits: decimals,
   });
 }
+
+// ── City configuration ───────────────────────────────────────
+
+interface CityConfig {
+  nameHe: string;
+  nameEn: string;
+  tabaLabel: string;
+  tabaLabelEn: string;
+  tabaNumber: string;
+}
+
+const CITY_OPTIONS: Record<string, CityConfig> = {
+  'רעננה': {
+    nameHe: 'רעננה',
+    nameEn: "Ra'anana",
+    tabaLabel: 'תב"ע רע/רע/ב',
+    tabaLabelEn: 'Ra/Ra/B Plan',
+    tabaNumber: '416-1060052',
+  },
+};
 
 // ── Building coefficient lookup ──────────────────────────────
 
@@ -84,7 +106,7 @@ interface CalcResult {
   maxFloors: number;
   // Step 8
   balconiesDeduction: number;
-  laundryDeduction: number;
+  misetorDeduction: number;
   spacesDeduction: number;
   storageDeduction: number;
   undergroundParkingArea: number;
@@ -119,14 +141,18 @@ export default function RightsCalculatorPage() {
   const isHe = lang === 'he';
 
   // ── Mandatory inputs ──
+  const [selectedCity, setSelectedCity] = useState('רעננה');
+  const [addressRaw, setAddressRaw] = useState('');
   const [plotAreaRaw, setPlotAreaRaw] = useState('');
   const [existingFloorsRaw, setExistingFloorsRaw] = useState('');
+
+  // ── City-derived config ──
+  const cityConfig = CITY_OPTIONS[selectedCity] || CITY_OPTIONS['רעננה'];
 
   // ── Optional inputs ──
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [blockNumber, setBlockNumber] = useState('');
   const [parcelNumber, setParcelNumber] = useState('');
-  const [addressRaw, setAddressRaw] = useState('');
   const [plotWidthRaw, setPlotWidthRaw] = useState('');
   const [aptsPerFloorRaw, setAptsPerFloorRaw] = useState('');
   const [existingAptsRaw, setExistingAptsRaw] = useState('');
@@ -200,8 +226,8 @@ export default function RightsCalculatorPage() {
     // Balconies: max 14 sqm per apartment (per TABA), so per floor: aptsPerFloor × 14
     const balconiesPerApt = 14; // max 14 sqm per apartment
     const balconiesDeduction = aptsPerFloor * numFloors * balconiesPerApt;
-    // Laundry rooms: ~14 sqm per building
-    const laundryDeduction = 14;
+    // Misetor (service/AC hideout): 3.5 sqm per apartment
+    const misetorDeduction = aptsPerFloor * numFloors * 3.5;
     // Spaces & deductions (lobbies, stairs, shafts, walls): estimated
     // More precise: ~18% of typical floor area × numFloors for circulation
     const typFloor = typicalFloorArea > 0 ? typicalFloorArea : coverageArea;
@@ -219,7 +245,7 @@ export default function RightsCalculatorPage() {
     );
     const undergroundParkingArea = parkingAreaTotal;
 
-    const totalDeductions = balconiesDeduction + laundryDeduction + spacesDeduction + storageDeduction;
+    const totalDeductions = balconiesDeduction + misetorDeduction + spacesDeduction + storageDeduction;
     const netBuildableArea = totalRights - totalDeductions;
 
     // Existing building area estimation
@@ -253,7 +279,7 @@ export default function RightsCalculatorPage() {
       maxUnits,
       maxFloors,
       balconiesDeduction,
-      laundryDeduction,
+      misetorDeduction,
       spacesDeduction,
       storageDeduction,
       undergroundParkingArea,
@@ -295,11 +321,11 @@ export default function RightsCalculatorPage() {
     if (!formValid) return;
     setIsComputing(true);
     setHasCalculated(false);
-    // Simulate cinematic computation delay
+    // Brief animation flash
     setTimeout(() => {
       setIsComputing(false);
       setHasCalculated(true);
-    }, 1800);
+    }, 200);
   }, [formValid]);
 
   // ── Input style factory ──
@@ -432,8 +458,10 @@ export default function RightsCalculatorPage() {
       >
         <div className="max-w-5xl mx-auto px-6 h-14 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Building2 className="w-4 h-4" style={{ color: PURPLE }} />
-            <span className="font-bold text-sm">PROPCHECK</span>
+            <a href="/" className="flex items-center gap-2 no-underline text-inherit hover:opacity-80 transition-opacity">
+              <Building2 className="w-4 h-4" style={{ color: PURPLE }} />
+              <span className="font-bold text-sm">PROPCHECK</span>
+            </a>
             <span className="text-foreground-muted text-xs">
               {t('| מחשבון זכויות בנייה', '| Building Rights Calculator')}
             </span>
@@ -463,14 +491,14 @@ export default function RightsCalculatorPage() {
         <div className="text-center mb-8">
           <h1 className="text-2xl md:text-3xl font-bold text-foreground mb-2">
             {t(
-              'מחשבון זכויות בנייה — תב"ע רע/רע/ב',
-              'Building Rights Calculator — Ra/Ra/B Plan'
+              `מחשבון זכויות בנייה — ${cityConfig.tabaLabel}`,
+              `Building Rights Calculator — ${cityConfig.tabaLabelEn}`
             )}
           </h1>
           <p className="text-sm text-foreground-muted max-w-xl mx-auto">
             {t(
-              'תב"ע 416-1060052 | התחדשות עירונית רעננה | אושרה 25.02.2025',
-              'Zoning Plan 416-1060052 | Ra\'anana Urban Renewal | Approved 25.02.2025'
+              `תב"ע ${cityConfig.tabaNumber} | התחדשות עירונית ${cityConfig.nameHe} | אושרה 25.02.2025`,
+              `Zoning Plan ${cityConfig.tabaNumber} | ${cityConfig.nameEn} Urban Renewal | Approved 25.02.2025`
             )}
           </p>
         </div>
@@ -489,8 +517,39 @@ export default function RightsCalculatorPage() {
         >
           {/* ── Input Form Section ── */}
           <div className="p-6 sm:p-8">
-            {/* Mandatory Inputs */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mb-6">
+            {/* Primary Inputs — Row 1: City + Plot Area */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 mb-5">
+              {/* City */}
+              <div>
+                <label
+                  className="block text-xs font-semibold mb-1.5"
+                  style={labelStyle}
+                >
+                  <span className="flex items-center gap-1.5">
+                    <Building2 className="w-3.5 h-3.5" />
+                    {t('עיר', 'City')}
+                    <span style={{ color: '#ef4444' }}>*</span>
+                  </span>
+                </label>
+                <select
+                  value={selectedCity}
+                  onChange={(e) => { setSelectedCity(e.target.value); setHasCalculated(false); }}
+                  style={{
+                    ...inputStyle(false),
+                    cursor: 'pointer',
+                    appearance: 'auto' as React.CSSProperties['appearance'],
+                  }}
+                  onFocus={(e) => { e.target.style.borderColor = PURPLE; }}
+                  onBlur={(e) => { e.target.style.borderColor = 'rgba(0,0,0,0.12)'; }}
+                >
+                  {Object.entries(CITY_OPTIONS).map(([key, cfg]) => (
+                    <option key={key} value={key}>
+                      {isHe ? cfg.nameHe : cfg.nameEn}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
               {/* Plot Area */}
               <div>
                 <label
@@ -580,6 +639,29 @@ export default function RightsCalculatorPage() {
               </div>
             </div>
 
+            {/* Primary Inputs — Row 2: Address */}
+            <div className="mb-6">
+              <label
+                className="block text-xs font-semibold mb-1.5"
+                style={labelStyle}
+              >
+                <span className="flex items-center gap-1.5">
+                  <Home className="w-3.5 h-3.5" />
+                  {t('כתובת', 'Address')}
+                </span>
+              </label>
+              <input
+                type="text"
+                dir={isHe ? 'rtl' : 'ltr'}
+                placeholder={t('לדוגמה: הר סיני 22 רעננה', 'e.g. Har Sinai 22, Raanana')}
+                value={addressRaw}
+                onChange={(e) => setAddressRaw(e.target.value)}
+                style={inputStyle(false)}
+                onFocus={(e) => { e.target.style.borderColor = PURPLE; }}
+                onBlur={(e) => { e.target.style.borderColor = 'rgba(0,0,0,0.12)'; }}
+              />
+            </div>
+
             {/* ── Advanced Settings (Collapsible) ── */}
             <div
               className="rounded-lg overflow-hidden mb-6"
@@ -616,23 +698,6 @@ export default function RightsCalculatorPage() {
                       marginBottom: '16px',
                     }}
                   />
-                  {/* Row 1: Address */}
-                  <div className="mb-4">
-                    <label className="block text-[11px] font-semibold mb-1" style={labelStyle}>
-                      {t('כתובת', 'Address')}
-                    </label>
-                    <input
-                      type="text"
-                      dir={isHe ? 'rtl' : 'ltr'}
-                      placeholder={t('לדוגמה: הר סיני 22 רעננה', 'e.g. Har Sinai 22, Raanana')}
-                      value={addressRaw}
-                      onChange={(e) => setAddressRaw(e.target.value)}
-                      style={inputStyle(false)}
-                      onFocus={(e) => { e.target.style.borderColor = PURPLE; }}
-                      onBlur={(e) => { e.target.style.borderColor = 'rgba(0,0,0,0.12)'; }}
-                    />
-                  </div>
-
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                     {/* Block Number */}
                     <div>
@@ -864,8 +929,8 @@ export default function RightsCalculatorPage() {
                   </h3>
                   <p className="text-xs mb-4" style={{ color: '#7D8590' }}>
                     {t(
-                      'מחשב לפי תב"ע 416-1060052 | כיסוי, מקדם בנייה, בונוסים וניכויים',
-                      'Computing per Plan 416-1060052 | Coverage, coefficient, bonuses & deductions'
+                      `מחשב לפי תב"ע ${cityConfig.tabaNumber} | כיסוי, מקדם בנייה, בונוסים וניכויים`,
+                      `Computing per Plan ${cityConfig.tabaNumber} | Coverage, coefficient, bonuses & deductions`
                     )}
                   </p>
                   <div className="flex items-center justify-center gap-6 text-[10px]" style={{ color: '#525A65' }}>
@@ -1022,13 +1087,13 @@ export default function RightsCalculatorPage() {
                           label: t('אחוז כיסוי', 'Coverage %'),
                           formula: t(
                             `שטח ${plotArea <= 2000 ? '≤' : '>'} 2,000 מ"ר → ${
-                              calc.coveragePercentage * 100
+                              Math.round(calc.coveragePercentage * 100)
                             }%`,
                             `Area ${plotArea <= 2000 ? '≤' : '>'} 2,000 sqm → ${
-                              calc.coveragePercentage * 100
+                              Math.round(calc.coveragePercentage * 100)
                             }%`
                           ),
-                          value: `${calc.coveragePercentage * 100}%`,
+                          value: `${Math.round(calc.coveragePercentage * 100)}%`,
                           isMeta: true,
                         },
                         {
@@ -1043,7 +1108,7 @@ export default function RightsCalculatorPage() {
                         {
                           label: t('זכויות בסיס', 'Base Rights'),
                           formula: `${fmtNum(plotArea)} × ${
-                            calc.coveragePercentage * 100
+                            Math.round(calc.coveragePercentage * 100)
                           }% × ${calc.buildingCoefficient}`,
                           value: fmtNum(Math.round(calc.baseRights)),
                         },
@@ -1151,12 +1216,12 @@ export default function RightsCalculatorPage() {
                 <SectionHeader
                   icon={AlertTriangle}
                   title={t(
-                    'ניכויים (לא בזכויות)',
-                    'Deductions (Not in Rights)'
+                    'שטחים נוספים מעבר לזכויות',
+                    'Additional Areas (Beyond Rights)'
                   )}
                   subtitle={t(
-                    'שטחים שאינם נכללים בזכויות הבנייה',
-                    'Areas not included in building rights'
+                    'שטחים המותרים מעבר לזכויות הבנייה העיקריות',
+                    'Areas permitted beyond the main building rights'
                   )}
                 />
                 <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
@@ -1167,9 +1232,9 @@ export default function RightsCalculatorPage() {
                       value: calc.balconiesDeduction,
                     },
                     {
-                      label: t('חדרי כביסה', 'Laundry Rooms'),
-                      formula: t('קבוע — 14 מ"ר', 'Fixed — 14 sqm'),
-                      value: calc.laundryDeduction,
+                      label: t('מסתור שירות / מזגן', 'Service/AC Hideout'),
+                      formula: `${aptsPerFloor} × ${calc.numFloors} × 3.5`,
+                      value: calc.misetorDeduction,
                     },
                     {
                       label: t('לובי, מדרגות, פירים', 'Lobbies, Stairs, Shafts'),
@@ -1583,8 +1648,8 @@ export default function RightsCalculatorPage() {
                     style={{ color: '#6b7280' }}
                   >
                     {t(
-                      'חישוב זה מבוסס על תב"ע 416-1060052 (רע/רע/ב). לקבלת חוות דעת מקצועית מדויקת, נא להתייעץ עם אדריכל/שמאי.',
-                      'This calculation is based on zoning plan 416-1060052 (Ra/Ra/B). For precise professional opinion, consult an architect/appraiser.'
+                      `חישוב זה מבוסס על תב"ע ${cityConfig.tabaNumber} (${cityConfig.tabaLabel.replace('תב"ע ', '')}). לקבלת חוות דעת מקצועית מדויקת, נא להתייעץ עם אדריכל/שמאי.`,
+                      `This calculation is based on zoning plan ${cityConfig.tabaNumber} (${cityConfig.tabaLabelEn}). For precise professional opinion, consult an architect/appraiser.`
                     )}
                   </p>
                 </div>
@@ -1635,6 +1700,7 @@ export default function RightsCalculatorPage() {
                       // Store rights data in sessionStorage for the economic feasibility page
                       if (calc) {
                         sessionStorage.setItem('rightsCalcData', JSON.stringify({
+                          city: selectedCity,
                           plotArea,
                           existingFloors,
                           existingApts,
@@ -1703,8 +1769,8 @@ export default function RightsCalculatorPage() {
         <span className="opacity-30 mx-2">|</span>
         <span>
           {t(
-            'מחשבון זכויות בנייה — תב"ע רע/רע/ב',
-            'Building Rights Calculator — Ra/Ra/B Plan'
+            `מחשבון זכויות בנייה — ${cityConfig.tabaLabel}`,
+            `Building Rights Calculator — ${cityConfig.tabaLabelEn}`
           )}
         </span>
       </div>

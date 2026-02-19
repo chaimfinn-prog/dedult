@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import { LangProvider } from '@/lib/i18n';
+import { AuthProvider } from '@/lib/auth';
 import FirebaseAnalytics from '@/components/FirebaseAnalytics';
 
 export const metadata: Metadata = {
@@ -24,8 +25,10 @@ export default function RootLayout({
     <html lang="he" dir="rtl">
       <body className="antialiased">
         <LangProvider>
-          <FirebaseAnalytics />
-          {children}
+          <AuthProvider>
+            <FirebaseAnalytics />
+            {children}
+          </AuthProvider>
         </LangProvider>
       </body>
     </html>
