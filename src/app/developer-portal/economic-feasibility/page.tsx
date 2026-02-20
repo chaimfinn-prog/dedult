@@ -142,6 +142,11 @@ interface Assumptions {
 
   // ── Marketing ──
   marketingPct: number;           // שיווק ומכירות (% מהכנסות)
+
+  // ── Resident Return (Existing Tenants) ──
+  existingBuiltAreaSqm: number;   // שטח בנוי קיים — סה"כ מ"ר
+  existingApartmentCount: number;  // מספר דירות קיימות
+  extraAreaPerTenant: number;      // תוספת שטח לכל דייר קיים (מ"ר)
 }
 
 const DEFAULT_ASSUMPTIONS: Assumptions = {
@@ -191,6 +196,11 @@ const DEFAULT_ASSUMPTIONS: Assumptions = {
 
   // Marketing
   marketingPct: 0.025,
+
+  // Resident return (existing tenants)
+  existingBuiltAreaSqm: 0,
+  existingApartmentCount: 0,
+  extraAreaPerTenant: 25,
 };
 
 // ── Component ────────────────────────────────────────────────
@@ -205,6 +215,7 @@ export default function EconomicFeasibilityPage() {
   const [sectionsOpen, setSectionsOpen] = useState<Record<string, boolean>>({
     construction: true,
     sale: true,
+    tenantReturn: false,
     planning: false,
     taxes: false,
     bank: false,
@@ -216,7 +227,18 @@ export default function EconomicFeasibilityPage() {
     try {
       const stored = sessionStorage.getItem('rightsCalcData');
       if (stored) {
-        setRights(JSON.parse(stored));
+        const parsed: RightsData = JSON.parse(stored);
+        setRights(parsed);
+        // Pre-populate existing tenant fields from rights data
+        const existingCount = parsed.existingApts || (parsed.existingFloors * 7) || 0;
+        const existingArea = parsed.existingBuildArea || 0;
+        if (existingCount > 0 || existingArea > 0) {
+          setAssumptions(prev => ({
+            ...prev,
+            existingBuiltAreaSqm: existingArea,
+            existingApartmentCount: existingCount,
+          }));
+        }
       }
     } catch {
       // ignore
@@ -244,12 +266,22 @@ export default function EconomicFeasibilityPage() {
     const constructionYears = a.constructionMonths / 12;
 
     // ═══════════════════════════════════════════════════════════
+    // 0. EXISTING TENANTS RETURN (החזרת שטח לדיירים קיימים)
+    // ═══════════════════════════════════════════════════════════
+    // Total area returned: existing built area + extra per tenant
+    // This area is built at construction cost but generates ZERO revenue.
+    const existingTenantReturnArea = a.existingBuiltAreaSqm + (a.existingApartmentCount * a.extraAreaPerTenant);
+    const costExistingTenantBuild = existingTenantReturnArea * a.costMainBuildSqm;
+
+    // ═══════════════════════════════════════════════════════════
     // 1. REVENUE (הכנסות)
     // ═══════════════════════════════════════════════════════════
 
     const avgAptArea = a.avgAptSizeSqm;
     const balconyAreaPerApt = 14; // per TABA Ra/Ra/B
-    const totalSaleableMainArea = newUnits * avgAptArea;
+    // Subtract tenant return area from saleable inventory — those sqm generate no revenue
+    const grossSaleableMainArea = newUnits * avgAptArea;
+    const totalSaleableMainArea = Math.max(grossSaleableMainArea - existingTenantReturnArea, 0);
     const totalSaleableBalconyArea = newUnits * balconyAreaPerApt;
 
     const revenueMainArea = totalSaleableMainArea * a.salePriceMainSqm;
@@ -288,7 +320,7 @@ export default function EconomicFeasibilityPage() {
 
     const totalDirectCost =
       costMainBuild + costServiceArea + costBalconies + costRoofBalconies +
-      costParking + costLandscaping + costDemolition;
+      costParking + costLandscaping + costDemolition + costExistingTenantBuild;
 
     // ═══════════════════════════════════════════════════════════
     // 3. SOFT COSTS (עלויות רכות — ~15% of direct)
@@ -345,13 +377,14 @@ export default function EconomicFeasibilityPage() {
     // ═══════════════════════════════════════════════════════════
 
     // Betterment Levy (היטל השבחה):
-    // Standard: 50% × (value_after - value_before) for developer's new rights
-    // Value increase = added_sqm × price_per_sqm (gross, before costs)
-    // The new municipal plans do NOT grant sweeping exemptions
+    // Standard: 50% × NET value increase per added sqm
+    // NET value increase = (sale price/sqm - construction cost/sqm) × added sqm
+    // This approximates (new land value after plan - old land value before plan)
     const addedSqm = rights.newAddedArea > 0
       ? rights.newAddedArea
       : Math.max(rights.totalRights - rights.existingBuildArea, 0);
-    const valueIncrease = addedSqm * a.salePriceMainSqm;
+    const netValuePerSqm = Math.max(a.salePriceMainSqm - a.costMainBuildSqm, 0);
+    const valueIncrease = addedSqm * netValuePerSqm;
     const costBettermentLevy = valueIncrease * a.bettermentLevyRate;
 
     // VAT: on developer's profit (not a pass-through for residential)
@@ -388,6 +421,9 @@ export default function EconomicFeasibilityPage() {
       // Units
       newUnits, existingUnits, totalUnits,
 
+      // Existing tenants return
+      existingTenantReturnArea, costExistingTenantBuild, grossSaleableMainArea,
+
       // Revenue
       totalSaleableMainArea, totalSaleableBalconyArea,
       revenueMainArea, revenueBalconies, revenueParking, revenueStorage,
@@ -414,7 +450,7 @@ export default function EconomicFeasibilityPage() {
       totalFinancingCost,
 
       // Taxes
-      addedSqm, valueIncrease, costBettermentLevy,
+      addedSqm, netValuePerSqm, valueIncrease, costBettermentLevy,
       totalTaxesCost,
 
       // Resident
@@ -756,6 +792,39 @@ export default function EconomicFeasibilityPage() {
                   )}
                 </div>
 
+                {/* ── Existing Tenant Return ── */}
+                <div className="px-6">
+                  <SectionToggle id="tenantReturn" icon={Users} title="החזרת שטח לדיירים קיימים" titleEn="Existing Tenant Return" total={model?.costExistingTenantBuild} color="#f59e0b" />
+                  {sectionsOpen.tenantReturn && (
+                    <div className="pb-4 space-y-0.5">
+                      <AssumptionRow label='שטח בנוי קיים (מ"ר)' labelEn="Existing built area (sqm)" field="existingBuiltAreaSqm" suffix='מ"ר' />
+                      <AssumptionRow label="מספר דירות קיימות" labelEn="Existing apartments" field="existingApartmentCount" suffix={t('יח"ד', 'units')} />
+                      <AssumptionRow label='תוספת שטח לכל דייר (מ"ר)' labelEn="Extra area per tenant (sqm)" field="extraAreaPerTenant" suffix='מ"ר' />
+                      {model && (
+                        <div className="pt-2 mt-1" style={{ borderTop: '1px dashed rgba(0,0,0,0.08)' }}>
+                          <div className="flex items-center justify-between py-1">
+                            <span className="text-[10px] font-bold" style={{ color: '#f59e0b' }}>
+                              {t('סה"כ שטח החזרה לדיירים', 'Total tenant return area')}
+                            </span>
+                            <span className="text-[10px] font-bold" style={{ color: '#f59e0b', fontFamily: "'Space Grotesk', monospace" }}>
+                              {fmtNum(model.existingTenantReturnArea)} {t('מ"ר', 'sqm')}
+                            </span>
+                          </div>
+                          <div className="flex items-start gap-2 p-2 rounded-lg mt-1" style={{ background: 'rgba(245,158,11,0.06)', border: '1px solid rgba(245,158,11,0.12)' }}>
+                            <AlertTriangle className="w-3 h-3 mt-0.5 flex-shrink-0" style={{ color: '#f59e0b' }} />
+                            <p className="text-[10px] leading-relaxed" style={{ color: '#6b7280' }}>
+                              {t(
+                                'שטח זה נבנה בעלות מלאה אך אינו מייצר הכנסה — מופחת ממלאי הדירות למכירה.',
+                                'This area is built at full cost but generates zero revenue — deducted from saleable inventory.'
+                              )}
+                            </p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
                 {/* ── Sale Prices ── */}
                 <div className="px-6">
                   <SectionToggle id="sale" icon={DollarSign} title="מחירי מכירה" titleEn="Sale Prices" total={model?.totalRevenue} color="#16a34a" />
@@ -974,6 +1043,9 @@ export default function EconomicFeasibilityPage() {
                   <ResultRow label={`חניון (${fmtNum(rights.parkingAreaTotal)} מ"ר)`} labelEn={`Parking (${fmtNum(rights.parkingAreaTotal)} sqm)`} value={`₪${fmtMoney(model.costParking)}`} />
                   <ResultRow label={`פיתוח סביבתי (${fmtNum(rights.plotArea)} מ"ר)`} labelEn={`Landscaping (${fmtNum(rights.plotArea)} sqm)`} value={`₪${fmtMoney(model.costLandscaping)}`} />
                   <ResultRow label={`הריסה (${fmtNum(model.existingUnits)} יח"ד)`} labelEn={`Demolition (${fmtNum(model.existingUnits)} units)`} value={`₪${fmtMoney(model.costDemolition)}`} />
+                  {model.existingTenantReturnArea > 0 && (
+                    <ResultRow label={`החזרת שטח לדיירים (${fmtNum(model.existingTenantReturnArea)} מ"ר)`} labelEn={`Tenant return (${fmtNum(model.existingTenantReturnArea)} sqm)`} value={`₪${fmtMoney(model.costExistingTenantBuild)}`} color="#f59e0b" />
+                  )}
                   <ResultRow label='סה"כ ישיר' labelEn="Total Direct" value={`₪${fmtMoney(model.totalDirectCost)}`} bold />
                   <ResultRow label={`עלויות רכות (${Math.round(assumptions.softCostsPct * 100)}%)`} labelEn={`Soft costs (${Math.round(assumptions.softCostsPct * 100)}%)`} value={`₪${fmtMoney(model.softCosts)}`} />
                   <ResultRow label={`בלת"מ (${Math.round(assumptions.contingencyPct * 100)}%)`} labelEn={`Contingency (${Math.round(assumptions.contingencyPct * 100)}%)`} value={`₪${fmtMoney(model.contingency)}`} />

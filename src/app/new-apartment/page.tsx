@@ -3,11 +3,13 @@
 import { useState, useMemo } from 'react';
 import {
   Building2, ArrowRight, Globe, TrendingUp, DollarSign,
-  Home, Maximize,
+  Home as HomeIcon, Maximize, MapPin, AlertTriangle, CheckCircle2,
+  BarChart3, ShieldAlert, Sparkles, ArrowUpRight, ArrowDownRight,
+  Layers, Target, Info,
 } from 'lucide-react';
 import {
-  AreaChart, Area, LineChart, Line, XAxis, YAxis, CartesianGrid,
-  Tooltip, ResponsiveContainer, Legend, ComposedChart,
+  Area, XAxis, YAxis, CartesianGrid,
+  Tooltip, ResponsiveContainer, Legend, ComposedChart, Line,
 } from 'recharts';
 import { useLang } from '@/lib/i18n';
 
@@ -56,6 +58,277 @@ function loanBalanceAtMonth(principal: number, annualRate: number, totalMonths: 
   return principal * Math.pow(1 + r, month) - payment * ((Math.pow(1 + r, month) - 1) / r);
 }
 
+// ── Market Intelligence Engine ───────────────────────────────
+
+interface MarketIntelligence {
+  cityTier: 'premium' | 'major' | 'mid' | 'peripheral';
+  avgPricePerSqm: number;
+  userPricePerSqm: number;
+  priceDiffPercent: number;
+  supplyLevel: 'High' | 'Medium' | 'Low';
+  supplyLevelHe: 'גבוהה' | 'בינונית' | 'נמוכה';
+  developerPressure: 'High' | 'Medium' | 'Low';
+  developerPressureHe: 'גבוה' | 'בינוני' | 'נמוך';
+  riskFactors: { he: string; en: string; type: 'risk' | 'opportunity' | 'neutral' }[];
+  marketTrend: 'rising' | 'stable' | 'cooling';
+  marketTrendHe: 'עולה' | 'יציב' | 'מתקרר';
+  demandScore: number; // 1-10
+  cityNameHe: string;
+  cityNameEn: string;
+}
+
+const CITY_DATA: Record<string, {
+  tier: 'premium' | 'major' | 'mid' | 'peripheral';
+  basePricePerSqm: number;
+  supply: 'High' | 'Medium' | 'Low';
+  supplyHe: 'גבוהה' | 'בינונית' | 'נמוכה';
+  pressure: 'High' | 'Medium' | 'Low';
+  pressureHe: 'גבוה' | 'בינוני' | 'נמוך';
+  trend: 'rising' | 'stable' | 'cooling';
+  trendHe: 'עולה' | 'יציב' | 'מתקרר';
+  demand: number;
+  he: string;
+  en: string;
+}> = {
+  'תל אביב': { tier: 'premium', basePricePerSqm: 68000, supply: 'Low', supplyHe: 'נמוכה', pressure: 'Low', pressureHe: 'נמוך', trend: 'rising', trendHe: 'עולה', demand: 9.5, he: 'תל אביב', en: 'Tel Aviv' },
+  'tel aviv': { tier: 'premium', basePricePerSqm: 68000, supply: 'Low', supplyHe: 'נמוכה', pressure: 'Low', pressureHe: 'נמוך', trend: 'rising', trendHe: 'עולה', demand: 9.5, he: 'תל אביב', en: 'Tel Aviv' },
+  'רמת גן': { tier: 'premium', basePricePerSqm: 48000, supply: 'Medium', supplyHe: 'בינונית', pressure: 'Medium', pressureHe: 'בינוני', trend: 'rising', trendHe: 'עולה', demand: 8, he: 'רמת גן', en: 'Ramat Gan' },
+  'ramat gan': { tier: 'premium', basePricePerSqm: 48000, supply: 'Medium', supplyHe: 'בינונית', pressure: 'Medium', pressureHe: 'בינוני', trend: 'rising', trendHe: 'עולה', demand: 8, he: 'רמת גן', en: 'Ramat Gan' },
+  'גבעתיים': { tier: 'premium', basePricePerSqm: 52000, supply: 'Low', supplyHe: 'נמוכה', pressure: 'Low', pressureHe: 'נמוך', trend: 'rising', trendHe: 'עולה', demand: 8.5, he: 'גבעתיים', en: 'Givatayim' },
+  'givatayim': { tier: 'premium', basePricePerSqm: 52000, supply: 'Low', supplyHe: 'נמוכה', pressure: 'Low', pressureHe: 'נמוך', trend: 'rising', trendHe: 'עולה', demand: 8.5, he: 'גבעתיים', en: 'Givatayim' },
+  'הרצליה': { tier: 'premium', basePricePerSqm: 55000, supply: 'Medium', supplyHe: 'בינונית', pressure: 'Low', pressureHe: 'נמוך', trend: 'rising', trendHe: 'עולה', demand: 8.5, he: 'הרצליה', en: 'Herzliya' },
+  'herzliya': { tier: 'premium', basePricePerSqm: 55000, supply: 'Medium', supplyHe: 'בינונית', pressure: 'Low', pressureHe: 'נמוך', trend: 'rising', trendHe: 'עולה', demand: 8.5, he: 'הרצליה', en: 'Herzliya' },
+  'ירושלים': { tier: 'major', basePricePerSqm: 45000, supply: 'Medium', supplyHe: 'בינונית', pressure: 'Medium', pressureHe: 'בינוני', trend: 'stable', trendHe: 'יציב', demand: 7.5, he: 'ירושלים', en: 'Jerusalem' },
+  'jerusalem': { tier: 'major', basePricePerSqm: 45000, supply: 'Medium', supplyHe: 'בינונית', pressure: 'Medium', pressureHe: 'בינוני', trend: 'stable', trendHe: 'יציב', demand: 7.5, he: 'ירושלים', en: 'Jerusalem' },
+  'חיפה': { tier: 'major', basePricePerSqm: 28000, supply: 'High', supplyHe: 'גבוהה', pressure: 'High', pressureHe: 'גבוה', trend: 'stable', trendHe: 'יציב', demand: 6, he: 'חיפה', en: 'Haifa' },
+  'haifa': { tier: 'major', basePricePerSqm: 28000, supply: 'High', supplyHe: 'גבוהה', pressure: 'High', pressureHe: 'גבוה', trend: 'stable', trendHe: 'יציב', demand: 6, he: 'חיפה', en: 'Haifa' },
+  'באר שבע': { tier: 'mid', basePricePerSqm: 22000, supply: 'High', supplyHe: 'גבוהה', pressure: 'High', pressureHe: 'גבוה', trend: 'stable', trendHe: 'יציב', demand: 5.5, he: 'באר שבע', en: 'Beer Sheva' },
+  'beer sheva': { tier: 'mid', basePricePerSqm: 22000, supply: 'High', supplyHe: 'גבוהה', pressure: 'High', pressureHe: 'גבוה', trend: 'stable', trendHe: 'יציב', demand: 5.5, he: 'באר שבע', en: 'Beer Sheva' },
+  'נתניה': { tier: 'mid', basePricePerSqm: 32000, supply: 'High', supplyHe: 'גבוהה', pressure: 'High', pressureHe: 'גבוה', trend: 'cooling', trendHe: 'מתקרר', demand: 6.5, he: 'נתניה', en: 'Netanya' },
+  'netanya': { tier: 'mid', basePricePerSqm: 32000, supply: 'High', supplyHe: 'גבוהה', pressure: 'High', pressureHe: 'גבוה', trend: 'cooling', trendHe: 'מתקרר', demand: 6.5, he: 'נתניה', en: 'Netanya' },
+  'ראשון לציון': { tier: 'major', basePricePerSqm: 38000, supply: 'Medium', supplyHe: 'בינונית', pressure: 'Medium', pressureHe: 'בינוני', trend: 'rising', trendHe: 'עולה', demand: 7.5, he: 'ראשון לציון', en: 'Rishon LeZion' },
+  'rishon lezion': { tier: 'major', basePricePerSqm: 38000, supply: 'Medium', supplyHe: 'בינונית', pressure: 'Medium', pressureHe: 'בינוני', trend: 'rising', trendHe: 'עולה', demand: 7.5, he: 'ראשון לציון', en: 'Rishon LeZion' },
+  'פתח תקווה': { tier: 'major', basePricePerSqm: 36000, supply: 'Medium', supplyHe: 'בינונית', pressure: 'Medium', pressureHe: 'בינוני', trend: 'stable', trendHe: 'יציב', demand: 7, he: 'פתח תקווה', en: 'Petah Tikva' },
+  'petah tikva': { tier: 'major', basePricePerSqm: 36000, supply: 'Medium', supplyHe: 'בינונית', pressure: 'Medium', pressureHe: 'בינוני', trend: 'stable', trendHe: 'יציב', demand: 7, he: 'פתח תקווה', en: 'Petah Tikva' },
+  'אשדוד': { tier: 'mid', basePricePerSqm: 26000, supply: 'High', supplyHe: 'גבוהה', pressure: 'High', pressureHe: 'גבוה', trend: 'cooling', trendHe: 'מתקרר', demand: 5.5, he: 'אשדוד', en: 'Ashdod' },
+  'ashdod': { tier: 'mid', basePricePerSqm: 26000, supply: 'High', supplyHe: 'גבוהה', pressure: 'High', pressureHe: 'גבוה', trend: 'cooling', trendHe: 'מתקרר', demand: 5.5, he: 'אשדוד', en: 'Ashdod' },
+  'אשקלון': { tier: 'peripheral', basePricePerSqm: 20000, supply: 'High', supplyHe: 'גבוהה', pressure: 'High', pressureHe: 'גבוה', trend: 'cooling', trendHe: 'מתקרר', demand: 4.5, he: 'אשקלון', en: 'Ashkelon' },
+  'ashkelon': { tier: 'peripheral', basePricePerSqm: 20000, supply: 'High', supplyHe: 'גבוהה', pressure: 'High', pressureHe: 'גבוה', trend: 'cooling', trendHe: 'מתקרר', demand: 4.5, he: 'אשקלון', en: 'Ashkelon' },
+  'כרמיאל': { tier: 'peripheral', basePricePerSqm: 17000, supply: 'High', supplyHe: 'גבוהה', pressure: 'High', pressureHe: 'גבוה', trend: 'stable', trendHe: 'יציב', demand: 4, he: 'כרמיאל', en: 'Karmiel' },
+  'karmiel': { tier: 'peripheral', basePricePerSqm: 17000, supply: 'High', supplyHe: 'גבוהה', pressure: 'High', pressureHe: 'גבוה', trend: 'stable', trendHe: 'יציב', demand: 4, he: 'כרמיאל', en: 'Karmiel' },
+  'עפולה': { tier: 'peripheral', basePricePerSqm: 16000, supply: 'High', supplyHe: 'גבוהה', pressure: 'High', pressureHe: 'גבוה', trend: 'stable', trendHe: 'יציב', demand: 3.5, he: 'עפולה', en: 'Afula' },
+  'afula': { tier: 'peripheral', basePricePerSqm: 16000, supply: 'High', supplyHe: 'גבוהה', pressure: 'High', pressureHe: 'גבוה', trend: 'stable', trendHe: 'יציב', demand: 3.5, he: 'עפולה', en: 'Afula' },
+  'הוד השרון': { tier: 'major', basePricePerSqm: 42000, supply: 'Medium', supplyHe: 'בינונית', pressure: 'Medium', pressureHe: 'בינוני', trend: 'rising', trendHe: 'עולה', demand: 7.5, he: 'הוד השרון', en: 'Hod HaSharon' },
+  'hod hasharon': { tier: 'major', basePricePerSqm: 42000, supply: 'Medium', supplyHe: 'בינונית', pressure: 'Medium', pressureHe: 'בינוני', trend: 'rising', trendHe: 'עולה', demand: 7.5, he: 'הוד השרון', en: 'Hod HaSharon' },
+  'רעננה': { tier: 'premium', basePricePerSqm: 50000, supply: 'Low', supplyHe: 'נמוכה', pressure: 'Low', pressureHe: 'נמוך', trend: 'rising', trendHe: 'עולה', demand: 8.5, he: 'רעננה', en: "Ra'anana" },
+  "ra'anana": { tier: 'premium', basePricePerSqm: 50000, supply: 'Low', supplyHe: 'נמוכה', pressure: 'Low', pressureHe: 'נמוך', trend: 'rising', trendHe: 'עולה', demand: 8.5, he: 'רעננה', en: "Ra'anana" },
+  'raanana': { tier: 'premium', basePricePerSqm: 50000, supply: 'Low', supplyHe: 'נמוכה', pressure: 'Low', pressureHe: 'נמוך', trend: 'rising', trendHe: 'עולה', demand: 8.5, he: 'רעננה', en: "Ra'anana" },
+  'כפר סבא': { tier: 'major', basePricePerSqm: 38000, supply: 'Medium', supplyHe: 'בינונית', pressure: 'Medium', pressureHe: 'בינוני', trend: 'stable', trendHe: 'יציב', demand: 7, he: 'כפר סבא', en: 'Kfar Saba' },
+  'kfar saba': { tier: 'major', basePricePerSqm: 38000, supply: 'Medium', supplyHe: 'בינונית', pressure: 'Medium', pressureHe: 'בינוני', trend: 'stable', trendHe: 'יציב', demand: 7, he: 'כפר סבא', en: 'Kfar Saba' },
+  'בת ים': { tier: 'mid', basePricePerSqm: 35000, supply: 'Medium', supplyHe: 'בינונית', pressure: 'Medium', pressureHe: 'בינוני', trend: 'rising', trendHe: 'עולה', demand: 6.5, he: 'בת ים', en: 'Bat Yam' },
+  'bat yam': { tier: 'mid', basePricePerSqm: 35000, supply: 'Medium', supplyHe: 'בינונית', pressure: 'Medium', pressureHe: 'בינוני', trend: 'rising', trendHe: 'עולה', demand: 6.5, he: 'בת ים', en: 'Bat Yam' },
+  'חולון': { tier: 'mid', basePricePerSqm: 34000, supply: 'Medium', supplyHe: 'בינונית', pressure: 'Medium', pressureHe: 'בינוני', trend: 'stable', trendHe: 'יציב', demand: 6.5, he: 'חולון', en: 'Holon' },
+  'holon': { tier: 'mid', basePricePerSqm: 34000, supply: 'Medium', supplyHe: 'בינונית', pressure: 'Medium', pressureHe: 'בינוני', trend: 'stable', trendHe: 'יציב', demand: 6.5, he: 'חולון', en: 'Holon' },
+  'מודיעין': { tier: 'major', basePricePerSqm: 35000, supply: 'Medium', supplyHe: 'בינונית', pressure: 'Medium', pressureHe: 'בינוני', trend: 'stable', trendHe: 'יציב', demand: 7, he: 'מודיעין', en: "Modi'in" },
+  "modi'in": { tier: 'major', basePricePerSqm: 35000, supply: 'Medium', supplyHe: 'בינונית', pressure: 'Medium', pressureHe: 'בינוני', trend: 'stable', trendHe: 'יציב', demand: 7, he: 'מודיעין', en: "Modi'in" },
+  'modiin': { tier: 'major', basePricePerSqm: 35000, supply: 'Medium', supplyHe: 'בינונית', pressure: 'Medium', pressureHe: 'בינוני', trend: 'stable', trendHe: 'יציב', demand: 7, he: 'מודיעין', en: "Modi'in" },
+};
+
+const DEFAULT_CITY = {
+  tier: 'mid' as const,
+  basePricePerSqm: 28000,
+  supply: 'Medium' as const,
+  supplyHe: 'בינונית' as const,
+  pressure: 'Medium' as const,
+  pressureHe: 'בינוני' as const,
+  trend: 'stable' as const,
+  trendHe: 'יציב' as const,
+  demand: 5.5,
+  he: '',
+  en: '',
+};
+
+function extractCity(address: string): string {
+  const trimmed = address.trim().toLowerCase();
+  // Try direct match first
+  if (CITY_DATA[trimmed]) return trimmed;
+  // Check if the address contains a known city name
+  for (const key of Object.keys(CITY_DATA)) {
+    if (trimmed.includes(key)) return key;
+  }
+  // Try the original (non-lowered) for Hebrew
+  const original = address.trim();
+  if (CITY_DATA[original]) return original;
+  for (const key of Object.keys(CITY_DATA)) {
+    if (original.includes(key)) return key;
+  }
+  return '';
+}
+
+function generateMarketIntelligence(addressInput: string, sqm: number, price: number): MarketIntelligence | null {
+  if (!addressInput.trim()) return null;
+
+  const cityKey = extractCity(addressInput);
+  const cityInfo = cityKey ? CITY_DATA[cityKey] : null;
+  const data = cityInfo || DEFAULT_CITY;
+
+  // Size adjustment: smaller apartments cost more per sqm
+  const sizeMultiplier = sqm > 0 ? (sqm < 60 ? 1.12 : sqm < 80 ? 1.0 : sqm < 100 ? 0.95 : 0.88) : 1.0;
+  const avgPricePerSqm = Math.round(data.basePricePerSqm * sizeMultiplier);
+
+  const userPricePerSqm = sqm > 0 && price > 0 ? Math.round(price / sqm) : 0;
+  const priceDiffPercent = avgPricePerSqm > 0 && userPricePerSqm > 0
+    ? ((userPricePerSqm - avgPricePerSqm) / avgPricePerSqm) * 100
+    : 0;
+
+  // Generate risk factors based on city tier and market conditions
+  const riskFactors: { he: string; en: string; type: 'risk' | 'opportunity' | 'neutral' }[] = [];
+
+  if (data.supply === 'High') {
+    riskFactors.push({
+      he: 'היצע גבוה באזור — כוח מיקוח חזק לקונה',
+      en: 'High supply in area — strong buyer bargaining power',
+      type: 'opportunity',
+    });
+  }
+  if (data.supply === 'Low') {
+    riskFactors.push({
+      he: 'היצע נמוך — תחרות גבוהה על נכסים, מחירים עלולים לעלות',
+      en: 'Low supply — high competition for properties, prices may rise',
+      type: 'risk',
+    });
+  }
+
+  if (data.trend === 'rising') {
+    riskFactors.push({
+      he: 'מגמת עלייה במחירים — פוטנציאל לעליית ערך',
+      en: 'Rising price trend — appreciation potential',
+      type: 'opportunity',
+    });
+  }
+  if (data.trend === 'cooling') {
+    riskFactors.push({
+      he: 'שוק מתקרר — ייתכן שהמחירים יתמתנו בטווח הקרוב',
+      en: 'Cooling market — prices may moderate in near term',
+      type: 'risk',
+    });
+  }
+
+  if (priceDiffPercent > 15) {
+    riskFactors.push({
+      he: `המחיר המבוקש גבוה ב-${Math.round(priceDiffPercent)}% מהממוצע באזור — בדוק אם יש הצדקה`,
+      en: `Asking price is ${Math.round(priceDiffPercent)}% above area average — verify justification`,
+      type: 'risk',
+    });
+  } else if (priceDiffPercent < -10) {
+    riskFactors.push({
+      he: `המחיר המבוקש נמוך ב-${Math.round(Math.abs(priceDiffPercent))}% מהממוצע — הזדמנות אפשרית`,
+      en: `Asking price is ${Math.round(Math.abs(priceDiffPercent))}% below area average — potential opportunity`,
+      type: 'opportunity',
+    });
+  }
+
+  if (data.pressure === 'High') {
+    riskFactors.push({
+      he: 'יזמים תחת לחץ מכירה — אפשרות למשא ומתן על הנחות',
+      en: 'Developers under selling pressure — room for discount negotiations',
+      type: 'opportunity',
+    });
+  }
+
+  if (data.tier === 'premium') {
+    riskFactors.push({
+      he: 'אזור פרימיום — ביקוש גבוה ויציב, סיכון נמוך יחסית',
+      en: 'Premium area — high stable demand, relatively low risk',
+      type: 'neutral',
+    });
+  } else if (data.tier === 'peripheral') {
+    riskFactors.push({
+      he: 'אזור פריפריאלי — תשואת שכירות פוטנציאלית גבוהה, סיכון נזילות',
+      en: 'Peripheral area — potentially high rental yield, liquidity risk',
+      type: 'neutral',
+    });
+  }
+
+  // Always add a general tip
+  riskFactors.push({
+    he: 'מומלץ לבצע בדיקת שמאי עצמאי לפני חתימה',
+    en: 'Recommended to get an independent appraisal before signing',
+    type: 'neutral',
+  });
+
+  return {
+    cityTier: data.tier,
+    avgPricePerSqm,
+    userPricePerSqm,
+    priceDiffPercent,
+    supplyLevel: data.supply,
+    supplyLevelHe: data.supplyHe,
+    developerPressure: data.pressure,
+    developerPressureHe: data.pressureHe,
+    riskFactors,
+    marketTrend: data.trend,
+    marketTrendHe: data.trendHe,
+    demandScore: data.demand,
+    cityNameHe: cityInfo ? data.he : addressInput.trim(),
+    cityNameEn: cityInfo ? data.en : addressInput.trim(),
+  };
+}
+
+// ── Shared Styles ────────────────────────────────────────────
+
+const inputStyle: React.CSSProperties = {
+  width: '100%',
+  padding: '10px 14px',
+  borderRadius: '8px',
+  border: '1px solid rgba(0,0,0,0.12)',
+  background: 'rgba(255,255,255,0.7)',
+  fontSize: '15px',
+  fontFamily: "'Space Grotesk', monospace",
+  color: '#1a1a2e',
+  outline: 'none',
+  transition: 'border-color 0.15s',
+};
+
+const glassCard: React.CSSProperties = {
+  background: 'rgba(255,255,255,0.88)',
+  backdropFilter: 'blur(16px)',
+  border: '1px solid rgba(255,255,255,0.3)',
+  borderRadius: 'var(--radius)',
+  color: '#1a1a2e',
+};
+
+// ── Badge Component ──────────────────────────────────────────
+
+function Badge({ color, children }: { color: 'green' | 'gold' | 'red' | 'blue' | 'gray'; children: React.ReactNode }) {
+  const colors = {
+    green: { bg: 'rgba(22,163,74,0.1)', border: 'rgba(22,163,74,0.25)', text: '#16a34a' },
+    gold: { bg: 'rgba(202,138,4,0.1)', border: 'rgba(202,138,4,0.25)', text: '#ca8a04' },
+    red: { bg: 'rgba(220,38,38,0.1)', border: 'rgba(220,38,38,0.25)', text: '#dc2626' },
+    blue: { bg: 'rgba(91,141,238,0.1)', border: 'rgba(91,141,238,0.25)', text: '#5B8DEE' },
+    gray: { bg: 'rgba(107,114,128,0.1)', border: 'rgba(107,114,128,0.2)', text: '#6b7280' },
+  };
+  const c = colors[color];
+  return (
+    <span
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 4,
+        padding: '3px 10px',
+        borderRadius: 20,
+        fontSize: 11,
+        fontWeight: 700,
+        background: c.bg,
+        border: `1px solid ${c.border}`,
+        color: c.text,
+      }}
+    >
+      {children}
+    </span>
+  );
+}
+
 // ── Component ────────────────────────────────────────────────
 
 export default function NewApartmentPage() {
@@ -65,10 +338,12 @@ export default function NewApartmentPage() {
 
   // ── User inputs (raw strings for formatting) ──
 
+  const [addressRaw, setAddressRaw] = useState('');
   const [priceRaw, setPriceRaw] = useState('');
   const [equityRaw, setEquityRaw] = useState('');
   const [rentRaw, setRentRaw] = useState('');
   const [sqmRaw, setSqmRaw] = useState('');
+  const [marketValueRaw, setMarketValueRaw] = useState('');
 
   // ── Parsed values ──
 
@@ -76,6 +351,22 @@ export default function NewApartmentPage() {
   const equity = parseNum(equityRaw);
   const rent = parseNum(rentRaw);
   const sqm = parseNum(sqmRaw);
+  const marketValue = parseNum(marketValueRaw);
+
+  // ── Market Intelligence ──
+
+  const marketIntel = useMemo(() => {
+    return generateMarketIntelligence(addressRaw, sqm, price);
+  }, [addressRaw, sqm, price]);
+
+  // ── Renewal Premium ──
+
+  const renewalPremium = useMemo(() => {
+    if (price <= 0 || marketValue <= 0) return null;
+    const premium = price - marketValue;
+    const percentage = (premium / marketValue) * 100;
+    return { premium, percentage };
+  }, [price, marketValue]);
 
   // ── Calculations (auto via useMemo) ────────────────────────
 
@@ -171,6 +462,13 @@ export default function NewApartmentPage() {
     setter(commaFormat(e.target.value));
   };
 
+  const handleFocus = (e: React.FocusEvent<HTMLInputElement>) => {
+    e.target.style.borderColor = '#5B8DEE';
+  };
+  const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+    e.target.style.borderColor = 'rgba(0,0,0,0.12)';
+  };
+
   // ── Custom Tooltip ──
 
   const ChartTooltip = ({ active, payload, label }: any) => {
@@ -197,6 +495,19 @@ export default function NewApartmentPage() {
       </div>
     );
   };
+
+  // ── Supply / Pressure badge color helper ──
+
+  function levelColor(level: 'High' | 'Medium' | 'Low', invert = false): 'green' | 'gold' | 'red' {
+    if (invert) {
+      return level === 'High' ? 'green' : level === 'Medium' ? 'gold' : 'red';
+    }
+    return level === 'Low' ? 'green' : level === 'Medium' ? 'gold' : 'red';
+  }
+
+  function trendColor(trend: 'rising' | 'stable' | 'cooling'): 'green' | 'gold' | 'blue' {
+    return trend === 'rising' ? 'green' : trend === 'cooling' ? 'blue' : 'gold';
+  }
 
   return (
     <div className="min-h-screen flex flex-col relative">
@@ -256,34 +567,61 @@ export default function NewApartmentPage() {
           </h1>
           <p className="text-sm text-foreground-muted max-w-xl mx-auto">
             {t(
-              'הזן 4 נתונים בלבד וקבל ניתוח פיננסי מלא כולל תשואה, תזרים ותחזית ל-10 שנים.',
-              'Enter just 4 data points and get a full financial analysis including yield, cash flow, and a 10-year projection.'
+              'הזן כתובת ו-4 נתונים וקבל ניתוח פיננסי מלא כולל מודיעין שוק, תשואה ותחזית ל-10 שנים.',
+              'Enter an address and 4 data points for a full financial analysis with market intelligence, yield, and 10-year projection.'
             )}
           </p>
         </div>
 
         {/* ── Glass Calculator Card ── */}
-        <div
-          className="mx-auto max-w-4xl"
-          style={{
-            background: 'rgba(255,255,255,0.88)',
-            backdropFilter: 'blur(16px)',
-            border: '1px solid rgba(255,255,255,0.3)',
-            borderRadius: 'var(--radius)',
-            color: '#1a1a2e',
-            padding: 0,
-          }}
-        >
+        <div className="mx-auto max-w-4xl" style={{ ...glassCard, padding: 0 }}>
 
-          {/* ── Inputs ── */}
-          <div className="p-6 sm:p-8">
+          {/* ── Address Input ── */}
+          <div className="p-6 sm:p-8 pb-0 sm:pb-0">
+            <div className="mb-5">
+              <label className="block text-xs font-semibold mb-1.5" style={{ color: '#4a4a6a' }}>
+                <span className="flex items-center gap-1.5">
+                  <MapPin className="w-3.5 h-3.5" style={{ color: '#5B8DEE' }} />
+                  {t('כתובת הנכס (רחוב + עיר)', 'Property Address (Street + City)')}
+                </span>
+              </label>
+              <input
+                type="text"
+                dir={isHe ? 'rtl' : 'ltr'}
+                placeholder={t('לדוגמה: רוטשילד 10, תל אביב', 'e.g. 10 Rothschild, Tel Aviv')}
+                value={addressRaw}
+                onChange={(e) => setAddressRaw(e.target.value)}
+                style={{
+                  ...inputStyle,
+                  fontFamily: 'inherit',
+                  fontSize: '14px',
+                  padding: '12px 16px',
+                  background: 'rgba(91,141,238,0.04)',
+                  border: '1.5px solid rgba(91,141,238,0.2)',
+                }}
+                onFocus={(e) => { e.target.style.borderColor = '#5B8DEE'; }}
+                onBlur={(e) => { e.target.style.borderColor = 'rgba(91,141,238,0.2)'; }}
+              />
+              {addressRaw.trim() && !extractCity(addressRaw) && (
+                <p className="text-[10px] mt-1.5" style={{ color: '#ca8a04' }}>
+                  {t(
+                    'העיר לא זוהתה — יוצגו נתוני שוק כלליים. נסה להזין שם עיר מוכר.',
+                    'City not recognized — showing general market data. Try entering a known city name.'
+                  )}
+                </p>
+              )}
+            </div>
+          </div>
+
+          {/* ── Numeric Inputs ── */}
+          <div className="p-6 sm:p-8 pt-0 sm:pt-0">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
 
               {/* Price */}
               <div>
                 <label className="block text-xs font-semibold mb-1.5" style={{ color: '#4a4a6a' }}>
                   <span className="flex items-center gap-1.5">
-                    <Home className="w-3.5 h-3.5" />
+                    <HomeIcon className="w-3.5 h-3.5" />
                     {t('מחיר הנכס', 'Property Price')} ({'\u20AA'})
                   </span>
                 </label>
@@ -294,20 +632,9 @@ export default function NewApartmentPage() {
                   placeholder="2,500,000"
                   value={priceRaw}
                   onChange={handleInput(setPriceRaw)}
-                  style={{
-                    width: '100%',
-                    padding: '10px 14px',
-                    borderRadius: '8px',
-                    border: '1px solid rgba(0,0,0,0.12)',
-                    background: 'rgba(255,255,255,0.7)',
-                    fontSize: '15px',
-                    fontFamily: "'Space Grotesk', monospace",
-                    color: '#1a1a2e',
-                    outline: 'none',
-                    transition: 'border-color 0.15s',
-                  }}
-                  onFocus={(e) => { e.target.style.borderColor = '#5B8DEE'; }}
-                  onBlur={(e) => { e.target.style.borderColor = 'rgba(0,0,0,0.12)'; }}
+                  style={inputStyle}
+                  onFocus={handleFocus}
+                  onBlur={handleBlur}
                 />
               </div>
 
@@ -326,20 +653,9 @@ export default function NewApartmentPage() {
                   placeholder="800,000"
                   value={equityRaw}
                   onChange={handleInput(setEquityRaw)}
-                  style={{
-                    width: '100%',
-                    padding: '10px 14px',
-                    borderRadius: '8px',
-                    border: '1px solid rgba(0,0,0,0.12)',
-                    background: 'rgba(255,255,255,0.7)',
-                    fontSize: '15px',
-                    fontFamily: "'Space Grotesk', monospace",
-                    color: '#1a1a2e',
-                    outline: 'none',
-                    transition: 'border-color 0.15s',
-                  }}
-                  onFocus={(e) => { e.target.style.borderColor = '#5B8DEE'; }}
-                  onBlur={(e) => { e.target.style.borderColor = 'rgba(0,0,0,0.12)'; }}
+                  style={inputStyle}
+                  onFocus={handleFocus}
+                  onBlur={handleBlur}
                 />
               </div>
 
@@ -358,20 +674,9 @@ export default function NewApartmentPage() {
                   placeholder="5,500"
                   value={rentRaw}
                   onChange={handleInput(setRentRaw)}
-                  style={{
-                    width: '100%',
-                    padding: '10px 14px',
-                    borderRadius: '8px',
-                    border: '1px solid rgba(0,0,0,0.12)',
-                    background: 'rgba(255,255,255,0.7)',
-                    fontSize: '15px',
-                    fontFamily: "'Space Grotesk', monospace",
-                    color: '#1a1a2e',
-                    outline: 'none',
-                    transition: 'border-color 0.15s',
-                  }}
-                  onFocus={(e) => { e.target.style.borderColor = '#5B8DEE'; }}
-                  onBlur={(e) => { e.target.style.borderColor = 'rgba(0,0,0,0.12)'; }}
+                  style={inputStyle}
+                  onFocus={handleFocus}
+                  onBlur={handleBlur}
                 />
               </div>
 
@@ -390,24 +695,211 @@ export default function NewApartmentPage() {
                   placeholder="75"
                   value={sqmRaw}
                   onChange={handleInput(setSqmRaw)}
-                  style={{
-                    width: '100%',
-                    padding: '10px 14px',
-                    borderRadius: '8px',
-                    border: '1px solid rgba(0,0,0,0.12)',
-                    background: 'rgba(255,255,255,0.7)',
-                    fontSize: '15px',
-                    fontFamily: "'Space Grotesk', monospace",
-                    color: '#1a1a2e',
-                    outline: 'none',
-                    transition: 'border-color 0.15s',
-                  }}
-                  onFocus={(e) => { e.target.style.borderColor = '#5B8DEE'; }}
-                  onBlur={(e) => { e.target.style.borderColor = 'rgba(0,0,0,0.12)'; }}
+                  style={inputStyle}
+                  onFocus={handleFocus}
+                  onBlur={handleBlur}
                 />
               </div>
             </div>
           </div>
+
+          {/* ── Market Intelligence Report ── */}
+          {marketIntel && addressRaw.trim().length >= 3 && (
+            <>
+              <div style={{ height: 1, background: 'rgba(0,0,0,0.08)', margin: '0 24px' }} />
+
+              <div className="p-6 sm:p-8">
+                <div className="flex items-center gap-2 mb-5">
+                  <BarChart3 className="w-4.5 h-4.5" style={{ color: '#5B8DEE' }} />
+                  <h3 className="text-sm font-bold" style={{ color: '#1a1a2e' }}>
+                    {t('דו"ח מודיעין שוק', 'Market Intelligence Report')}
+                  </h3>
+                  <span className="text-[10px] font-medium px-2 py-0.5 rounded-full" style={{ background: 'rgba(91,141,238,0.1)', color: '#5B8DEE' }}>
+                    {t(marketIntel.cityNameHe, marketIntel.cityNameEn)}
+                  </span>
+                </div>
+
+                {/* ── 4 Metric Cards ── */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
+
+                  {/* Supply Analysis */}
+                  <div
+                    className="p-4 rounded-xl"
+                    style={{
+                      background: 'rgba(255,255,255,0.6)',
+                      border: '1px solid rgba(0,0,0,0.06)',
+                    }}
+                  >
+                    <div className="flex items-center gap-1.5 mb-2">
+                      <Layers className="w-3.5 h-3.5" style={{ color: '#6b7280' }} />
+                      <span className="text-[10px] font-semibold" style={{ color: '#6b7280' }}>
+                        {t('רמת היצע', 'Supply Level')}
+                      </span>
+                    </div>
+                    <div className="mb-1.5">
+                      <Badge color={levelColor(marketIntel.supplyLevel, true)}>
+                        {t(marketIntel.supplyLevelHe, marketIntel.supplyLevel)}
+                      </Badge>
+                    </div>
+                    <p className="text-[10px] leading-relaxed" style={{ color: '#6b7280' }}>
+                      {marketIntel.supplyLevel === 'High'
+                        ? t('היצע גבוה של דירות חדשות — כוח מיקוח לקונה', 'High new apartment supply — buyer leverage')
+                        : marketIntel.supplyLevel === 'Low'
+                          ? t('היצע נמוך — תחרות גבוהה בין קונים', 'Low supply — high buyer competition')
+                          : t('היצע בינוני — שוק מאוזן', 'Moderate supply — balanced market')}
+                    </p>
+                  </div>
+
+                  {/* Developer Pressure */}
+                  <div
+                    className="p-4 rounded-xl"
+                    style={{
+                      background: 'rgba(255,255,255,0.6)',
+                      border: '1px solid rgba(0,0,0,0.06)',
+                    }}
+                  >
+                    <div className="flex items-center gap-1.5 mb-2">
+                      <ShieldAlert className="w-3.5 h-3.5" style={{ color: '#6b7280' }} />
+                      <span className="text-[10px] font-semibold" style={{ color: '#6b7280' }}>
+                        {t('לחץ יזמים', 'Developer Pressure')}
+                      </span>
+                    </div>
+                    <div className="mb-1.5">
+                      <Badge color={levelColor(marketIntel.developerPressure, true)}>
+                        {t(marketIntel.developerPressureHe, marketIntel.developerPressure)}
+                      </Badge>
+                    </div>
+                    <p className="text-[10px] leading-relaxed" style={{ color: '#6b7280' }}>
+                      {marketIntel.developerPressure === 'High'
+                        ? t('יזמים תחת לחץ — מקום למו"מ על מחיר', 'Developers pressured — room for price negotiation')
+                        : marketIntel.developerPressure === 'Low'
+                          ? t('יזמים בעמדה חזקה — פחות גמישות', 'Developers in strong position — less flexibility')
+                          : t('לחץ בינוני — מו"מ סביר אפשרי', 'Moderate pressure — reasonable negotiation possible')}
+                    </p>
+                  </div>
+
+                  {/* Average Price / sqm */}
+                  <div
+                    className="p-4 rounded-xl"
+                    style={{
+                      background: 'rgba(255,255,255,0.6)',
+                      border: '1px solid rgba(0,0,0,0.06)',
+                    }}
+                  >
+                    <div className="flex items-center gap-1.5 mb-2">
+                      <Target className="w-3.5 h-3.5" style={{ color: '#6b7280' }} />
+                      <span className="text-[10px] font-semibold" style={{ color: '#6b7280' }}>
+                        {t('מחיר ממוצע למ"ר', 'Avg. Price/sqm')}
+                      </span>
+                    </div>
+                    <div
+                      className="text-xl font-black mb-1"
+                      style={{ fontFamily: "'Space Grotesk', monospace", color: '#1a1a2e' }}
+                    >
+                      {'\u20AA'}{marketIntel.avgPricePerSqm.toLocaleString('he-IL')}
+                    </div>
+                    {marketIntel.userPricePerSqm > 0 && (
+                      <div className="flex items-center gap-1">
+                        {marketIntel.priceDiffPercent > 5 ? (
+                          <ArrowUpRight className="w-3 h-3" style={{ color: '#dc2626' }} />
+                        ) : marketIntel.priceDiffPercent < -5 ? (
+                          <ArrowDownRight className="w-3 h-3" style={{ color: '#16a34a' }} />
+                        ) : (
+                          <CheckCircle2 className="w-3 h-3" style={{ color: '#16a34a' }} />
+                        )}
+                        <span className="text-[10px] font-medium" style={{
+                          color: Math.abs(marketIntel.priceDiffPercent) <= 5 ? '#16a34a'
+                            : marketIntel.priceDiffPercent > 15 ? '#dc2626'
+                              : '#ca8a04',
+                        }}>
+                          {t('שלך', 'Yours')}: {'\u20AA'}{marketIntel.userPricePerSqm.toLocaleString('he-IL')}/m{'\u00B2'}
+                          {' '}({marketIntel.priceDiffPercent > 0 ? '+' : ''}{marketIntel.priceDiffPercent.toFixed(1)}%)
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Market Trend & Demand */}
+                  <div
+                    className="p-4 rounded-xl"
+                    style={{
+                      background: 'rgba(255,255,255,0.6)',
+                      border: '1px solid rgba(0,0,0,0.06)',
+                    }}
+                  >
+                    <div className="flex items-center gap-1.5 mb-2">
+                      <TrendingUp className="w-3.5 h-3.5" style={{ color: '#6b7280' }} />
+                      <span className="text-[10px] font-semibold" style={{ color: '#6b7280' }}>
+                        {t('מגמת שוק', 'Market Trend')}
+                      </span>
+                    </div>
+                    <div className="mb-1.5">
+                      <Badge color={trendColor(marketIntel.marketTrend)}>
+                        {t(marketIntel.marketTrendHe, marketIntel.marketTrend === 'rising' ? 'Rising' : marketIntel.marketTrend === 'cooling' ? 'Cooling' : 'Stable')}
+                      </Badge>
+                    </div>
+                    <div className="flex items-center gap-1.5 mt-2">
+                      <span className="text-[10px] font-medium" style={{ color: '#6b7280' }}>
+                        {t('ציון ביקוש', 'Demand')}:
+                      </span>
+                      <div className="flex gap-0.5">
+                        {Array.from({ length: 10 }, (_, i) => (
+                          <div
+                            key={i}
+                            style={{
+                              width: 8,
+                              height: 8,
+                              borderRadius: 2,
+                              background: i < Math.round(marketIntel.demandScore)
+                                ? (marketIntel.demandScore >= 7 ? '#16a34a' : marketIntel.demandScore >= 5 ? '#ca8a04' : '#dc2626')
+                                : 'rgba(0,0,0,0.08)',
+                            }}
+                          />
+                        ))}
+                      </div>
+                      <span className="text-[10px] font-bold" style={{ fontFamily: "'Space Grotesk', monospace", color: '#1a1a2e' }}>
+                        {marketIntel.demandScore}/10
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* ── Risk Factors & Opportunities ── */}
+                <div
+                  className="p-4 rounded-xl"
+                  style={{
+                    background: 'rgba(0,0,0,0.02)',
+                    border: '1px solid rgba(0,0,0,0.06)',
+                  }}
+                >
+                  <div className="flex items-center gap-1.5 mb-3">
+                    <AlertTriangle className="w-3.5 h-3.5" style={{ color: '#ca8a04' }} />
+                    <span className="text-xs font-bold" style={{ color: '#1a1a2e' }}>
+                      {t('גורמי סיכון והזדמנויות', 'Risk Factors & Opportunities')}
+                    </span>
+                  </div>
+                  <ul className="space-y-2">
+                    {marketIntel.riskFactors.map((factor, i) => (
+                      <li key={i} className="flex items-start gap-2">
+                        <span className="mt-0.5 flex-shrink-0">
+                          {factor.type === 'opportunity' ? (
+                            <Sparkles className="w-3.5 h-3.5" style={{ color: '#16a34a' }} />
+                          ) : factor.type === 'risk' ? (
+                            <ShieldAlert className="w-3.5 h-3.5" style={{ color: '#dc2626' }} />
+                          ) : (
+                            <Info className="w-3.5 h-3.5" style={{ color: '#5B8DEE' }} />
+                          )}
+                        </span>
+                        <span className="text-[11px] leading-relaxed" style={{ color: '#4a4a6a' }}>
+                          {t(factor.he, factor.en)}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            </>
+          )}
 
           {/* ── Results Section ── */}
           {calc && (
@@ -650,9 +1142,7 @@ export default function NewApartmentPage() {
               </div>
 
               {/* ── Assumptions Note ── */}
-              <div
-                className="px-6 sm:px-8 pb-6 sm:pb-8"
-              >
+              <div className="px-6 sm:px-8 pb-6 sm:pb-8">
                 <div
                   className="p-4 rounded-lg text-[10px] leading-relaxed"
                   style={{ background: 'rgba(0,0,0,0.03)', color: '#9ca3af', border: '1px solid rgba(0,0,0,0.04)' }}
@@ -677,6 +1167,202 @@ export default function NewApartmentPage() {
             </div>
           )}
         </div>
+
+        {/* ── Urban Renewal Premium Analysis Section ── */}
+        {calc && (
+          <div className="mx-auto max-w-4xl mt-6" style={{ ...glassCard, padding: 0 }}>
+            <div className="p-6 sm:p-8">
+              <div className="flex items-center gap-2 mb-2">
+                <Sparkles className="w-4.5 h-4.5" style={{ color: '#5B8DEE' }} />
+                <h3 className="text-sm font-bold" style={{ color: '#1a1a2e' }}>
+                  {t('ניתוח פרמיית התחדשות עירונית', 'Renewal Premium Analysis')}
+                </h3>
+              </div>
+              <p className="text-[11px] mb-5" style={{ color: '#6b7280' }}>
+                {t(
+                  'בדוק האם הפרמיה שמבקשים על דירה בפרויקט התחדשות עירונית מוצדקת ביחס לשווי שוק של דירה דומה ללא התחדשות.',
+                  'Check whether the premium being asked for an urban renewal project apartment is justified compared to a similar apartment without renewal.'
+                )}
+              </p>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mb-5">
+                {/* Market Value Input */}
+                <div>
+                  <label className="block text-xs font-semibold mb-1.5" style={{ color: '#4a4a6a' }}>
+                    <span className="flex items-center gap-1.5">
+                      <Building2 className="w-3.5 h-3.5" />
+                      {t('שווי שוק דירה דומה (ללא התחדשות)', 'Similar Apt Market Value (without renewal)')} ({'\u20AA'})
+                    </span>
+                  </label>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    dir="ltr"
+                    placeholder={t('לדוגמה: 1,800,000', 'e.g. 1,800,000')}
+                    value={marketValueRaw}
+                    onChange={handleInput(setMarketValueRaw)}
+                    style={inputStyle}
+                    onFocus={handleFocus}
+                    onBlur={handleBlur}
+                  />
+                </div>
+
+                {/* Asking Price (read-only, from above) */}
+                <div>
+                  <label className="block text-xs font-semibold mb-1.5" style={{ color: '#4a4a6a' }}>
+                    <span className="flex items-center gap-1.5">
+                      <DollarSign className="w-3.5 h-3.5" />
+                      {t('מחיר מבוקש (מהמחשבון למעלה)', 'Asking Price (from calculator above)')} ({'\u20AA'})
+                    </span>
+                  </label>
+                  <div
+                    style={{
+                      ...inputStyle,
+                      background: 'rgba(0,0,0,0.03)',
+                      cursor: 'default',
+                      display: 'flex',
+                      alignItems: 'center',
+                    }}
+                  >
+                    {priceRaw || '—'}
+                  </div>
+                </div>
+              </div>
+
+              {/* Premium Results */}
+              {renewalPremium && (
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  {/* Premium Amount */}
+                  <div
+                    className="text-center p-5 rounded-xl"
+                    style={{ background: 'rgba(0,0,0,0.03)', border: '1px solid rgba(0,0,0,0.06)' }}
+                  >
+                    <div className="text-xs font-semibold mb-2" style={{ color: '#6b7280' }}>
+                      {t('פרמיית התחדשות', 'Renewal Premium')}
+                    </div>
+                    <div
+                      className="text-2xl sm:text-3xl font-black"
+                      style={{
+                        fontFamily: "'Space Grotesk', monospace",
+                        color: renewalPremium.premium >= 0 ? '#1a1a2e' : '#16a34a',
+                      }}
+                    >
+                      {renewalPremium.premium >= 0 ? '+' : ''}{'\u20AA'}{fmtILS(Math.round(renewalPremium.premium))}
+                    </div>
+                    <div className="text-[10px] mt-1" style={{ color: '#9ca3af' }}>
+                      {t('מחיר מבוקש פחות שווי שוק', 'Asking price minus market value')}
+                    </div>
+                  </div>
+
+                  {/* Premium Percentage */}
+                  <div
+                    className="text-center p-5 rounded-xl"
+                    style={{ background: 'rgba(0,0,0,0.03)', border: '1px solid rgba(0,0,0,0.06)' }}
+                  >
+                    <div className="text-xs font-semibold mb-2" style={{ color: '#6b7280' }}>
+                      {t('אחוז פרמיה', 'Premium Percentage')}
+                    </div>
+                    <div
+                      className="text-2xl sm:text-3xl font-black"
+                      style={{
+                        fontFamily: "'Space Grotesk', monospace",
+                        color: renewalPremium.percentage <= 10 ? '#16a34a'
+                          : renewalPremium.percentage <= 25 ? '#ca8a04'
+                            : '#dc2626',
+                      }}
+                    >
+                      {renewalPremium.percentage > 0 ? '+' : ''}{renewalPremium.percentage.toFixed(1)}%
+                    </div>
+                    <div className="text-[10px] mt-1" style={{ color: '#9ca3af' }}>
+                      {t('פרמיה / שווי שוק', 'Premium / market value')}
+                    </div>
+                  </div>
+
+                  {/* Verdict */}
+                  <div
+                    className="text-center p-5 rounded-xl"
+                    style={{
+                      background: renewalPremium.percentage <= 10
+                        ? 'rgba(22,163,74,0.05)'
+                        : renewalPremium.percentage <= 25
+                          ? 'rgba(202,138,4,0.05)'
+                          : 'rgba(220,38,38,0.05)',
+                      border: `1px solid ${renewalPremium.percentage <= 10
+                        ? 'rgba(22,163,74,0.2)'
+                        : renewalPremium.percentage <= 25
+                          ? 'rgba(202,138,4,0.2)'
+                          : 'rgba(220,38,38,0.2)'
+                        }`,
+                    }}
+                  >
+                    <div className="text-xs font-semibold mb-2" style={{ color: '#6b7280' }}>
+                      {t('הערכה', 'Verdict')}
+                    </div>
+                    <div className="mb-2">
+                      {renewalPremium.percentage <= 0 ? (
+                        <Badge color="green">
+                          <CheckCircle2 className="w-3 h-3" />
+                          {t('מחיר מתחת לשוק', 'Below Market')}
+                        </Badge>
+                      ) : renewalPremium.percentage <= 10 ? (
+                        <Badge color="green">
+                          <CheckCircle2 className="w-3 h-3" />
+                          {t('פרמיה מוצדקת', 'Justified Premium')}
+                        </Badge>
+                      ) : renewalPremium.percentage <= 25 ? (
+                        <Badge color="gold">
+                          <AlertTriangle className="w-3 h-3" />
+                          {t('פרמיה גבולית', 'Borderline Premium')}
+                        </Badge>
+                      ) : (
+                        <Badge color="red">
+                          <ShieldAlert className="w-3 h-3" />
+                          {t('פרמיה מוגזמת', 'Excessive Premium')}
+                        </Badge>
+                      )}
+                    </div>
+                    <p className="text-[10px] leading-relaxed" style={{ color: '#6b7280' }}>
+                      {renewalPremium.percentage <= 0
+                        ? t(
+                          'המחיר נמוך משווי השוק — עסקה אטרקטיבית, בדוק את הסיבה.',
+                          'Price is below market value — attractive deal, investigate the reason.'
+                        )
+                        : renewalPremium.percentage <= 10
+                          ? t(
+                            'פרמיה של עד 10% נחשבת סבירה בפרויקטי התחדשות עירונית, בשל המפרט הגבוה והאחריות.',
+                            'A premium up to 10% is considered reasonable for renewal projects, due to higher specs and warranty.'
+                          )
+                          : renewalPremium.percentage <= 25
+                            ? t(
+                              'פרמיה של 10-25% דורשת בדיקה — האם המפרט, המיקום או ערך השוק מצדיקים?',
+                              'A 10-25% premium requires scrutiny — do specs, location, or market value justify it?'
+                            )
+                            : t(
+                              'פרמיה מעל 25% היא חריגה. מומלץ לבדוק חלופות ולבצע שמאות עצמאית.',
+                              'A premium above 25% is exceptional. Check alternatives and get an independent appraisal.'
+                            )}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Empty state for renewal premium */}
+              {!renewalPremium && (
+                <div
+                  className="p-5 rounded-xl text-center"
+                  style={{ background: 'rgba(0,0,0,0.02)', border: '1px dashed rgba(0,0,0,0.1)' }}
+                >
+                  <p className="text-[11px]" style={{ color: '#9ca3af' }}>
+                    {t(
+                      'הזן שווי שוק של דירה דומה כדי לחשב את פרמיית ההתחדשות.',
+                      'Enter the market value of a similar apartment to calculate the renewal premium.'
+                    )}
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* ── Footer ── */}

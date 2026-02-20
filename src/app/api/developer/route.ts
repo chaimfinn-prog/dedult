@@ -776,6 +776,10 @@ export async function GET(req: NextRequest) {
       const mergedDelivered = dbMatch?.delivered ?? d.delivered;
       const mergedFinancialHealth = dbMatch?.financialHealth ?? d.financialHealth;
       const mergedExpertOpinion = dbMatch?.expertOpinion ?? d.expertOpinion;
+      const mergedDatabaseAppearances = [...new Set([
+        ...(dbMatch?.databaseAppearances ?? []),
+        ...(d.databaseAppearances ?? []),
+      ])];
 
       return {
         name: d.name,
@@ -806,7 +810,7 @@ export async function GET(req: NextRequest) {
         financialHealth: mergedFinancialHealth,
         financialHealthEn: d.financialHealthEn,
         website: d.website ?? null,
-        databaseAppearances: d.databaseAppearances ?? [],
+        databaseAppearances: mergedDatabaseAppearances,
         expertOpinion: mergedExpertOpinion,
         ...links,
       };

@@ -2,7 +2,7 @@
 
 import {
   Building2, ArrowRight, Globe, Ruler, Calculator,
-  ChevronLeft, HardHat, ExternalLink,
+  ChevronLeft, HardHat, ExternalLink, BarChart3, FileDown,
 } from 'lucide-react';
 import { useLang } from '@/lib/i18n';
 
@@ -14,7 +14,7 @@ export default function DeveloperPortalPage() {
   const t = (he: string, en: string) => (lang === 'he' ? he : en);
 
   return (
-    <div className="min-h-screen flex flex-col relative">
+    <div className="min-h-screen flex flex-col relative bg-orbs">
 
       {/* ── Background ── */}
       <div className="fixed inset-0 z-0 overflow-hidden">
@@ -83,7 +83,8 @@ export default function DeveloperPortalPage() {
           >
             PROPCHECK
           </div>
-          <h1 className="text-3xl md:text-4xl font-bold text-foreground mb-3">
+          <div className="w-24 h-0.5 mx-auto mb-6 rounded-full" style={{ background: 'linear-gradient(90deg, #a78bfa, #7c3aed, #39C5CF)' }} />
+          <h1 className="text-3xl md:text-4xl font-bold text-foreground mb-3 text-gradient-animate">
             {t('\u05E4\u05D5\u05E8\u05D8\u05DC \u05D9\u05D6\u05DE\u05D9\u05DD', 'Developer Portal')}
           </h1>
           <p className="text-base md:text-lg text-foreground-muted max-w-2xl mx-auto leading-relaxed">
@@ -95,7 +96,7 @@ export default function DeveloperPortalPage() {
         </div>
 
         {/* ── Service Cards ── */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-12">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
 
           {/* Card 1 — Building Rights Assessment */}
           <div
@@ -222,6 +223,67 @@ export default function DeveloperPortalPage() {
                 {t('חשב זכויות → כדאיות', 'Calculate Rights → Feasibility')}
                 <ChevronLeft className="w-4 h-4" />
               </a>
+            </div>
+          </div>
+
+          {/* Card 3 — Pro Analysis & Export */}
+          <div
+            className="rounded-2xl overflow-hidden transition-all duration-300 hover:scale-[1.02] hover:shadow-2xl"
+            style={{
+              background: 'rgba(255,255,255,0.88)',
+              backdropFilter: 'blur(16px)',
+              border: '1px solid rgba(255,255,255,0.3)',
+              color: '#1a1a2e',
+            }}
+          >
+            <div className="p-6 sm:p-8">
+              <div className="flex items-start justify-between mb-5">
+                <div
+                  className="w-14 h-14 rounded-xl flex items-center justify-center flex-shrink-0"
+                  style={{
+                    background: 'rgba(167,139,250,0.12)',
+                    border: '1px solid rgba(167,139,250,0.25)',
+                  }}
+                >
+                  <BarChart3 className="w-7 h-7" style={{ color: '#a78bfa' }} />
+                </div>
+                <span
+                  className="text-[10px] font-bold px-2.5 py-1 rounded-full"
+                  style={{
+                    background: 'rgba(63,185,80,0.1)',
+                    color: '#16a34a',
+                    border: '1px solid rgba(63,185,80,0.25)',
+                  }}
+                >
+                  PRO
+                </span>
+              </div>
+
+              <h3 className="text-lg font-bold mb-2" style={{ color: '#1a1a2e' }}>
+                {t('ניתוח רגישות וייצוא', 'Sensitivity & Export')}
+              </h3>
+
+              <p className="text-sm leading-relaxed mb-6" style={{ color: '#4a4a6a' }}>
+                {t(
+                  'מפת חום דינמית לבדיקת רגישות רווחיות. ייצוא דוחות מקצועיים ב-PDF ו-Excel עם נוסחאות פתוחות.',
+                  'Dynamic heatmap for profitability sensitivity. Export professional reports as PDF & Excel with open formulas.'
+                )}
+              </p>
+
+              <div className="flex gap-2">
+                <a
+                  href="/developer-portal/rights-calculator"
+                  className="inline-flex items-center gap-2 px-5 py-3 rounded-xl text-sm font-bold text-white transition-all duration-200 hover:shadow-lg hover:opacity-90"
+                  style={{
+                    background: 'linear-gradient(135deg, #a78bfa 0%, #7c3aed 100%)',
+                    boxShadow: '0 4px 16px rgba(167,139,250,0.35)',
+                    textDecoration: 'none',
+                  }}
+                >
+                  <FileDown className="w-4 h-4" />
+                  {t('התחל', 'Start')}
+                </a>
+              </div>
             </div>
           </div>
         </div>

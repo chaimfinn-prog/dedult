@@ -83,7 +83,7 @@ export default function Home() {
   const t = (he: string, en: string) => lang === 'he' ? he : en;
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col bg-orbs">
       <div className="relative flex-1 flex flex-col min-h-screen overflow-hidden">
 
         {/* Video Background */}
@@ -140,7 +140,9 @@ export default function Home() {
               <span className="text-xs font-medium tracking-wide text-foreground-muted uppercase">{t('עין מקצועית על העסקה שלכם', 'A Professional Eye on Your Deal')}</span>
             </div>
 
-            <h1 className="text-3xl md:text-5xl font-bold tracking-tight mb-4 text-gradient-blue">
+            <div className="w-24 h-0.5 mx-auto mb-6 rounded-full" style={{ background: 'linear-gradient(90deg, var(--accent), var(--accent-purple), var(--teal))' }} />
+
+            <h1 className="text-3xl md:text-5xl font-bold tracking-tight mb-4 text-gradient-animate">
               {t('אל תסתפקו בהבטחות, תסתמכו על עובדות.', "Don't Settle for Promises, Rely on Facts.")}
             </h1>
 
@@ -161,7 +163,7 @@ export default function Home() {
                 <button
                   key={tile.id}
                   onClick={() => router.push(tile.href)}
-                  className={`group relative rounded-2xl overflow-hidden text-right transition-all duration-300 cursor-pointer border-0 hover:scale-[1.02] hover:shadow-2xl${isLast ? ' md:col-span-2 md:max-w-[calc(50%-10px)] md:mx-auto' : ''}`}
+                  className={`group relative rounded-2xl overflow-hidden text-right transition-all duration-300 cursor-pointer border-0 hover:scale-[1.02] hover:shadow-2xl hover:shadow-[0_0_30px_rgba(91,141,238,0.15)] neon-glow${isLast ? ' md:col-span-2 md:max-w-[calc(50%-10px)] md:mx-auto' : ''}`}
                   style={{
                     background: tile.bgGradient,
                     border: `1px solid ${tile.borderColor}`,
@@ -211,6 +213,10 @@ export default function Home() {
           <span>PROPCHECK</span>
           <span className="opacity-30 mx-2">|</span>
           <span>{t('אל תסתפקו בהבטחות, תסתמכו על עובדות.', "Don't settle for promises, rely on facts.")}</span>
+          <span className="opacity-30 mx-2">|</span>
+          <span>&copy; 2025</span>
+          <span className="opacity-30 mx-2">|</span>
+          <a href="/prices" className="text-foreground-muted hover:text-foreground transition-colors">{t('מחירון', 'Prices')}</a>
         </div>
       </div>
     </div>

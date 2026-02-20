@@ -836,12 +836,130 @@ input[type='number'] { -moz-appearance: textfield; }
 }
 
 .bg-overlay-dark {
-  background: linear-gradient(180deg, rgba(13,17,23,0.88) 0%, rgba(13,17,23,0.80) 50%, rgba(13,17,23,0.90) 100%);
+  background: linear-gradient(180deg, rgba(13,17,23,0.75) 0%, rgba(13,17,23,0.65) 50%, rgba(13,17,23,0.78) 100%);
 }
 
 .bg-grid {
   background-image:
-    linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px);
-  background-size: 40px 40px;
+    linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
+  background-size: 48px 48px;
+}
+
+/* ============================================
+   MODERN TECH UTILITY CLASSES
+   ============================================ */
+
+/* Modern gradient border effect */
+.gradient-border {
+  position: relative;
+  border: 1px solid transparent;
+  background-clip: padding-box;
+}
+.gradient-border::before {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  background: linear-gradient(135deg, rgba(91,141,238,0.3), rgba(167,139,250,0.3), rgba(57,197,207,0.3));
+  z-index: -1;
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  -webkit-mask-composite: xor;
+  padding: 1px;
+}
+
+/* Floating glow orbs for background ambiance */
+.bg-orbs::before,
+.bg-orbs::after {
+  content: '';
+  position: fixed;
+  border-radius: 50%;
+  filter: blur(100px);
+  opacity: 0.15;
+  pointer-events: none;
+  z-index: 1;
+}
+.bg-orbs::before {
+  width: 400px; height: 400px;
+  background: var(--accent);
+  top: -100px; right: -100px;
+  animation: orbFloat1 20s ease-in-out infinite;
+}
+.bg-orbs::after {
+  width: 350px; height: 350px;
+  background: var(--accent-purple);
+  bottom: -100px; left: -100px;
+  animation: orbFloat2 25s ease-in-out infinite;
+}
+
+@keyframes orbFloat1 {
+  0%, 100% { transform: translate(0, 0); }
+  50% { transform: translate(-50px, 50px); }
+}
+@keyframes orbFloat2 {
+  0%, 100% { transform: translate(0, 0); }
+  50% { transform: translate(50px, -50px); }
+}
+
+/* Glass card with subtle gradient shine */
+.glass-shine {
+  position: relative;
+  overflow: hidden;
+}
+.glass-shine::after {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: linear-gradient(
+    45deg,
+    transparent 40%,
+    rgba(255,255,255,0.03) 45%,
+    rgba(255,255,255,0.05) 50%,
+    rgba(255,255,255,0.03) 55%,
+    transparent 60%
+  );
+  animation: shineEffect 6s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes shineEffect {
+  0% { transform: translateX(-100%) rotate(45deg); }
+  100% { transform: translateX(100%) rotate(45deg); }
+}
+
+/* Animated gradient text */
+.text-gradient-animate {
+  background: linear-gradient(270deg, var(--accent), var(--accent-purple), var(--teal), var(--accent));
+  background-size: 300% 300%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: gradientFlow 8s ease infinite;
+}
+
+@keyframes gradientFlow {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* Neon glow effect for accent elements */
+.neon-glow {
+  box-shadow: 0 0 10px rgba(91,141,238,0.3), 0 0 20px rgba(91,141,238,0.15), 0 0 40px rgba(91,141,238,0.05);
+}
+
+/* Subtle noise texture overlay */
+.bg-noise::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  opacity: 0.03;
+  z-index: 2;
+  pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
 }
