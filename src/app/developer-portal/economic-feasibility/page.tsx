@@ -22,6 +22,8 @@ import {
   Home,
 } from 'lucide-react';
 import { useLang } from '@/lib/i18n';
+import SensitivityHeatmap from '@/components/SensitivityHeatmap';
+import ReportExporter, { type ReportSection } from '@/components/ReportExporter';
 
 // ── Constants ────────────────────────────────────────────────
 
@@ -1099,6 +1101,84 @@ export default function EconomicFeasibilityPage() {
             </div>
           </div>
         </div>
+
+        {/* ── Sensitivity Heatmap (Full Width) ── */}
+        {model && (
+          <div className="mt-6">
+            <SensitivityHeatmap
+              baseRevenue={model.totalRevenue}
+              baseExpenses={model.totalExpenses}
+              baseProfitMargin={model.profitMargin * 100}
+              baseRoi={model.roi * 100}
+              lang={lang}
+            />
+          </div>
+        )}
+
+        {/* ── Report Export (Full Width) ── */}
+        {model && (
+          <div className="mt-6">
+            <ReportExporter
+              title={t('ניתוח כדאיות כלכלית — תמ"א 38/2', 'Economic Feasibility — TMA 38/2')}
+              subtitle={rights.address || `${t('גוש', 'Block')} ${rights.blockNumber} | ${t('חלקה', 'Parcel')} ${rights.parcelNumber}`}
+              lang={lang}
+              summary={[
+                { label: t('רווח גולמי', 'Gross Profit'), value: `₪${fmtMoney(model.grossProfit)}` },
+                { label: t('שיעור רווח', 'Margin'), value: fmtPct(model.profitMargin) },
+                { label: 'ROI', value: fmtPct(model.roi) },
+                { label: t('רווח ליח"ד', 'Profit/Unit'), value: `₪${fmtNum(model.profitPerUnit)}` },
+              ]}
+              sections={[
+                {
+                  title: t('הכנסות', 'Revenue'),
+                  rows: [
+                    { label: t('מכירת דירות', 'Apartment Sales'), value: `₪${fmtMoney(model.revenueMainArea)}` },
+                    { label: t('מרפסות', 'Balconies'), value: `₪${fmtMoney(model.revenueBalconies)}` },
+                    { label: t('חניות', 'Parking'), value: `₪${fmtMoney(model.revenueParking)}` },
+                    { label: t('מחסנים', 'Storage'), value: `₪${fmtMoney(model.revenueStorage)}` },
+                    { label: t('סה"כ הכנסות', 'Total Revenue'), value: `₪${fmtMoney(model.totalRevenue)}` },
+                  ],
+                },
+                {
+                  title: t('הוצאות', 'Expenses'),
+                  rows: [
+                    { label: t('בנייה ישירה', 'Direct Construction'), value: `₪${fmtMoney(model.totalDirectCost)}` },
+                    { label: t('עלויות רכות', 'Soft Costs'), value: `₪${fmtMoney(model.softCosts)}` },
+                    { label: t('בלת"מ', 'Contingency'), value: `₪${fmtMoney(model.contingency)}` },
+                    { label: t('תכנון ופיקוח', 'Planning'), value: `₪${fmtMoney(model.totalPlanningCost)}` },
+                    { label: t('מימון', 'Financing'), value: `₪${fmtMoney(model.totalFinancingCost)}` },
+                    { label: t('שיווק', 'Marketing'), value: `₪${fmtMoney(model.costMarketing)}` },
+                    { label: t('מיסים והיטלים', 'Taxes'), value: `₪${fmtMoney(model.totalTaxesCost)}` },
+                    { label: t('עלויות דיירים', 'Resident Costs'), value: `₪${fmtMoney(model.totalResidentCost)}` },
+                    { label: t('סה"כ הוצאות', 'Total Expenses'), value: `₪${fmtMoney(model.totalExpenses)}` },
+                  ],
+                },
+                {
+                  title: t('פירוט בנייה', 'Construction Detail'),
+                  rows: [
+                    { label: t('בנייה עיקרית', 'Main Build'), value: `₪${fmtMoney(model.costMainBuild)}` },
+                    { label: t('שטחי שירות', 'Service Areas'), value: `₪${fmtMoney(model.costServiceArea)}` },
+                    { label: t('מרפסות', 'Balconies'), value: `₪${fmtMoney(model.costBalconies)}` },
+                    { label: t('חניון', 'Parking'), value: `₪${fmtMoney(model.costParking)}` },
+                    { label: t('הריסה', 'Demolition'), value: `₪${fmtMoney(model.costDemolition)}` },
+                    ...(model.existingTenantReturnArea > 0
+                      ? [{ label: t('החזרת שטח לדיירים', 'Tenant Return'), value: `₪${fmtMoney(model.costExistingTenantBuild)}` }]
+                      : []),
+                  ],
+                },
+                {
+                  title: t('מימון ומיסים', 'Financing & Taxes'),
+                  rows: [
+                    { label: t('ריבית ליווי', 'Senior Debt Interest'), value: `₪${fmtMoney(model.seniorDebtInterest)}` },
+                    { label: t('ערבות חוק מכר', 'Sales Law Guarantee'), value: `₪${fmtMoney(model.costSalesLawGuarantee)}` },
+                    { label: t('עלות הון עצמי', 'Equity Cost'), value: `₪${fmtMoney(model.equityCost)}` },
+                    { label: t('היטל השבחה', 'Betterment Levy'), value: `₪${fmtMoney(model.costBettermentLevy)}` },
+                  ],
+                },
+              ]}
+            />
+          </div>
+        )}
       </div>
 
       {/* ── Footer ── */}

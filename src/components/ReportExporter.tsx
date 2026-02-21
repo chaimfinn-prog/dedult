@@ -1,0 +1,309 @@
+'use client';
+
+import { useState } from 'react';
+import { FileDown, FileSpreadsheet, Loader2 } from 'lucide-react';
+
+// ── Types ────────────────────────────────────────────────────
+
+export interface ReportSection {
+  title: string;
+  rows: { label: string; value: string }[];
+}
+
+export interface ReportExporterProps {
+  /** Report title (e.g. "Economic Feasibility — TMA 38/2") */
+  title: string;
+  /** Subtitle / address line */
+  subtitle?: string;
+  /** Sections of data to include in the report */
+  sections: ReportSection[];
+  /** Summary metrics shown at top */
+  summary?: { label: string; value: string }[];
+  /** Language for labels */
+  lang?: 'he' | 'en';
+}
+
+// ── Constants ────────────────────────────────────────────────
+
+const PURPLE = '#a78bfa';
+const BRAND = 'PROPCHECK';
+
+// ── PDF Export ───────────────────────────────────────────────
+
+async function exportPDF(
+  title: string,
+  subtitle: string,
+  sections: ReportSection[],
+  summary: { label: string; value: string }[],
+  lang: string,
+) {
+  const { default: jsPDF } = await import('jspdf');
+  const { default: autoTable } = await import('jspdf-autotable');
+
+  const doc = new jsPDF({
+    orientation: 'portrait',
+    unit: 'mm',
+    format: 'a4',
+  });
+
+  const pageWidth = doc.internal.pageSize.getWidth();
+  let y = 15;
+
+  // Brand header
+  doc.setFillColor(26, 26, 46); // #1a1a2e
+  doc.rect(0, 0, pageWidth, 28, 'F');
+  doc.setTextColor(167, 139, 250); // purple
+  doc.setFontSize(18);
+  doc.setFont('helvetica', 'bold');
+  doc.text(BRAND, pageWidth / 2, y, { align: 'center' });
+
+  y += 8;
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(11);
+  doc.setFont('helvetica', 'normal');
+  doc.text(title, pageWidth / 2, y, { align: 'center' });
+
+  if (subtitle) {
+    y += 5;
+    doc.setFontSize(9);
+    doc.setTextColor(180, 180, 200);
+    doc.text(subtitle, pageWidth / 2, y, { align: 'center' });
+  }
+
+  y = 35;
+
+  // Summary row
+  if (summary.length > 0) {
+    const colWidth = (pageWidth - 20) / summary.length;
+    doc.setFillColor(245, 245, 250);
+    doc.roundedRect(10, y, pageWidth - 20, 16, 3, 3, 'F');
+
+    summary.forEach((item, i) => {
+      const cx = 10 + colWidth * i + colWidth / 2;
+      doc.setFontSize(7);
+      doc.setTextColor(100, 100, 120);
+      doc.setFont('helvetica', 'normal');
+      doc.text(item.label, cx, y + 6, { align: 'center' });
+      doc.setFontSize(10);
+      doc.setTextColor(26, 26, 46);
+      doc.setFont('helvetica', 'bold');
+      doc.text(item.value, cx, y + 12, { align: 'center' });
+    });
+
+    y += 22;
+  }
+
+  // Sections as tables
+  for (const section of sections) {
+    if (y > 260) {
+      doc.addPage();
+      y = 15;
+    }
+
+    doc.setFontSize(10);
+    doc.setTextColor(167, 139, 250);
+    doc.setFont('helvetica', 'bold');
+    doc.text(section.title, 14, y);
+    y += 2;
+
+    const tableData = section.rows.map((row) => [row.label, row.value]);
+
+    autoTable(doc, {
+      startY: y,
+      head: [],
+      body: tableData,
+      theme: 'plain',
+      margin: { left: 14, right: 14 },
+      styles: {
+        fontSize: 8.5,
+        cellPadding: { top: 2.5, bottom: 2.5, left: 3, right: 3 },
+        textColor: [26, 26, 46],
+        lineColor: [230, 230, 240],
+        lineWidth: 0.1,
+      },
+      columnStyles: {
+        0: { cellWidth: 90, fontStyle: 'normal' },
+        1: { cellWidth: 'auto', fontStyle: 'bold', halign: 'right' },
+      },
+      alternateRowStyles: {
+        fillColor: [250, 250, 255],
+      },
+    });
+
+    y = (doc as any).lastAutoTable.finalY + 8;
+  }
+
+  // Footer
+  const pageCount = doc.getNumberOfPages();
+  for (let i = 1; i <= pageCount; i++) {
+    doc.setPage(i);
+    const ph = doc.internal.pageSize.getHeight();
+    doc.setFontSize(7);
+    doc.setTextColor(150, 150, 160);
+    doc.setFont('helvetica', 'normal');
+    doc.text(
+      `${BRAND} | Generated ${new Date().toLocaleDateString('he-IL')} | Page ${i}/${pageCount}`,
+      pageWidth / 2,
+      ph - 8,
+      { align: 'center' },
+    );
+  }
+
+  doc.save(`${BRAND}_Report_${Date.now()}.pdf`);
+}
+
+// ── Excel Export ─────────────────────────────────────────────
+
+async function exportExcel(
+  title: string,
+  subtitle: string,
+  sections: ReportSection[],
+  summary: { label: string; value: string }[],
+) {
+  const XLSX = await import('xlsx');
+
+  const wb = XLSX.utils.book_new();
+
+  // Main report sheet
+  const wsData: (string | number)[][] = [];
+
+  // Header rows
+  wsData.push([BRAND]);
+  wsData.push([title]);
+  if (subtitle) wsData.push([subtitle]);
+  wsData.push([]);
+
+  // Summary
+  if (summary.length > 0) {
+    wsData.push(summary.map((s) => s.label));
+    wsData.push(summary.map((s) => s.value));
+    wsData.push([]);
+  }
+
+  // Sections
+  for (const section of sections) {
+    wsData.push([section.title]);
+    wsData.push(['Item', 'Value']);
+    for (const row of section.rows) {
+      wsData.push([row.label, row.value]);
+    }
+    wsData.push([]);
+  }
+
+  // Footer
+  wsData.push([]);
+  wsData.push([`Generated by ${BRAND} on ${new Date().toLocaleDateString('he-IL')}`]);
+
+  const ws = XLSX.utils.aoa_to_sheet(wsData);
+
+  // Column widths
+  ws['!cols'] = [{ wch: 45 }, { wch: 25 }];
+
+  XLSX.utils.book_append_sheet(wb, ws, 'Report');
+
+  XLSX.writeFile(wb, `${BRAND}_Report_${Date.now()}.xlsx`);
+}
+
+// ── Component ────────────────────────────────────────────────
+
+export default function ReportExporter({
+  title,
+  subtitle = '',
+  sections,
+  summary = [],
+  lang = 'he',
+}: ReportExporterProps) {
+  const t = (he: string, en: string) => (lang === 'he' ? he : en);
+  const [exportingPdf, setExportingPdf] = useState(false);
+  const [exportingXls, setExportingXls] = useState(false);
+
+  const handlePDF = async () => {
+    setExportingPdf(true);
+    try {
+      await exportPDF(title, subtitle, sections, summary, lang);
+    } finally {
+      setExportingPdf(false);
+    }
+  };
+
+  const handleExcel = async () => {
+    setExportingXls(true);
+    try {
+      await exportExcel(title, subtitle, sections, summary);
+    } finally {
+      setExportingXls(false);
+    }
+  };
+
+  return (
+    <div
+      className="rounded-2xl overflow-hidden"
+      style={{
+        background: 'rgba(255,255,255,0.88)',
+        backdropFilter: 'blur(16px)',
+        border: '1px solid rgba(255,255,255,0.3)',
+        color: '#1a1a2e',
+      }}
+    >
+      <div className="p-5">
+        <div className="flex items-center gap-2 mb-3">
+          <div
+            className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
+            style={{ background: `${PURPLE}15`, border: `1px solid ${PURPLE}25` }}
+          >
+            <FileDown className="w-3.5 h-3.5" style={{ color: PURPLE }} />
+          </div>
+          <h3 className="text-sm font-bold" style={{ color: '#1a1a2e' }}>
+            {t('הורדת דו"ח', 'Export Report')}
+          </h3>
+        </div>
+
+        <p className="text-[10px] mb-4 leading-relaxed" style={{ color: '#6b7280' }}>
+          {t(
+            'הורד דו"ח ממותג עם כל נתוני הניתוח. קבצי PDF מעוצבים להדפסה, Excel לעיבוד נוסף.',
+            'Download a branded report with all analysis data. PDF is print-ready, Excel for further processing.'
+          )}
+        </p>
+
+        <div className="flex gap-3">
+          <button
+            onClick={handlePDF}
+            disabled={exportingPdf}
+            className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-bold text-white transition-all cursor-pointer border-0"
+            style={{
+              background: `linear-gradient(135deg, ${PURPLE}, #7c3aed)`,
+              boxShadow: `0 4px 16px ${PURPLE}40`,
+              opacity: exportingPdf ? 0.7 : 1,
+            }}
+          >
+            {exportingPdf ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            ) : (
+              <FileDown className="w-3.5 h-3.5" />
+            )}
+            {t('PDF דו"ח', 'PDF Report')}
+          </button>
+
+          <button
+            onClick={handleExcel}
+            disabled={exportingXls}
+            className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer"
+            style={{
+              background: 'rgba(255,255,255,0.7)',
+              border: `1px solid ${PURPLE}40`,
+              color: '#1a1a2e',
+              opacity: exportingXls ? 0.7 : 1,
+            }}
+          >
+            {exportingXls ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin" style={{ color: PURPLE }} />
+            ) : (
+              <FileSpreadsheet className="w-3.5 h-3.5" style={{ color: '#16a34a' }} />
+            )}
+            {t('Excel גיליון', 'Excel Sheet')}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
