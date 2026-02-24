@@ -159,7 +159,7 @@ const DEFAULT_ASSUMPTIONS: Assumptions = {
   costRoofBalconySqm: 3500,
   costParkingSqm: 4000,
   costLandscapingSqm: 500,
-  costDemolitionPerUnit: 300000,
+  costDemolitionPerUnit: 40000,  // demolition + waste removal per existing unit
 
   // Soft costs
   softCostsPct: 0.15,        // 15% of direct = consultants, fees, permits
@@ -281,9 +281,10 @@ export default function EconomicFeasibilityPage() {
 
     const avgAptArea = a.avgAptSizeSqm;
     const balconyAreaPerApt = 14; // per TABA Ra/Ra/B
-    // Subtract tenant return area from saleable inventory — those sqm generate no revenue
+    // Saleable area = developer's new units only (tenant units already excluded via newUnits)
+    // Tenant return area is a CONSTRUCTION COST, not a revenue deduction
     const grossSaleableMainArea = newUnits * avgAptArea;
-    const totalSaleableMainArea = Math.max(grossSaleableMainArea - existingTenantReturnArea, 0);
+    const totalSaleableMainArea = grossSaleableMainArea;
     const totalSaleableBalconyArea = newUnits * balconyAreaPerApt;
 
     const revenueMainArea = totalSaleableMainArea * a.salePriceMainSqm;
@@ -342,8 +343,8 @@ export default function EconomicFeasibilityPage() {
     // 5. PLANNING & SUPERVISION (תכנון ופיקוח)
     // ═══════════════════════════════════════════════════════════
 
-    const costPlanning = totalUnits * a.planningPerUnit;
-    const costArchitect = totalUnits * a.architectPerUnit;
+    const costPlanning = newUnits * a.planningPerUnit;
+    const costArchitect = newUnits * a.architectPerUnit;
     const costResidentSupervision = a.residentSupervision;
     const costResidentLawyers = a.residentLawyers;
 
@@ -379,14 +380,16 @@ export default function EconomicFeasibilityPage() {
     // ═══════════════════════════════════════════════════════════
 
     // Betterment Levy (היטל השבחה):
-    // Standard: 50% × NET value increase per added sqm
-    // NET value increase = (sale price/sqm - construction cost/sqm) × added sqm
-    // This approximates (new land value after plan - old land value before plan)
+    // Formula: 50% × land value increase caused by plan approval
+    // Land value ≈ sale price × land component factor (~40% in urban areas)
+    // Value increase = added buildable sqm × land value per sqm
+    // Note: TAMA 38/2 projects often receive partial exemptions (50-90%),
+    // but we model at the user-set rate for conservative analysis.
     const addedSqm = rights.newAddedArea > 0
       ? rights.newAddedArea
       : Math.max(rights.totalRights - rights.existingBuildArea, 0);
-    const netValuePerSqm = Math.max(a.salePriceMainSqm - a.costMainBuildSqm, 0);
-    const valueIncrease = addedSqm * netValuePerSqm;
+    const landValuePerSqm = a.salePriceMainSqm * 0.40; // land component ≈ 40% of sale price
+    const valueIncrease = addedSqm * landValuePerSqm;
     const costBettermentLevy = valueIncrease * a.bettermentLevyRate;
 
     // VAT: on developer's profit (not a pass-through for residential)
@@ -452,7 +455,7 @@ export default function EconomicFeasibilityPage() {
       totalFinancingCost,
 
       // Taxes
-      addedSqm, netValuePerSqm, valueIncrease, costBettermentLevy,
+      addedSqm, landValuePerSqm, valueIncrease, costBettermentLevy,
       totalTaxesCost,
 
       // Resident
@@ -1075,7 +1078,7 @@ export default function EconomicFeasibilityPage() {
                   <ResultRow label='סה"כ מימון' labelEn="Total Financing" value={`₪${fmtMoney(model.totalFinancingCost)}`} bold />
                 </div>
                 <div className="mt-3 pt-3 space-y-1" style={{ borderTop: '1px solid rgba(0,0,0,0.06)' }}>
-                  <ResultRow label={`היטל השבחה (${fmtNum(model.addedSqm)} מ"ר × ₪${fmtNum(assumptions.salePriceMainSqm)} × ${Math.round(assumptions.bettermentLevyRate * 100)}%)`} labelEn={`Betterment levy (${fmtNum(model.addedSqm)} sqm)`} value={`₪${fmtMoney(model.costBettermentLevy)}`} color="#dc2626" />
+                  <ResultRow label={`היטל השבחה (${fmtNum(model.addedSqm)} מ"ר × ₪${fmtNum(model.landValuePerSqm)} × ${Math.round(assumptions.bettermentLevyRate * 100)}%)`} labelEn={`Betterment levy (${fmtNum(model.addedSqm)} sqm × ₪${fmtNum(model.landValuePerSqm)}/sqm × ${Math.round(assumptions.bettermentLevyRate * 100)}%)`} value={`₪${fmtMoney(model.costBettermentLevy)}`} color="#dc2626" />
                 </div>
               </div>
             )}

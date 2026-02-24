@@ -383,12 +383,21 @@ export default function NewApartmentPage() {
     if (price <= 0) return null;
 
     // A. One-Time Purchase Costs
-    const purchaseTax = price * 0.08;
-    const legalFee = price * 0.005 * 1.17;
-    const brokerFee = price * 0.02 * 1.17;
-    const renovation = sqm * 800;
-    const incidentals = 5000;
-    const totalExpenses = purchaseTax + legalFee + brokerFee + renovation + incidentals;
+    // Israeli purchase tax for investment property (2025 progressive brackets):
+    //   0–5,872,725: 8%   |   above: 10%
+    // For sole/first apartment (lower brackets):
+    //   0–1,919,155: 0%   |   1,919,156–2,276,360: 3.5%
+    //   2,276,361–5,872,725: 5%   |   5,872,726–19,575,755: 8%   |   above: 10%
+    // Default: investment property rates (conservative — most users are investors)
+    const purchaseTax = price <= 5_872_725
+      ? price * 0.08
+      : 5_872_725 * 0.08 + (price - 5_872_725) * 0.10;
+    const legalFee = price * 0.005 * 1.17; // lawyer 0.5% + VAT
+    const brokerFee = price * 0.01 * 1.17; // broker 1% + VAT (new apt from developer = 1%, not 2%)
+    // New apartments from a developer do NOT require renovation — only minor finishing
+    const finishing = sqm > 0 ? sqm * 150 : 0; // light finishing: blinds, closets ~150₪/sqm
+    const incidentals = 5000; // registration, misc
+    const totalExpenses = purchaseTax + legalFee + brokerFee + finishing + incidentals;
     const totalInvestment = price + totalExpenses;
 
     // B. Mortgage
@@ -400,9 +409,9 @@ export default function NewApartmentPage() {
 
     // C. Ongoing Costs
     const occupancyRate = 0.95;
-    const maintenance = 150;
-    const insurance = 150;
-    const monthlyOngoingCosts = maintenance + insurance;
+    const vaadBayit = 250;   // monthly building management
+    const insurance = 100;    // annual policy ~1,200₪ → 100/mo
+    const monthlyOngoingCosts = vaadBayit + insurance;
     const annualOngoingCosts = monthlyOngoingCosts * 12;
 
     // D. Annual Income
@@ -410,12 +419,12 @@ export default function NewApartmentPage() {
     const annualNetIncome = annualGrossRent - annualOngoingCosts;
 
     // Dashboard Metrics
-    // 1. Annual Net Yield
+    // 1. Annual Net Yield (cap rate on total investment)
     const annualNetYield = totalInvestment > 0
-      ? ((annualGrossRent - annualOngoingCosts) / totalInvestment) * 100
+      ? (annualNetIncome / totalInvestment) * 100
       : 0;
 
-    // 2. Cash-on-Cash Return
+    // 2. Cash-on-Cash Return (levered return on cash deployed)
     const cashOutlay = equity + totalExpenses;
     const annualCashFlow = annualNetIncome - annualMortgage;
     const cashOnCash = cashOutlay > 0
@@ -448,7 +457,7 @@ export default function NewApartmentPage() {
       purchaseTax,
       legalFee,
       brokerFee,
-      renovation,
+      finishing,
       incidentals,
       totalExpenses,
       totalInvestment,
@@ -1020,10 +1029,10 @@ export default function NewApartmentPage() {
                 </h3>
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
                   {[
-                    { label: t('מס רכישה', 'Purchase Tax'), value: calc.purchaseTax },
+                    { label: t('מס רכישה (8%)', 'Purchase Tax (8%)'), value: calc.purchaseTax },
                     { label: t('שכ"ט עו"ד', 'Legal Fee'), value: calc.legalFee },
-                    { label: t('עמלת תיווך', 'Broker Fee'), value: calc.brokerFee },
-                    { label: t('שיפוץ', 'Renovation'), value: calc.renovation },
+                    { label: t('עמלת תיווך (1%)', 'Broker (1%)'), value: calc.brokerFee },
+                    { label: t('גימורים', 'Finishing'), value: calc.finishing },
                     { label: t('שונות', 'Incidentals'), value: calc.incidentals },
                     { label: t('סה"כ השקעה', 'Total Investment'), value: calc.totalInvestment, highlight: true },
                   ].map((item, i) => (
@@ -1180,8 +1189,8 @@ export default function NewApartmentPage() {
                 >
                   <span style={{ fontWeight: 700, color: '#6b7280' }}>{t('הנחות חישוב', 'Assumptions')}: </span>
                   {t(
-                    'מס רכישה 8% | שכ"ט עו"ד 0.5%+מע"מ | תיווך 2%+מע"מ | שיפוץ 800\u20AA/מ"ר | ריבית 5% | תקופה 25 שנה | תפוסה 95% | ביטוח+ועד 300\u20AA/חודש | עליית ערך 3%/שנה',
-                    'Purchase tax 8% | Legal 0.5%+VAT | Broker 2%+VAT | Reno 800\u20AA/sqm | Rate 5% | Term 25yr | Occupancy 95% | Insurance+Maint 300\u20AA/mo | Appreciation 3%/yr'
+                    'מס רכישה 8% (משקיע) | שכ"ט עו"ד 0.5%+מע"מ | תיווך 1%+מע"מ (מיזם) | גימורים 150\u20AA/מ"ר | ריבית 5% | תקופה 25 שנה | תפוסה 95% | ועד+ביטוח 350\u20AA/חודש | עליית ערך 3%/שנה',
+                    'Purchase tax 8% (investor) | Legal 0.5%+VAT | Broker 1%+VAT (developer) | Finishing 150\u20AA/sqm | Rate 5% | Term 25yr | Occupancy 95% | Mgmt+Ins 350\u20AA/mo | Appreciation 3%/yr'
                   )}
                 </div>
               </div>

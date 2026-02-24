@@ -222,16 +222,15 @@ export default function RightsCalculatorPage() {
     const numFloors = Math.round(buildingCoefficient);
     const maxFloors = numFloors + 2; // +1 ground/pilotis + 1 rooftop/technical
 
-    // Step 8 — Practical Deductions (not counted in building rights)
-    // Balconies: max 14 sqm per apartment (per TABA), so per floor: aptsPerFloor × 14
+    // Step 8 — Additional Areas (beyond building rights, not deducted)
+    // Balconies: max 14 sqm per apartment (per TABA)
     const balconiesPerApt = 14; // max 14 sqm per apartment
     const balconiesDeduction = aptsPerFloor * numFloors * balconiesPerApt;
     // Misetor (service/AC hideout): 3.5 sqm per apartment
     const misetorDeduction = aptsPerFloor * numFloors * 3.5;
-    // Spaces & deductions (lobbies, stairs, shafts, walls): estimated
-    // More precise: ~18% of typical floor area × numFloors for circulation
+    // Circulation (lobbies, stairs, shafts, walls): ~18% of typical floor area
     const typFloor = typicalFloorArea > 0 ? typicalFloorArea : coverageArea;
-    const spacesDeduction = Math.round(typFloor * 0.18 * numFloors / numFloors) * numFloors;
+    const spacesDeduction = Math.round(typFloor * 0.18) * numFloors;
     // Storage rooms: 6 sqm per unit
     const storageDeduction = maxUnits * 6;
     // Underground parking area: 55 sqm per space (including circulation)
@@ -245,8 +244,11 @@ export default function RightsCalculatorPage() {
     );
     const undergroundParkingArea = parkingAreaTotal;
 
+    // Total additional areas (built beyond the rights envelope)
     const totalDeductions = balconiesDeduction + misetorDeduction + spacesDeduction + storageDeduction;
-    const netBuildableArea = totalRights - totalDeductions;
+    // Net buildable area = main building (apartments + circulation)
+    // = baseRights minus any constraint, since rooftop/shared/public are costed separately
+    const netBuildableArea = baseRights - constraintReduction;
 
     // Existing building area estimation
     const existingBuildArea = existingApts > 0 && typicalFloorArea > 0
