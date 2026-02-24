@@ -1,6 +1,8 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
+import dynamic from 'next/dynamic';
+import type { AddressResult } from '@/components/MapAddressInput';
 import {
   Building2, ArrowRight, Globe, TrendingUp, DollarSign,
   Home as HomeIcon, Maximize, MapPin, AlertTriangle, CheckCircle2,
@@ -12,6 +14,8 @@ import {
   Tooltip, ResponsiveContainer, Legend, ComposedChart, Line,
 } from 'recharts';
 import { useLang } from '@/lib/i18n';
+
+const MapAddressInput = dynamic(() => import('@/components/MapAddressInput'), { ssr: false });
 
 const VIDEO_SRC = 'https://videos.pexels.com/video-files/3571264/3571264-hd_1920_1080_25fps.mp4';
 const FALLBACK_IMG = 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=2000&q=80';
@@ -339,11 +343,16 @@ export default function NewApartmentPage() {
   // ── User inputs (raw strings for formatting) ──
 
   const [addressRaw, setAddressRaw] = useState('');
+  const [showMap, setShowMap] = useState(false);
   const [priceRaw, setPriceRaw] = useState('');
   const [equityRaw, setEquityRaw] = useState('');
   const [rentRaw, setRentRaw] = useState('');
   const [sqmRaw, setSqmRaw] = useState('');
   const [marketValueRaw, setMarketValueRaw] = useState('');
+
+  const handleAddressSelect = useCallback((result: AddressResult) => {
+    setAddressRaw(result.city || result.address);
+  }, []);
 
   // ── Parsed values ──
 
@@ -609,6 +618,28 @@ export default function NewApartmentPage() {
                     'City not recognized — showing general market data. Try entering a known city name.'
                   )}
                 </p>
+              )}
+
+              {/* Map toggle */}
+              <button
+                type="button"
+                onClick={() => setShowMap(!showMap)}
+                className="mt-2 flex items-center gap-1.5 text-[11px] font-medium bg-transparent border-0 cursor-pointer transition-colors"
+                style={{ color: '#5B8DEE' }}
+              >
+                <MapPin className="w-3.5 h-3.5" />
+                {showMap ? t('הסתר מפה', 'Hide Map') : t('חפש במפה', 'Search on Map')}
+              </button>
+
+              {showMap && (
+                <div className="mt-3">
+                  <MapAddressInput
+                    onAddressSelect={handleAddressSelect}
+                    lang={lang}
+                    height={200}
+                    placeholder={t('חפש כתובת במפה...', 'Search address on map...')}
+                  />
+                </div>
               )}
             </div>
           </div>

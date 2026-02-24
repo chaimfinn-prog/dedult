@@ -132,8 +132,15 @@ function InnerMapComponent({
   onMapClick,
 }: InnerMapProps) {
   /* eslint-disable @typescript-eslint/no-require-imports */
-  // Leaflet CSS — must be imported client-side only
-  require('leaflet/dist/leaflet.css');
+  // Leaflet CSS — inject via <link> to avoid Next.js CSS-in-JS restrictions
+  useEffect(() => {
+    if (!document.querySelector('link[href*="leaflet"]')) {
+      const link = document.createElement('link');
+      link.rel = 'stylesheet';
+      link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+      document.head.appendChild(link);
+    }
+  }, []);
 
   const L = require('leaflet') as typeof import('leaflet');
   const {

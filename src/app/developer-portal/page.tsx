@@ -212,7 +212,7 @@ export default function DeveloperPortalPage() {
 
               {/* CTA Button */}
               <a
-                href="/developer-portal/rights-calculator"
+                href="/developer-portal/economic-feasibility"
                 className="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-bold text-white transition-all duration-200 hover:shadow-lg hover:opacity-90"
                 style={{
                   background: 'linear-gradient(135deg, #a78bfa 0%, #7c3aed 100%)',
@@ -272,7 +272,7 @@ export default function DeveloperPortalPage() {
 
               <div className="flex gap-2">
                 <a
-                  href="/developer-portal/rights-calculator"
+                  href="/developer-portal/economic-feasibility"
                   className="inline-flex items-center gap-2 px-5 py-3 rounded-xl text-sm font-bold text-white transition-all duration-200 hover:shadow-lg hover:opacity-90"
                   style={{
                     background: 'linear-gradient(135deg, #a78bfa 0%, #7c3aed 100%)',
