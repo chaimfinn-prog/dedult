@@ -1,6 +1,6 @@
 'use client';
 
-import { Building2, Globe, CalendarDays, Home as HomeIcon, Plane, Hammer, Sprout, HardHat, ChevronLeft, ArrowRight, LogIn, User } from 'lucide-react';
+import { Building2, Globe, CalendarDays, Home as HomeIcon, Plane, Hammer, Sprout, HardHat, ShoppingCart, ChevronLeft, ArrowRight, LogIn, User } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useLang } from '@/lib/i18n';
 import { useAuth } from '@/lib/auth';
@@ -37,12 +37,12 @@ const TILES = [
   },
   {
     id: 'urban-renewal',
-    href: '/checkup',
+    href: '/urban-renewal',
     icon: Hammer,
     labelHe: 'התחדשות עירונית',
     labelEn: 'Urban Renewal',
-    subtitleHe: 'השבחת ערך',
-    subtitleEn: 'Value Add',
+    subtitleHe: 'תמ"א 38 / שקד — זכויות וכדאיות',
+    subtitleEn: 'TAMA 38 / Shaked — Rights & Feasibility',
     color: 'var(--green)',
     bgGradient: 'linear-gradient(135deg, rgba(63,185,80,0.12) 0%, rgba(63,185,80,0.04) 100%)',
     borderColor: 'rgba(63,185,80,0.25)',
@@ -62,13 +62,26 @@ const TILES = [
     image: 'https://images.unsplash.com/photo-1500382017468-9049fed747ef?auto=format&fit=crop&w=800&q=80',
   },
   {
+    id: 'transactions',
+    href: '/transactions',
+    icon: ShoppingCart,
+    labelHe: 'ניתוח עסקאות',
+    labelEn: 'Transactions',
+    subtitleHe: 'הערכת כדאיות רכישה',
+    subtitleEn: 'Acquisition Evaluation',
+    color: '#2563eb',
+    bgGradient: 'linear-gradient(135deg, rgba(37,99,235,0.12) 0%, rgba(37,99,235,0.04) 100%)',
+    borderColor: 'rgba(37,99,235,0.25)',
+    image: 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?auto=format&fit=crop&w=800&q=80',
+  },
+  {
     id: 'developer',
     href: '/developer-portal',
     icon: HardHat,
     labelHe: 'פורטל יזמים',
     labelEn: 'Developer Portal',
-    subtitleHe: 'זכויות בנייה וכדאיות כלכלית',
-    subtitleEn: 'Building Rights & Feasibility',
+    subtitleHe: 'מנוע סטטוטורי וניתוח מקצועי',
+    subtitleEn: 'Statutory Engine & Pro Analysis',
     color: '#a78bfa',
     bgGradient: 'linear-gradient(135deg, rgba(167,139,250,0.12) 0%, rgba(167,139,250,0.04) 100%)',
     borderColor: 'rgba(167,139,250,0.25)',
