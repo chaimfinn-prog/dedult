@@ -1,0 +1,230 @@
+{
+  "type": "FeatureCollection",
+  "name": "tel_aviv_metro_stations_planned",
+  "description": "Planned Tel Aviv Metro (NTA) station locations for TAMA 70 distance calculations. Sources: NTA published planning documents, TAMA 70 statutory maps. Coordinates are approximate based on published station area locations — NOT surveyed positions. For TAMA 70 zone classification (100m/300m/800m) these approximations are sufficient for preliminary analysis. ALWAYS verify against official NTA/TAMA 70 maps for permit applications.",
+  "crs": "EPSG:4326",
+  "last_updated": "2026-02-25",
+  "confidence_note": "Coordinates marked confidence=high are based on well-known intersection/landmark locations. Coordinates marked confidence=medium are approximate neighborhood centers. Stations marked TODO need coordinate verification from official NTA plans.",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "station_name": "רעננה מרכז",
+        "station_name_en": "Ra'anana Center",
+        "line": "M1",
+        "city": "רעננה",
+        "confidence": "medium"
+      },
+      "geometry": { "type": "Point", "coordinates": [34.8713, 32.1843] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "station_name": "רעננה מערב",
+        "station_name_en": "Ra'anana West",
+        "line": "M1",
+        "city": "רעננה",
+        "confidence": "medium"
+      },
+      "geometry": { "type": "Point", "coordinates": [34.8580, 32.1880] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "station_name": "כפר סבא",
+        "station_name_en": "Kfar Saba",
+        "line": "M1",
+        "city": "כפר סבא",
+        "confidence": "medium"
+      },
+      "geometry": { "type": "Point", "coordinates": [34.9001, 32.1753] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "station_name": "הוד השרון",
+        "station_name_en": "Hod HaSharon",
+        "line": "M1",
+        "city": "הוד השרון",
+        "confidence": "medium"
+      },
+      "geometry": { "type": "Point", "coordinates": [34.8882, 32.1570] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "station_name": "הרצליה מרכז",
+        "station_name_en": "Herzliya Center",
+        "line": "M1",
+        "city": "הרצליה",
+        "confidence": "high"
+      },
+      "geometry": { "type": "Point", "coordinates": [34.7953, 32.1629] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "station_name": "גלילות",
+        "station_name_en": "Glilot",
+        "line": "M1",
+        "city": "הרצליה",
+        "confidence": "medium"
+      },
+      "geometry": { "type": "Point", "coordinates": [34.8010, 32.1380] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "station_name": "רמת אביב",
+        "station_name_en": "Ramat Aviv",
+        "line": "M1",
+        "city": "תל אביב",
+        "confidence": "high"
+      },
+      "geometry": { "type": "Point", "coordinates": [34.7990, 32.1050] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "station_name": "אוניברסיטת תל אביב",
+        "station_name_en": "Tel Aviv University",
+        "line": "M1",
+        "city": "תל אביב",
+        "confidence": "high"
+      },
+      "geometry": { "type": "Point", "coordinates": [34.8044, 32.1133] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "station_name": "סביידור / ארלוזורוב",
+        "station_name_en": "Savidor / Arlozorov",
+        "line": "M1",
+        "city": "תל אביב",
+        "confidence": "high"
+      },
+      "geometry": { "type": "Point", "coordinates": [34.7818, 32.0853] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "station_name": "השלום",
+        "station_name_en": "HaShalom",
+        "line": "M1",
+        "city": "תל אביב",
+        "confidence": "high"
+      },
+      "geometry": { "type": "Point", "coordinates": [34.7914, 32.0736] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "station_name": "ההגנה",
+        "station_name_en": "HaHagana",
+        "line": "M1",
+        "city": "תל אביב",
+        "confidence": "high"
+      },
+      "geometry": { "type": "Point", "coordinates": [34.7895, 32.0610] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "station_name": "חולון יוספטל",
+        "station_name_en": "Holon Yoseftal",
+        "line": "M1",
+        "city": "חולון",
+        "confidence": "medium"
+      },
+      "geometry": { "type": "Point", "coordinates": [34.7771, 32.0144] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "station_name": "ראשון לציון מרכז",
+        "station_name_en": "Rishon LeZion Center",
+        "line": "M1",
+        "city": "ראשון לציון",
+        "confidence": "medium"
+      },
+      "geometry": { "type": "Point", "coordinates": [34.7945, 32.0603] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "station_name": "רחובות מרכז",
+        "station_name_en": "Rehovot Center",
+        "line": "M1",
+        "city": "רחובות",
+        "confidence": "medium"
+      },
+      "geometry": { "type": "Point", "coordinates": [34.8113, 31.8944] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "station_name": "פתח תקוה מרכז",
+        "station_name_en": "Petah Tikva Center",
+        "line": "M2",
+        "city": "פתח תקוה",
+        "confidence": "medium"
+      },
+      "geometry": { "type": "Point", "coordinates": [34.8878, 32.0893] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "station_name": "בני ברק",
+        "station_name_en": "Bnei Brak",
+        "line": "M2",
+        "city": "בני ברק",
+        "confidence": "medium"
+      },
+      "geometry": { "type": "Point", "coordinates": [34.8319, 32.0837] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "station_name": "רמת גן מרכז",
+        "station_name_en": "Ramat Gan Center",
+        "line": "M2",
+        "city": "רמת גן",
+        "confidence": "medium"
+      },
+      "geometry": { "type": "Point", "coordinates": [34.8102, 32.0820] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "station_name": "גבעתיים",
+        "station_name_en": "Givatayim",
+        "line": "M2",
+        "city": "גבעתיים",
+        "confidence": "medium"
+      },
+      "geometry": { "type": "Point", "coordinates": [34.8117, 32.0717] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "station_name": "בת ים",
+        "station_name_en": "Bat Yam",
+        "line": "M3",
+        "city": "בת ים",
+        "confidence": "medium"
+      },
+      "geometry": { "type": "Point", "coordinates": [34.7516, 32.0174] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "station_name": "נתב\"ג",
+        "station_name_en": "Ben Gurion Airport",
+        "line": "M3",
+        "city": "לוד",
+        "confidence": "high"
+      },
+      "geometry": { "type": "Point", "coordinates": [34.8854, 32.0055] }
+    }
+  ]
+}

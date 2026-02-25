@@ -1,0 +1,18 @@
+id,city,gush_list,helka_list,start_date,expiry_date,freeze_type,applies_to_tama38,applies_to_all,density_cap,polygon_wkt,source_url,notes
+# DATA_ENTRY_REQUIRED — Schema created 2026-02-25
+# §77-78 freeze notices are published in the Official Gazette (Reshumot).
+# There is no live API for freeze notices.
+# Each row represents one freeze notice. Columns:
+#   id             — Unique notice identifier (e.g. FRZ-2024-001)
+#   city           — Hebrew city name
+#   gush_list      — Semicolon-separated gush numbers (e.g. 6580;6583;6586)
+#   helka_list     — Semicolon-separated helka numbers (empty = all helkot in gush)
+#   start_date     — Freeze start date (YYYY-MM-DD)
+#   expiry_date    — Freeze expiry date (YYYY-MM-DD, standard 3 years + extension)
+#   freeze_type    — FULL | TAMA38_ONLY | RIGHTS_REDUCTION
+#   applies_to_tama38 — true/false
+#   applies_to_all — true/false (full freeze blocks all permits)
+#   density_cap    — Max units/dunam if freeze_type=RIGHTS_REDUCTION (empty otherwise)
+#   polygon_wkt    — Optional WKT polygon of freeze area (EPSG:4326)
+#   source_url     — URL to Official Gazette publication
+#   notes          — Free text notes
