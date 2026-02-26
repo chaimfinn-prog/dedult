@@ -5,6 +5,7 @@ Data sources:
   - GovMap WFS (open.govmap.gov.il) for parcel geometries and municipal boundaries.
   - Local metro_stations.geojson for TAMA 70 distance calculations
     (METRO_STATIONS layer is NOT available in GovMap open WFS).
+  - Nominatim (OpenStreetMap) for address geocoding in Israel.
   - RATA height cones: NOT available in any open API → returns RATA_UNKNOWN.
   - Heritage/preservation: detected from zoning plan names via Mavat (plans_repository).
 
@@ -19,6 +20,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import List, Optional
 
+import requests
 from geopy.distance import geodesic
 from shapely.geometry import MultiPolygon, Point, shape
 from shapely.ops import transform
@@ -38,6 +40,45 @@ from rights_engine.domain.models import (
     MetroZone,
     ParcelInput,
 )
+
+
+# ─── ITM ↔ WGS84 coordinate transformers ─────────────────────
+
+_ITM_TO_WGS84 = pyproj.Transformer.from_crs("EPSG:2039", "EPSG:4326", always_xy=True)
+_WGS84_TO_ITM = pyproj.Transformer.from_crs("EPSG:4326", "EPSG:2039", always_xy=True)
+
+
+def itm_to_wgs84(x: float, y: float) -> tuple[float, float]:
+    """Convert ITM (EPSG:2039) to WGS84 (EPSG:4326). Returns (lon, lat)."""
+    return _ITM_TO_WGS84.transform(x, y)
+
+
+def wgs84_to_itm(lon: float, lat: float) -> tuple[float, float]:
+    """Convert WGS84 (EPSG:4326) to ITM (EPSG:2039). Returns (x, y)."""
+    return _WGS84_TO_ITM.transform(lon, lat)
+
+
+# ─── Address geocoding (Nominatim) ───────────────────────────
+
+def geocode_address_israel(address: str) -> Optional[tuple[float, float]]:
+    """
+    Geocode an Israeli address to (lon, lat) using Nominatim.
+    Returns None if geocoding fails.
+    """
+    q = address if "ישראל" in address else f"{address}, ישראל"
+    try:
+        r = requests.get(
+            "https://nominatim.openstreetmap.org/search",
+            params={"q": q, "format": "json", "limit": 1, "countrycodes": "il"},
+            headers={"User-Agent": "PropCheck/1.0"},
+            timeout=10,
+        )
+        d = r.json()
+        if d:
+            return float(d[0]["lon"]), float(d[0]["lat"])
+    except Exception:
+        pass
+    return None
 
 
 # ─── Metro stations data (loaded once) ───────────────────────

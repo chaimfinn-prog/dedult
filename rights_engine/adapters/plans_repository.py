@@ -1,28 +1,22 @@
 """
 Plans Repository — Interface for loading statutory plan constraints.
 
-Data sources (Phase 2):
-  - Mavat (ipa.iplan.gov.il) REST API for plan metadata.
-    REQUIRES_API_ACCESS: All Mavat/iplan endpoints are blocked from
-    this environment (proxy 403 / TLS failure on ags.iplan.gov.il).
-    When access is available, implement get_plans_from_mavat().
-  - GovMap WFS: does NOT contain TABA/zoning boundaries.
-  - Local curated plan data: Ra'anana TABA 416-1060052 is hardcoded
-    with verified rules from the approved plan document.
+Data sources:
+  - Mavat ArcGIS (ags.iplan.gov.il) for approved plan metadata by city.
+    Filter: plan_county_name LIKE '%{city}%' AND station_desc='אישור'
+    Returns: pl_number, pl_name, pl_date_8, entity_subtype_desc, pl_by_auth_of
+  - Local curated plan data: fallback when Mavat is unreachable or
+    returns empty results.
 
-Mavat endpoints tested (2026-02-25):
-  - ipa.iplan.gov.il/api/v1/plans?gush=X&helka=Y → 403 (proxy blocked)
-  - mavat.iplan.gov.il/SV4/api/v1/plansList → returns HTML SPA shell
-  - ags.iplan.gov.il/arcgisiplan/rest/services/... → 503 TLS failure
-  None returned usable JSON from this environment.
-
-Function signatures unchanged from stub version — services/ not affected.
+Function signatures unchanged — services/ not affected.
 """
 
 from __future__ import annotations
 
 import datetime
 from typing import List, Optional
+
+import requests
 
 from rights_engine.domain.models import (
     ParcelInput,
@@ -31,48 +25,117 @@ from rights_engine.domain.models import (
 )
 
 
-# ── Mavat API client (REQUIRES_API_ACCESS) ───────────────────
+# ── Mavat ArcGIS endpoint (confirmed working) ────────────────
 
-# The following Mavat API endpoints are the correct ones to use
-# when network access is available:
-#
-# GET https://ipa.iplan.gov.il/api/v1/plans?gush={gush}&helka={helka}&lang=he
-#   Headers: Accept: application/json
-#   Returns: JSON array of plan objects with fields:
-#     - plan_number (תכנית מספר)
-#     - plan_name (שם תכנית)
-#     - plan_type (סוג תוכנית)
-#     - approval_date (תאריך אישור)
-#     - status (סטטוס)
-#
-# ArcGIS query (alternative):
-# GET https://ags.iplan.gov.il/arcgisiplan/rest/services/PlanningPublic/Xplan/MapServer/1/query
-#   Params: where=GUSH_NUM={gush}+AND+PARCEL_NUM={helka}&outFields=*&f=json
+MAVAT_ARCGIS_URL = (
+    "https://ags.iplan.gov.il/arcgisiplan/rest/services/"
+    "PlanningPublic/Xplan/MapServer/1/query"
+)
 
 
-def get_plans_from_mavat(gush: str, helka: str) -> Optional[List[dict]]:
+def _classify_mavat_plan(
+    subtype: str, auth: float, name: str
+) -> PlanLevel:
     """
-    Fetch plan list from Mavat API by gush/helka.
-
-    REQUIRES_API_ACCESS: This function is a placeholder.
-    When ipa.iplan.gov.il is accessible, implement:
-      1. GET request to Mavat API
-      2. Parse JSON response
-      3. Map to PlanConstraint objects
-
-    Returns None (API not accessible from this environment).
+    Classify a Mavat plan into PlanLevel based on:
+      - entity_subtype_desc (plan subtype)
+      - pl_by_auth_of (1=national, 2=district, 3=local)
+      - pl_name (Hebrew plan name keywords)
     """
-    # TODO: Implement when Mavat API access is confirmed.
-    # import requests
-    # resp = requests.get(
-    #     "https://ipa.iplan.gov.il/api/v1/plans",
-    #     params={"gush": gush, "helka": helka, "lang": "he"},
-    #     headers={"Accept": "application/json"},
-    #     timeout=30,
-    # )
-    # if resp.status_code == 200:
-    #     return resp.json()
-    return None
+    # National-level plans
+    if any(x in name for x in ('תמ"א', "תמא", 'תת"ל', 'רט"א')):
+        return PlanLevel.NATIONAL_VETO
+    if auth <= 1:
+        return PlanLevel.NATIONAL_VETO
+
+    # District / thematic
+    if auth == 2:
+        return PlanLevel.THEMATIC
+
+    # Section 23 override plans
+    if any(x in name for x in ("סעיף 23", "מתחם", "רביע")):
+        return PlanLevel.SECTION_23
+
+    # Urban renewal multiplier plans
+    if "התחדשות" in subtype:
+        return PlanLevel.URBAN_RENEWAL_MULTIPLIER
+
+    # Thematic (preservation, parking, design)
+    if any(x in name for x in ("שימור", "חנייה", "חניה", "עיצוב עירוני")):
+        return PlanLevel.THEMATIC
+
+    return PlanLevel.DETAILED_BASELINE
+
+
+def get_plans_from_mavat(city: str) -> Optional[List[PlanConstraint]]:
+    """
+    Fetch approved plans for a city from Mavat ArcGIS.
+
+    Returns list of PlanConstraint objects sorted by level priority,
+    or None if the API is unreachable.
+    """
+    params = {
+        "where": f"plan_county_name LIKE '%{city}%' AND station_desc='אישור'",
+        "outFields": (
+            "pl_number,pl_name,plan_county_name,station_desc,"
+            "pl_date_8,entity_subtype_desc,pl_by_auth_of,"
+            "pl_objectives,pl_url"
+        ),
+        "resultRecordCount": 15,
+        "orderByFields": "pl_date_8 DESC",
+        "f": "json",
+    }
+    try:
+        resp = requests.get(MAVAT_ARCGIS_URL, params=params, timeout=15)
+        data = resp.json()
+    except Exception as e:
+        print(f"[plans_repo] Mavat ArcGIS failed: {e}")
+        return None
+
+    features = data.get("features", [])
+    if not features:
+        return None
+
+    result: List[PlanConstraint] = []
+    for f in features:
+        a = f.get("attributes", {})
+        date_ms = a.get("pl_date_8")
+        if date_ms:
+            try:
+                eff_date = datetime.date.fromtimestamp(date_ms / 1000)
+            except (ValueError, OSError):
+                eff_date = datetime.date(2000, 1, 1)
+        else:
+            eff_date = datetime.date(2000, 1, 1)
+
+        auth = float(a.get("pl_by_auth_of") or 3)
+        subtype = a.get("entity_subtype_desc") or ""
+        name = a.get("pl_name") or ""
+        level = _classify_mavat_plan(subtype, auth, name)
+
+        objectives = (a.get("pl_objectives") or "")[:200]
+
+        result.append(PlanConstraint(
+            plan_id=a.get("pl_number") or "UNKNOWN",
+            level=level,
+            description=name,
+            effective_date=eff_date,
+            overrides=[],
+            notes=objectives,
+        ))
+
+    # Sort by priority level
+    level_order = {
+        PlanLevel.NATIONAL_VETO: 0,
+        PlanLevel.THEMATIC: 1,
+        PlanLevel.SECTION_23: 2,
+        PlanLevel.DETAILED_BASELINE: 3,
+        PlanLevel.URBAN_RENEWAL_MULTIPLIER: 4,
+    }
+    result.sort(key=lambda c: level_order.get(c.level, 99))
+
+    print(f"[plans_repo] Mavat returned {len(result)} plans for {city}")
+    return result
 
 
 # ── Hegemony keyword detection from plan names ───────────────
@@ -103,34 +166,6 @@ def _detect_hegemony_from_plan_name(plan_name: str) -> List[str]:
     return layers
 
 
-def _classify_plan_level(plan_type: str, plan_name: str) -> PlanLevel:
-    """
-    Classify a Mavat plan type string into PlanLevel enum.
-    Falls back to DETAILED_BASELINE with NEEDS_REVIEW flag.
-    """
-    pt = plan_type.strip().lower() if plan_type else ""
-    pn = plan_name.strip().lower() if plan_name else ""
-
-    # National-level plans
-    if any(kw in pt for kw in ("ארצית", "תמ\"א", "national")):
-        return PlanLevel.NATIONAL_VETO
-    if any(kw in pn for kw in ("תמ\"א", "רט\"א", "rata")):
-        return PlanLevel.NATIONAL_VETO
-
-    # Thematic plans
-    if any(kw in pt for kw in ("נושאית", "thematic")):
-        return PlanLevel.THEMATIC
-    if any(kw in pn for kw in ("חניה", "שימור", "עיצוב עירוני")):
-        return PlanLevel.THEMATIC
-
-    # Section 23 plans
-    if "סעיף 23" in pn or "section 23" in pn:
-        return PlanLevel.SECTION_23
-
-    # Default: detailed baseline (with implicit NEEDS_REVIEW)
-    return PlanLevel.DETAILED_BASELINE
-
-
 # ── Main entry point ─────────────────────────────────────────
 
 
@@ -139,55 +174,27 @@ def get_plan_constraints(parcel: ParcelInput) -> List[PlanConstraint]:
     Return all plan constraints that apply to the given parcel,
     ordered from highest-priority level to lowest.
 
-    Phase 2 implementation:
-      - Tries Mavat API first (when available).
-      - Falls back to curated local data for known cities.
-      - Returns hegemony keywords detected from plan names.
+    Strategy:
+      1. Try Mavat ArcGIS by city name.
+      2. If Mavat fails or returns empty → fall back to curated local data.
+    """
+    city = parcel.city.strip()
+
+    # ── Try Mavat ArcGIS ──
+    mavat_plans = get_plans_from_mavat(city)
+    if mavat_plans is not None and len(mavat_plans) > 0:
+        return mavat_plans
+
+    # ── Fallback: curated local data ──
+    return _get_local_fallback_plans(parcel)
+
+
+def _get_local_fallback_plans(parcel: ParcelInput) -> List[PlanConstraint]:
+    """
+    Curated local plan data — used when Mavat is unreachable.
     """
     constraints: List[PlanConstraint] = []
     city = parcel.city.strip()
-
-    # ── Try Mavat API (REQUIRES_API_ACCESS) ──
-    parts = parcel.parcel_id.replace("/", "-").split("-")
-    if len(parts) >= 2:
-        gush, helka = parts[0].strip(), parts[1].strip()
-        if gush.isdigit() and helka.isdigit():
-            mavat_plans = get_plans_from_mavat(gush, helka)
-            if mavat_plans is not None:
-                for plan in mavat_plans:
-                    plan_id = plan.get("plan_number", plan.get("PL_NUMBER", "UNKNOWN"))
-                    plan_name = plan.get("plan_name", plan.get("PL_NAME", ""))
-                    plan_type = plan.get("plan_type", plan.get("PLAN_TYPE", ""))
-                    approval_str = plan.get("approval_date", plan.get("APPROVE_DATE", ""))
-                    level = _classify_plan_level(plan_type, plan_name)
-
-                    # Parse approval date
-                    try:
-                        eff_date = datetime.date.fromisoformat(approval_str[:10])
-                    except (ValueError, TypeError):
-                        eff_date = datetime.date(2020, 1, 1)
-
-                    constraints.append(PlanConstraint(
-                        plan_id=str(plan_id),
-                        level=level,
-                        description=plan_name,
-                        effective_date=eff_date,
-                        notes="NEEDS_REVIEW" if level == PlanLevel.DETAILED_BASELINE else "",
-                    ))
-
-                # Sort by priority level
-                level_order = {
-                    PlanLevel.NATIONAL_VETO: 0,
-                    PlanLevel.THEMATIC: 1,
-                    PlanLevel.SECTION_23: 2,
-                    PlanLevel.DETAILED_BASELINE: 3,
-                    PlanLevel.URBAN_RENEWAL_MULTIPLIER: 4,
-                }
-                constraints.sort(key=lambda c: level_order.get(c.level, 99))
-                return constraints
-
-    # ── Fallback: curated local data ──
-    # (Used when Mavat API is not accessible)
 
     # Thematic plan (citywide parking standards)
     constraints.append(PlanConstraint(
