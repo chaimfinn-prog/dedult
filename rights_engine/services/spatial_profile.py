@@ -67,10 +67,16 @@ def requires_tod_compliance(spatial: SpatialProfile) -> bool:
 
 def has_height_veto(spatial: SpatialProfile) -> bool:
     """
-    Returns True if a RATA airport height cone or similar national
+    Returns True if a confirmed RATA airport height cone or similar national
     height restriction layer is present.
+
+    RATA_UNKNOWN is NOT a confirmed veto — it means we couldn't check.
+    Only actual cone layers (RATA_HEIGHT_CONE_*) trigger a veto.
     """
-    return any("RATA" in layer for layer in spatial.hegemony_layers)
+    for layer in spatial.hegemony_layers:
+        if "RATA" in layer and layer != "RATA_UNKNOWN":
+            return True
+    return False
 
 
 def has_strict_preservation(spatial: SpatialProfile) -> bool:

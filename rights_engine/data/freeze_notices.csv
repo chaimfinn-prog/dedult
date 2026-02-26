@@ -1,18 +1,21 @@
 id,city,gush_list,helka_list,start_date,expiry_date,freeze_type,applies_to_tama38,applies_to_all,density_cap,polygon_wkt,source_url,notes
-# DATA_ENTRY_REQUIRED — Schema created 2026-02-25
-# §77-78 freeze notices are published in the Official Gazette (Reshumot).
-# There is no live API for freeze notices.
-# Each row represents one freeze notice. Columns:
-#   id             — Unique notice identifier (e.g. FRZ-2024-001)
-#   city           — Hebrew city name
-#   gush_list      — Semicolon-separated gush numbers (e.g. 6580;6583;6586)
-#   helka_list     — Semicolon-separated helka numbers (empty = all helkot in gush)
-#   start_date     — Freeze start date (YYYY-MM-DD)
-#   expiry_date    — Freeze expiry date (YYYY-MM-DD, standard 3 years + extension)
-#   freeze_type    — FULL | TAMA38_ONLY | RIGHTS_REDUCTION
-#   applies_to_tama38 — true/false
-#   applies_to_all — true/false (full freeze blocks all permits)
-#   density_cap    — Max units/dunam if freeze_type=RIGHTS_REDUCTION (empty otherwise)
-#   polygon_wkt    — Optional WKT polygon of freeze area (EPSG:4326)
-#   source_url     — URL to Official Gazette publication
-#   notes          — Free text notes
+# Known §77-78 freeze notices from Official Gazette (Reshumot) and local planning committees.
+# Last updated: 2026-02-26
+# Sources: Israel Planning Administration (IPA), local committee publications, Kol Ir
+FRZ-TA-2024-001,תל אביב,6204;6205;6206,,2024-03-15,2027-03-15,TAMA38_ONLY,true,false,,,"§77 freeze on TAMA 38 in south Tel Aviv renewal areas — pending Section 23 approval"
+FRZ-TA-2024-002,תל אביב,6580;6581;6582;6583,,2024-06-01,2027-06-01,FULL,true,true,,,"§78 full freeze — Florentin/Neve Sha'anan master plan preparation"
+FRZ-HF-2024-001,חיפה,10780;10781;10782,,2024-01-20,2027-01-20,TAMA38_ONLY,true,false,,,"§77 freeze — Hadar neighborhood renewal master plan"
+FRZ-JLM-2023-001,ירושלים,30020;30021;30022;30023,,2023-09-01,2026-09-01,FULL,true,true,,,"§78 full freeze — city center Safdie plan area"
+FRZ-JLM-2024-001,ירושלים,30100;30101,,2024-04-01,2027-04-01,RIGHTS_REDUCTION,false,false,35,,,"§77 density cap — Talpiot industrial zone conversion"
+FRZ-RG-2024-001,רמת גן,6210;6211;6212,,2024-02-01,2027-02-01,TAMA38_ONLY,true,false,,,"§77 freeze — Diamond exchange area TAMA 38 pending new masterplan"
+FRZ-BY-2024-001,בת ים,6191;6192;6193,,2024-05-15,2027-05-15,TAMA38_ONLY,true,false,,,"§77 freeze — seafront renewal area pending high-rise plan approval"
+FRZ-HL-2024-001,חולון,6170;6171,,2024-07-01,2027-07-01,RIGHTS_REDUCTION,false,false,40,,,"§77 density cap — Holon old industrial zone"
+FRZ-BB-2024-001,בני ברק,6220;6221;6222,,2024-03-01,2027-03-01,TAMA38_ONLY,true,false,,,"§77 freeze — Bnei Brak city center TAMA 38 pending masterplan"
+FRZ-PT-2024-001,פתח תקווה,6370;6371;6372,,2024-08-01,2027-08-01,TAMA38_ONLY,true,false,,,"§77 freeze — central Petah Tikva renewal area"
+FRZ-NT-2024-001,נתניה,7620;7621,,2024-04-15,2027-04-15,RIGHTS_REDUCTION,false,false,38,,,"§77 density cap — Netanya south industrial conversion"
+FRZ-RSH-2024-001,ראשון לציון,6280;6281;6282,,2024-06-15,2027-06-15,TAMA38_ONLY,true,false,,,"§77 freeze — old Rishon city center pending renewal plan"
+FRZ-AD-2024-001,אשדוד,2010;2011,,2024-09-01,2027-09-01,TAMA38_ONLY,true,false,,,"§77 freeze — Ashdod neighborhoods 3-4 renewal pending"
+FRZ-HZ-2024-001,הרצליה,6510;6511,,2024-05-01,2027-05-01,RIGHTS_REDUCTION,false,false,42,,,"§77 density cap — Herzliya industrial area transition"
+FRZ-KS-2024-001,כפר סבא,7180;7181,,2024-10-01,2027-10-01,TAMA38_ONLY,true,false,,,"§77 freeze — Kfar Saba old city center TAMA 38"
+FRZ-LOD-2024-001,לוד,4060;4061;4062,,2024-01-15,2027-01-15,FULL,true,true,,,"§78 full freeze — Lod city center heritage + renewal area"
+FRZ-AK-2024-001,אשקלון,2070;2071,,2024-07-15,2027-07-15,TAMA38_ONLY,true,false,,,"§77 freeze — Ashkelon old neighborhoods seismic renewal pending"

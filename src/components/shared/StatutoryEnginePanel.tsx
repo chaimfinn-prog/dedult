@@ -98,34 +98,45 @@ interface CityRenewalConfig {
   publicShare: number;
 }
 
+// 50+ Israeli cities — synced with rights_engine/config/city_renewal_config.py
+const S: CityRenewalConfig = { track: 'shaked_alternative', coreMultiplier: 4.0, peripheryMultiplier: 5.5, publicShare: 0.12 };
+const SP: CityRenewalConfig = { track: 'shaked_alternative', coreMultiplier: 4.0, peripheryMultiplier: 5.5, publicShare: 0.15 };
+const T: CityRenewalConfig = { track: 'tama38_extension', coreMultiplier: 3.5, peripheryMultiplier: 5.0, publicShare: 0.10 };
+const TP: CityRenewalConfig = { track: 'tama38_extension', coreMultiplier: 3.5, peripheryMultiplier: 5.0, publicShare: 0.10 };
+
 const CITY_RENEWAL_CONFIG: Record<string, CityRenewalConfig> = {
-  'תל אביב': { track: 'shaked_alternative', coreMultiplier: 4.0, peripheryMultiplier: 5.5, publicShare: 0.12 },
-  'תל אביב-יפו': { track: 'shaked_alternative', coreMultiplier: 4.0, peripheryMultiplier: 5.5, publicShare: 0.12 },
-  'רעננה': { track: 'shaked_alternative', coreMultiplier: 4.0, peripheryMultiplier: 5.5, publicShare: 0.12 },
-  'ירושלים': { track: 'tama38_extension', coreMultiplier: 3.5, peripheryMultiplier: 5.0, publicShare: 0.10 },
-  'חיפה': { track: 'shaked_alternative', coreMultiplier: 4.0, peripheryMultiplier: 5.5, publicShare: 0.12 },
-  'באר שבע': { track: 'shaked_alternative', coreMultiplier: 4.0, peripheryMultiplier: 5.5, publicShare: 0.15 },
-  'נתניה': { track: 'shaked_alternative', coreMultiplier: 4.0, peripheryMultiplier: 5.5, publicShare: 0.12 },
-  'ראשון לציון': { track: 'shaked_alternative', coreMultiplier: 4.0, peripheryMultiplier: 5.5, publicShare: 0.12 },
-  'פתח תקוה': { track: 'shaked_alternative', coreMultiplier: 4.0, peripheryMultiplier: 5.5, publicShare: 0.12 },
-  'אשדוד': { track: 'shaked_alternative', coreMultiplier: 4.0, peripheryMultiplier: 5.5, publicShare: 0.12 },
-  'הרצליה': { track: 'shaked_alternative', coreMultiplier: 4.0, peripheryMultiplier: 5.5, publicShare: 0.12 },
-  'בת ים': { track: 'shaked_alternative', coreMultiplier: 4.0, peripheryMultiplier: 5.5, publicShare: 0.12 },
-  'חולון': { track: 'shaked_alternative', coreMultiplier: 4.0, peripheryMultiplier: 5.5, publicShare: 0.12 },
-  'רמת גן': { track: 'shaked_alternative', coreMultiplier: 4.0, peripheryMultiplier: 5.5, publicShare: 0.12 },
-  'גבעתיים': { track: 'shaked_alternative', coreMultiplier: 4.0, peripheryMultiplier: 5.5, publicShare: 0.12 },
-  'בני ברק': { track: 'shaked_alternative', coreMultiplier: 4.0, peripheryMultiplier: 5.5, publicShare: 0.12 },
-  'כפר סבא': { track: 'shaked_alternative', coreMultiplier: 4.0, peripheryMultiplier: 5.5, publicShare: 0.12 },
-  'הוד השרון': { track: 'shaked_alternative', coreMultiplier: 4.0, peripheryMultiplier: 5.5, publicShare: 0.12 },
-  'אשקלון': { track: 'shaked_alternative', coreMultiplier: 4.0, peripheryMultiplier: 5.5, publicShare: 0.12 },
-  'לוד': { track: 'shaked_alternative', coreMultiplier: 4.0, peripheryMultiplier: 5.5, publicShare: 0.12 },
-  'רמלה': { track: 'shaked_alternative', coreMultiplier: 4.0, peripheryMultiplier: 5.5, publicShare: 0.12 },
-  'מודיעין': { track: 'shaked_alternative', coreMultiplier: 4.0, peripheryMultiplier: 5.5, publicShare: 0.12 },
-  'קריית אונו': { track: 'shaked_alternative', coreMultiplier: 4.0, peripheryMultiplier: 5.5, publicShare: 0.12 },
-  'עפולה': { track: 'tama38_extension', coreMultiplier: 3.5, peripheryMultiplier: 5.5, publicShare: 0.10 },
-  'צפת': { track: 'tama38_extension', coreMultiplier: 3.5, peripheryMultiplier: 5.5, publicShare: 0.10 },
-  'טבריה': { track: 'tama38_extension', coreMultiplier: 3.5, peripheryMultiplier: 5.5, publicShare: 0.10 },
-  'אילת': { track: 'tama38_extension', coreMultiplier: 3.5, peripheryMultiplier: 5.5, publicShare: 0.10 },
+  // Gush Dan
+  'תל אביב': S, 'תל אביב-יפו': S,
+  'רמת גן': S, 'גבעתיים': S, 'בני ברק': S,
+  'חולון': S, 'בת ים': S,
+  'פתח תקווה': S, 'פתח תקוה': S,
+  'ראשון לציון': S,
+  // Sharon
+  'רעננה': S, 'הרצליה': S, 'כפר סבא': S, 'הוד השרון': S,
+  'נתניה': S, 'רמת השרון': S,
+  // Haifa metro
+  'חיפה': S, 'קריית אתא': S, 'קריית ביאליק': S,
+  'קריית מוצקין': S, 'קריית ים': S,
+  'טירת כרמל': T, 'נשר': T,
+  // Jerusalem
+  'ירושלים': T,
+  // South
+  'באר שבע': SP, 'אשדוד': S, 'אשקלון': SP,
+  'קריית גת': SP, 'שדרות': SP, 'אופקים': SP,
+  'דימונה': SP, 'ערד': SP, 'אילת': SP,
+  // Central
+  'רחובות': S, 'נס ציונה': S, 'לוד': S, 'רמלה': S, 'יבנה': S,
+  'מודיעין-מכבים-רעות': S, 'מודיעין': S, 'שוהם': S,
+  // North
+  'נצרת': TP, 'נצרת עילית': SP, 'נוף הגליל': SP,
+  'עפולה': SP, 'טבריה': SP, 'צפת': SP,
+  'קריית שמונה': SP, 'עכו': SP, 'נהריה': SP,
+  'כרמיאל': SP, 'יקנעם': S,
+  // Judea & Samaria
+  'אריאל': TP, 'מעלה אדומים': TP, 'ביתר עילית': TP,
+  // Additional central
+  'אור יהודה': S, 'קריית אונו': S, 'ראש העין': S,
+  'אלעד': S, 'חדרה': S,
 };
 
 const DEFAULT_RENEWAL_CONFIG: CityRenewalConfig = {

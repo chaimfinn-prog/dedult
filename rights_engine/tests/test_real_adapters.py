@@ -138,15 +138,27 @@ def test_metro_distance_stub_compatibility():
 # ─── Freeze Repository Tests ────────────────────────────────
 
 
-def test_freeze_csv_empty_returns_empty():
-    """With no data rows in CSV, real queries should return empty list."""
-    # Real WKT that won't match any stub patterns
+def test_freeze_csv_returns_matching_notices():
+    """CSV with data returns matching freeze notices for known gush numbers."""
+    # Gush 6583 is in the Tel Aviv full-freeze notice FRZ-TA-2024-002
     notices = get_freeze_notices(
         "POLYGON((34.87 32.18, 34.88 32.18, 34.88 32.19, 34.87 32.19, 34.87 32.18))",
         parcel_id="6583-917",
     )
+    assert len(notices) >= 1
+    notice_ids = [n.notice_id for n in notices]
+    assert "FRZ-TA-2024-002" in notice_ids
+    print(f"✓ Freeze CSV returned {len(notices)} matching notices for gush 6583")
+
+
+def test_freeze_csv_no_match_for_unknown_gush():
+    """CSV returns empty list for gush numbers not in any freeze notice."""
+    notices = get_freeze_notices(
+        "POLYGON((34.87 32.18, 34.88 32.18, 34.88 32.19, 34.87 32.19, 34.87 32.18))",
+        parcel_id="9999-1",
+    )
     assert notices == []
-    print("✓ Empty CSV returns empty list for real queries")
+    print("✓ No freeze notices for unknown gush 9999")
 
 
 def test_freeze_stub_compatibility():

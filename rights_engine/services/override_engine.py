@@ -88,65 +88,24 @@ class EffectiveRightsContext:
 
 # ─── Renewal policy lookup ──────────────────────────────────────────
 
-# City-level renewal policy configuration.
-# In production, this would come from a database or config file.
-# Keys are normalized city names; values are (track, core_mult, periph_mult, public_share).
-_CITY_RENEWAL_CONFIG: dict[str, tuple[str, float, float, float]] = {
-    "תל אביב":     ("shaked", 4.0, 5.5, 0.12),
-    "תל אביב-יפו": ("shaked", 4.0, 5.5, 0.12),
-    "tel_aviv":     ("shaked", 4.0, 5.5, 0.12),
-    "רעננה":        ("shaked", 4.0, 5.5, 0.12),
-    "raanana":      ("shaked", 4.0, 5.5, 0.12),
-    "ירושלים":      ("tama38", 3.5, 5.0, 0.10),
-    "jerusalem":    ("tama38", 3.5, 5.0, 0.10),
-    "חיפה":         ("shaked", 4.0, 5.5, 0.12),
-    "haifa":        ("shaked", 4.0, 5.5, 0.12),
-    "באר שבע":      ("shaked", 4.0, 5.5, 0.15),
-    "beer_sheva":   ("shaked", 4.0, 5.5, 0.15),
-    "נתניה":        ("shaked", 4.0, 5.5, 0.12),
-    "netanya":      ("shaked", 4.0, 5.5, 0.12),
-    "ראשון לציון":  ("shaked", 4.0, 5.5, 0.12),
-    "rishon":       ("shaked", 4.0, 5.5, 0.12),
-    "פתח תקוה":     ("shaked", 4.0, 5.5, 0.12),
-    "petah_tikva":  ("shaked", 4.0, 5.5, 0.12),
-    "אשדוד":        ("shaked", 4.0, 5.5, 0.12),
-    "ashdod":       ("shaked", 4.0, 5.5, 0.12),
-    "הרצליה":       ("shaked", 4.0, 5.5, 0.12),
-    "herzliya":     ("shaked", 4.0, 5.5, 0.12),
-    "בת ים":        ("shaked", 4.0, 5.5, 0.12),
-    "bat_yam":      ("shaked", 4.0, 5.5, 0.12),
-    "חולון":        ("shaked", 4.0, 5.5, 0.12),
-    "holon":        ("shaked", 4.0, 5.5, 0.12),
-    "רמת גן":      ("shaked", 4.0, 5.5, 0.12),
-    "ramat_gan":    ("shaked", 4.0, 5.5, 0.12),
-    "גבעתיים":     ("shaked", 4.0, 5.5, 0.12),
-    "givatayim":    ("shaked", 4.0, 5.5, 0.12),
-    "בני ברק":      ("shaked", 4.0, 5.5, 0.12),
-    "bnei_brak":    ("shaked", 4.0, 5.5, 0.12),
-    "כפר סבא":      ("shaked", 4.0, 5.5, 0.12),
-    "kfar_saba":    ("shaked", 4.0, 5.5, 0.12),
-    "הוד השרון":    ("shaked", 4.0, 5.5, 0.12),
-    "hod_hasharon": ("shaked", 4.0, 5.5, 0.12),
-}
+from rights_engine.config.city_renewal_config import CITY_RENEWAL_CONFIG
 
 
 def build_renewal_policy(city: str, as_of: datetime.date) -> RenewalPolicy:
     """
     Look up the applicable renewal track and multipliers for a city.
 
-    TODO: Replace with DB/config-file lookup.  Currently uses a
-    hardcoded dictionary covering major Israeli cities.
+    Uses config/city_renewal_config.py (50+ Israeli cities).
+    Falls back to TAMA 38 extension with conservative defaults for unknown cities.
     """
-    city_lower = city.strip().lower()
+    city_stripped = city.strip()
 
-    # Try exact match first, then partial
-    config = _CITY_RENEWAL_CONFIG.get(city)
+    # Try exact match first
+    config = CITY_RENEWAL_CONFIG.get(city_stripped)
     if config is None:
-        config = _CITY_RENEWAL_CONFIG.get(city_lower)
-    if config is None:
-        # Try matching against lowercase keys
-        for key, val in _CITY_RENEWAL_CONFIG.items():
-            if key.lower() == city_lower:
+        # Try matching against all keys
+        for key, val in CITY_RENEWAL_CONFIG.items():
+            if key.strip() == city_stripped:
                 config = val
                 break
 
