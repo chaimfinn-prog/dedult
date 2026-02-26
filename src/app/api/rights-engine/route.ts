@@ -80,18 +80,25 @@ export async function POST(request: NextRequest) {
     if (stderr && !stdout.trim()) {
       console.error('Python engine stderr:', stderr);
       return NextResponse.json(
-        { error: 'Rights engine error', details: stderr.slice(0, 500) },
+        { status: 'CANNOT_COMPUTE', reason: 'RIGHTS_ENGINE_ERROR', error: 'Rights engine error', details: stderr.slice(0, 500) },
+        { status: 500 }
+      );
+    }
+
+    if (!stdout.trim()) {
+      return NextResponse.json(
+        { status: 'CANNOT_COMPUTE', reason: 'RIGHTS_ENGINE_ERROR', error: 'Rights engine returned empty output', details: 'Python subprocess produced no output' },
         { status: 500 }
       );
     }
 
     const result = JSON.parse(stdout.trim());
-    return NextResponse.json(result);
+    return NextResponse.json({ status: 'OK', ...result });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Unknown error';
     console.error('Rights engine route error:', message);
     return NextResponse.json(
-      { error: 'Failed to evaluate parcel', details: message.slice(0, 500) },
+      { status: 'CANNOT_COMPUTE', reason: 'RIGHTS_ENGINE_ERROR', error: 'Failed to evaluate parcel', details: message.slice(0, 500) },
       { status: 500 }
     );
   } finally {

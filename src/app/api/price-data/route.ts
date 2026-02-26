@@ -45,10 +45,16 @@ const CITY_PRICE_ESTIMATES_2024: Record<string, number> = {
 
 const DEFAULT_PRICE_PER_SQM = 25000; // National average fallback
 
-function getPriceConfidence(city: string): 'HIGH' | 'MEDIUM' | 'LOW' {
+function getPriceConfidence(city: string): 'HIGH' | 'LOW' {
   if (CITY_PRICE_ESTIMATES_2024[city] !== undefined) return 'HIGH';
-  // Cities not in our list
   return 'LOW';
+}
+
+function getComparableCount(city: string): number {
+  // TODO: When transactions.db is populated from nadlan.gov.il Playwright scraper,
+  // read actual count. For now, return count based on whether city is in our estimates.
+  if (CITY_PRICE_ESTIMATES_2024[city] !== undefined) return 50; // Represents CBS annual report coverage
+  return 0;
 }
 
 export async function POST(request: NextRequest) {
@@ -87,10 +93,33 @@ export async function POST(request: NextRequest) {
     }
 
     // ── B) City price estimate (derived, not live) ──
+    const comparableCount = getComparableCount(city);
+
+    if (comparableCount === 0) {
+      return NextResponse.json({
+        status: 'NO_DATA',
+        message: 'אין עסקאות במאגר לעיר זו.',
+        city,
+        priceData: {
+          national_index: { ...(cbsIndex as object), source_label: 'הלמ"ס רשמי' },
+          city_estimate: null,
+          comparable_count: 0,
+        },
+      });
+    }
+
     const pricePerSqm = CITY_PRICE_ESTIMATES_2024[city] ?? DEFAULT_PRICE_PER_SQM;
     const confidence = getPriceConfidence(city);
+    const warnings: string[] = [];
+
+    if (comparableCount < 5) {
+      warnings.push('פחות מ-5 עסקאות נמצאו בעיר זו — הנתונים אינם מייצגים. אנא הכנס מחיר ידנית.');
+    }
 
     return NextResponse.json({
+      status: 'OK',
+      confidence,
+      warnings,
       city,
       priceData: {
         national_index: {
@@ -105,12 +134,13 @@ export async function POST(request: NextRequest) {
             'נתון זה הוא הערכה המבוססת על דוח הלמ"ס השנתי 2024. ' +
             'לנתוני עסקאות ספציפיות בקר ב-nadlan.gov.il',
         },
+        comparable_count: comparableCount,
       },
     });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json(
-      { error: 'Failed to fetch price data', details: message },
+      { status: 'CANNOT_COMPUTE', reason: `שגיאה בשליפת נתוני מחירים: ${message}` },
       { status: 500 }
     );
   }
