@@ -398,12 +398,12 @@ function CityPlanCalculator({ config }: { config: CityPlanConfig }) {
                         label="שטח בנוי בתוך קווי בניין"
                         value={`${fmt(result.buildableFootprint)} מ"ר`}
                         sub={`${result.buildableWidth.toFixed(1)}מ' × ${result.buildableDepth.toFixed(1)}מ'`}
-                        ok={result.buildableFootprint <= result.coverageArea}
+                        ok={result.coverageArea <= result.buildableFootprint}
                       />
-                      {result.buildableFootprint <= result.coverageArea ? (
-                        <SetbackCard label="גמישות" value={`+${fmt(result.coverageArea - result.buildableFootprint)} מ"ר`} sub="שטח פנוי לניצול" ok />
+                      {result.coverageArea <= result.buildableFootprint ? (
+                        <SetbackCard label="תכסית נכנסת" value={`+${fmt(result.buildableFootprint - result.coverageArea)} מ"ר`} sub="גמישות — שטח פנוי בתוך קווי הבניין" ok />
                       ) : (
-                        <SetbackCard label="חריגה" value="!" sub="שטח בין הקווים גדול מהתכסית" ok={false} />
+                        <SetbackCard label="תכסית חורגת" value={`${fmt(result.coverageArea - result.buildableFootprint)} מ"ר`} sub="התכסית גדולה מהשטח בין קווי הבניין — קווי הבניין מגבילים" ok={false} />
                       )}
                     </>
                   ) : (
