@@ -54,11 +54,13 @@ export interface EnvelopeStep {
   source: string;
 }
 
+const DEFAULT_FLOOR_HEIGHT = 3.0;
+
 /**
  * Calculate the maximum building envelope for a plot
  */
 export function calculateBuildingEnvelope(input: EnvelopeInput): EnvelopeResult {
-  const floorHeight = input.floorHeight || 3.0;
+  const floorHeight = input.floorHeight || DEFAULT_FLOOR_HEIGHT;
   const steps: EnvelopeStep[] = [];
 
   // Step 1: Net dimensions after setbacks

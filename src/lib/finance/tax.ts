@@ -1,7 +1,12 @@
 import { PURCHASE_TAX_BRACKETS, VAT_RATE } from './constants';
 import type { BuyerStatus, PropertyType } from './types';
 
-function progressiveTax(amount: number, brackets: Array<{ upTo: number; rate: number }>): number {
+interface TaxBracket {
+  readonly upTo: number;
+  readonly rate: number;
+}
+
+function progressiveTax(amount: number, brackets: readonly TaxBracket[]): number {
   let tax = 0;
   let prev = 0;
 
@@ -16,7 +21,8 @@ function progressiveTax(amount: number, brackets: Array<{ upTo: number; rate: nu
 }
 
 export function calcPurchaseTax(price: number, buyerStatus: BuyerStatus): number {
-  const singleHomeEligible = buyerStatus === 'single_home_resident' || buyerStatus === 'new_immigrant';
+  const singleHomeEligible =
+    buyerStatus === 'single_home_resident' || buyerStatus === 'new_immigrant';
   const brackets = singleHomeEligible
     ? PURCHASE_TAX_BRACKETS.singleHomeResident
     : PURCHASE_TAX_BRACKETS.investorOrForeigner;
@@ -24,7 +30,12 @@ export function calcPurchaseTax(price: number, buyerStatus: BuyerStatus): number
   return progressiveTax(price, brackets);
 }
 
-export function calcVat(contractPriceNis: number, legalFeeNis: number, brokerFeeNis: number, propertyType: PropertyType) {
+export function calcVat(
+  contractPriceNis: number,
+  legalFeeNis: number,
+  brokerFeeNis: number,
+  propertyType: PropertyType,
+) {
   const vatOnPropertyNis = propertyType === 'new_from_developer' ? contractPriceNis * VAT_RATE : 0;
   const vatOnServicesNis = (legalFeeNis + brokerFeeNis) * VAT_RATE;
 

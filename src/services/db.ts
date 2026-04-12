@@ -7,7 +7,7 @@
  */
 
 import { openDB, type IDBPDatabase } from 'idb';
-import type { ZoningPlan, ZoningRule, DocumentType } from '@/types';
+import type { ZoningPlan, ZoningRule, ZoningRuleCategory, DocumentType } from '@/types';
 
 // ── Database Schema ─────────────────────────────────────────
 
@@ -152,11 +152,14 @@ export function generateId(prefix: string = 'id'): string {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
 }
 
+const DEFAULT_PARKING_SPACES = 1.5;
+const DEFAULT_MIN_GREEN_AREA_PCT = 30;
+
 /**
  * Get a rule value from the rules array by category.
  * Returns the rawNumber of the first matching confirmed rule, or fallback.
  */
-function getRuleValue(rules: ZoningRule[], category: string, fallback: number = 0): number {
+function getRuleValue(rules: ZoningRule[], category: ZoningRuleCategory, fallback: number = 0): number {
   const rule = rules.find(r => r.category === category && r.confirmed);
   return rule?.rawNumber ?? fallback;
 }
@@ -207,8 +210,8 @@ export function buildPlanFromExtraction(
       frontSetback: getRuleValue(rules, 'front_setback'),
       rearSetback: getRuleValue(rules, 'rear_setback'),
       sideSetback: getRuleValue(rules, 'side_setback'),
-      minParkingSpaces: getRuleValue(rules, 'parking', 1.5),
-      minGreenAreaPercent: 30,
+      minParkingSpaces: getRuleValue(rules, 'parking', DEFAULT_PARKING_SPACES),
+      minGreenAreaPercent: DEFAULT_MIN_GREEN_AREA_PCT,
       maxLandCoverage: getRuleValue(rules, 'coverage'),
     },
   };
@@ -216,23 +219,29 @@ export function buildPlanFromExtraction(
 
 // ── Formula Evaluator ───────────────────────────────────────
 
+/** Only numbers, math operators, parentheses, decimals, and spaces are allowed */
+const SAFE_FORMULA_PATTERN = /^[\d\s+\-*/().]+$/;
+
+function escapeRegex(str: string): string {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 /**
  * Safely evaluate a formula string with variable substitution.
  * Only allows basic math: numbers, +, -, *, /, (), and decimal points.
  */
 export function evaluateFormula(
   formula: string,
-  vars: Record<string, number>
+  vars: Record<string, number>,
 ): number {
   let expr = formula;
   // Sort variable names by length (longest first) to avoid partial replacements
   const sortedVars = Object.entries(vars).sort((a, b) => b[0].length - a[0].length);
   for (const [name, value] of sortedVars) {
-    expr = expr.replace(new RegExp(name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), String(value));
+    expr = expr.replace(new RegExp(escapeRegex(name), 'g'), String(value));
   }
 
-  // Safety: only allow numbers, math operators, parentheses, decimals, spaces
-  if (!/^[\d\s+\-*/().]+$/.test(expr)) {
+  if (!SAFE_FORMULA_PATTERN.test(expr)) {
     console.warn('Invalid formula expression:', expr, 'from', formula);
     return 0;
   }

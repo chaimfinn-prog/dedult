@@ -1,3 +1,4 @@
+import { LINKAGE_PROTECTED_RATIO, LINKAGE_EXPOSED_CAP_RATIO } from './constants';
 import type { PaymentMilestone } from './types';
 
 function daysBetween(from: Date, to: Date): number {
@@ -8,16 +9,18 @@ export function calcLinkageSurcharge(
   contractPriceNis: number,
   annualConstructionIndexPct: number,
   paymentSchedule: PaymentMilestone[],
-  contractualDeliveryDate: string
+  contractualDeliveryDate: string,
 ): number {
   if (paymentSchedule.length === 0) return 0;
 
-  const sorted = [...paymentSchedule].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  const sorted = [...paymentSchedule].sort(
+    (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
+  );
   const firstDate = new Date(sorted[0].date);
   const deliveryDate = new Date(contractualDeliveryDate);
 
-  const protectedAmount = contractPriceNis * 0.2;
-  const totalExposedCap = contractPriceNis * 0.4;
+  const protectedAmount = contractPriceNis * LINKAGE_PROTECTED_RATIO;
+  const totalExposedCap = contractPriceNis * LINKAGE_EXPOSED_CAP_RATIO;
   let protectedUsed = 0;
   let exposedUsed = 0;
   let surcharge = 0;

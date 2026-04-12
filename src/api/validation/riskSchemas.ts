@@ -8,6 +8,18 @@ function isObject(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
 }
 
+function optionalBool(value: unknown): boolean | undefined {
+  return typeof value === 'boolean' ? value : undefined;
+}
+
+function optionalString(value: unknown): string | undefined {
+  return typeof value === 'string' ? value : undefined;
+}
+
+function optionalPositiveNumber(value: unknown): number | undefined {
+  return typeof value === 'number' && value >= 0 ? value : undefined;
+}
+
 export function parseInvestmentProfile(input: unknown): { data?: InvestmentProfile; error?: string } {
   if (!isObject(input)) {
     return { error: 'profile must be an object' };
@@ -37,35 +49,29 @@ export function parseInvestmentProfile(input: unknown): { data?: InvestmentProfi
     return { error: 'profile.viaCompany must be boolean' };
   }
 
-  const isNorthCyprus = Boolean(input.isNorthCyprus) || country === Country.NORTH_CYPRUS;
+  const dealStructure = input.dealStructure;
 
   return {
     data: {
       country: country as Country,
-      city: typeof input.city === 'string' ? input.city : undefined,
-      isNorthCyprus,
-      isIsraeliOnlyProject: typeof input.isIsraeliOnlyProject === 'boolean' ? input.isIsraeliOnlyProject : undefined,
-      assetType: typeof input.assetType === 'string' ? input.assetType : undefined,
-      dealStructure: input.dealStructure === 'PERSONAL' || input.dealStructure === 'COMPANY' ? input.dealStructure : undefined,
+      city: optionalString(input.city),
+      isNorthCyprus: Boolean(input.isNorthCyprus) || country === Country.NORTH_CYPRUS,
+      isIsraeliOnlyProject: optionalBool(input.isIsraeliOnlyProject),
+      assetType: optionalString(input.assetType),
+      dealStructure:
+        dealStructure === 'PERSONAL' || dealStructure === 'COMPANY' ? dealStructure : undefined,
       priceEur,
       grossYieldPct,
       rentalMode,
       viaCompany: input.viaCompany,
-      localCorporateTaxRate:
-        typeof input.localCorporateTaxRate === 'number' && input.localCorporateTaxRate >= 0
-          ? input.localCorporateTaxRate
-          : undefined,
-      usesCyprus60DayRule: typeof input.usesCyprus60DayRule === 'boolean' ? input.usesCyprus60DayRule : undefined,
-      hasIndependentLocalLawyer:
-        typeof input.hasIndependentLocalLawyer === 'boolean' ? input.hasIndependentLocalLawyer : undefined,
-      hasIndependentLocalEngineer:
-        typeof input.hasIndependentLocalEngineer === 'boolean' ? input.hasIndependentLocalEngineer : undefined,
-      usesIsraeliMarketingLawyerOnly:
-        typeof input.usesIsraeliMarketingLawyerOnly === 'boolean' ? input.usesIsraeliMarketingLawyerOnly : undefined,
+      localCorporateTaxRate: optionalPositiveNumber(input.localCorporateTaxRate),
+      usesCyprus60DayRule: optionalBool(input.usesCyprus60DayRule),
+      hasIndependentLocalLawyer: optionalBool(input.hasIndependentLocalLawyer),
+      hasIndependentLocalEngineer: optionalBool(input.hasIndependentLocalEngineer),
+      usesIsraeliMarketingLawyerOnly: optionalBool(input.usesIsraeliMarketingLawyerOnly),
       leverage: typeof input.leverage === 'number' ? input.leverage : undefined,
       financeLtvPct: typeof input.financeLtvPct === 'number' ? input.financeLtvPct : undefined,
-      expectedAnnualMaintenanceEur:
-        typeof input.expectedAnnualMaintenanceEur === 'number' ? input.expectedAnnualMaintenanceEur : undefined,
+      expectedAnnualMaintenanceEur: optionalPositiveNumber(input.expectedAnnualMaintenanceEur),
     },
   };
 }
@@ -80,15 +86,16 @@ export function parseIsraelTaxContext(input: unknown): { data: IsraelTaxContext;
   }
 
   const rawRoute = input.taxRoute;
-  let warning: string | undefined;
   const taxRoute = rawRoute === 'FLAT_15' || rawRoute === 'MARGINAL' ? rawRoute : 'MARGINAL';
-
-  if (rawRoute !== undefined && rawRoute !== 'FLAT_15' && rawRoute !== 'MARGINAL') {
-    warning = 'Unknown taxRoute; defaulted to MARGINAL';
-  }
+  const warning =
+    rawRoute !== undefined && rawRoute !== 'FLAT_15' && rawRoute !== 'MARGINAL'
+      ? 'Unknown taxRoute; defaulted to MARGINAL'
+      : undefined;
 
   const paysLocalTaxRatePct =
-    typeof input.paysLocalTaxRatePct === 'number' && input.paysLocalTaxRatePct >= 0 && input.paysLocalTaxRatePct <= 0.7
+    typeof input.paysLocalTaxRatePct === 'number' &&
+    input.paysLocalTaxRatePct >= 0 &&
+    input.paysLocalTaxRatePct <= 0.7
       ? input.paysLocalTaxRatePct
       : undefined;
 
@@ -96,8 +103,8 @@ export function parseIsraelTaxContext(input: unknown): { data: IsraelTaxContext;
     data: {
       taxRoute,
       paysLocalTaxRatePct,
-      holdsViaForeignCompany: typeof input.holdsViaForeignCompany === 'boolean' ? input.holdsViaForeignCompany : undefined,
-      foreignCompanyIsCfc: typeof input.foreignCompanyIsCfc === 'boolean' ? input.foreignCompanyIsCfc : undefined,
+      holdsViaForeignCompany: optionalBool(input.holdsViaForeignCompany),
+      foreignCompanyIsCfc: optionalBool(input.foreignCompanyIsCfc),
     },
     warning,
   };
