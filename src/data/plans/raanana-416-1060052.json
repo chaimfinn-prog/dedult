@@ -1,0 +1,135 @@
+{
+  "id": "raanana-416-1060052",
+  "planNumber": "416-1060052",
+  "planName": "תכנית התחדשות עירונית רעננה",
+  "city": "רעננה",
+  "citySlug": "raanana",
+
+  "coefficientTable": [
+    { "existingFloors": 2, "coefficient": 6.5, "maxFloorsLabel": "ק'+6+גג" },
+    { "existingFloors": 3, "coefficient": 8, "maxFloorsLabel": "ק'+7+גג" },
+    { "existingFloors": 4, "coefficient": 8.5, "maxFloorsLabel": "ק'+8+גג" }
+  ],
+
+  "coverage": [
+    { "maxArea": 2000, "coveragePct": 55 },
+    { "maxArea": null, "coveragePct": 50 }
+  ],
+
+  "bonuses": [
+    {
+      "id": "park",
+      "label": "איחוד כניסות לחניון תת קרקעי",
+      "description": "בין מגרשים צמודים — ניתן לכל מגרש בנפרד",
+      "pct": 5
+    },
+    {
+      "id": "merge",
+      "label": "איחוד מגרשים",
+      "description": "שטח מצרפי עד 4 דונם בלבד",
+      "pct": 10
+    },
+    {
+      "id": "setb",
+      "label": "הגדלת קו בניין צידי/אחורי ב-1.5 מ'",
+      "description": "מעבר לקווי הבניין המינימליים שבטבלה",
+      "pct": 5
+    },
+    {
+      "id": "mamak",
+      "label": "שילוב ממ\"ק קומתי (מיגון)",
+      "description": "פתרון מיגון קומתי במבנה החדש",
+      "pct": 5
+    },
+    {
+      "id": "roof",
+      "label": "דירת גג מוצמדת קיימת",
+      "description": "במבנה הנהרס קיימת דירת גג מוצמדת",
+      "pct": 5,
+      "linkedInputId": "hasRoofApartment"
+    }
+  ],
+
+  "setbacks": [
+    { "maxWidth": 18, "side": 2.5, "rear": 3.0 },
+    { "maxWidth": 20, "side": 3.0, "rear": 3.0 },
+    { "maxWidth": 40, "side": 3.5, "rear": 3.5 },
+    { "maxWidth": null, "side": 4.0, "rear": 4.0 }
+  ],
+
+  "constants": {
+    "publicUseSqm": 450,
+    "publicUseThreshold": 2000,
+    "sharedAreasSqm": 50,
+    "balconySqmPerUnit": 15,
+    "storageSqmPerUnit": 6,
+    "undergroundCoveragePct": 85,
+    "maxUndergroundLevels": 5,
+    "maxCommercialPct": 15,
+    "densityUnitsPerDunam": 45,
+    "frontSetbackM": 3.0,
+    "minBuildingDistanceM": 6,
+    "maxMergePlotArea": 4000
+  },
+
+  "unitSizes": {
+    "smallMaxSqm": 80,
+    "smallAvgSqm": 68,
+    "largeAvgSqm": 110,
+    "smallPctMin": 30,
+    "smallPctMax": 50,
+    "smallPctDefault": 40
+  },
+
+  "extraRules": [
+    {
+      "id": "commercial",
+      "title": "שימוש מסחרי",
+      "description": "אם קיים מסחר מאושר — חובת המשך; מקסימום 15% מזכויות הבנייה",
+      "value": "",
+      "valueType": "sqm"
+    },
+    {
+      "id": "merge-limit",
+      "title": "איחוד מגרשים",
+      "description": "שטח מצרפי מקסימלי 4 דונם | מעל 2 דונם — תצ\"ר | הגבוה מבין הבניינים קובע קומות",
+      "value": "עד 4,000 מ\"ר",
+      "valueType": "badge"
+    },
+    {
+      "id": "shared-parking",
+      "title": "כניסה לחניון משותף (בין מגרשים)",
+      "description": "מותר בכפוף להסכמת בעלים + זיקת הנאה | בונוס +5% לכל מגרש",
+      "value": "מותר",
+      "valueType": "badge"
+    },
+    {
+      "id": "shared-basement",
+      "title": "מרתף משותף עם מגרש גובל",
+      "description": "מותר | הסכמת בעלים + זיקת הנאה | תכנית צל מלאה לבקשה להיתר",
+      "value": "מותר",
+      "valueType": "badge"
+    },
+    {
+      "id": "building-distance",
+      "title": "מרחק מינימלי בין מבנים באותו מגרש",
+      "description": "",
+      "value": "6 מ'",
+      "valueType": "text"
+    },
+    {
+      "id": "parking",
+      "title": "חניה",
+      "description": "תת קרקעית בלבד | עד 5 מפלסים | 85% תכסית | תקן לפי מדיניות עירונית תקפה",
+      "value": "תת קרקעי",
+      "valueType": "badge"
+    },
+    {
+      "id": "slope",
+      "title": "מגרש מדרוני (שיפוע >8%)",
+      "description": "הערה יא' — קומת מגורים חלקית מתחת לכניסה ללא תוספת קומות",
+      "value": "ראה תנאים",
+      "valueType": "badge"
+    }
+  ]
+}

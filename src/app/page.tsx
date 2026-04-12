@@ -66,6 +66,10 @@ export default function Home() {
                 <Calculator className="w-3.5 h-3.5" />
                 {t('מחשבון כדאיות', 'Feasibility Calculator')}
               </a>
+              <a href="/plans/raanana" className="text-xs text-foreground-muted hover:text-foreground transition-colors flex items-center gap-1">
+                <Building2 className="w-3.5 h-3.5" />
+                {t('מחשבון זכויות רעננה', 'Ra\'anana Rights Calculator')}
+              </a>
               <a href="/booking" className="text-xs text-foreground-muted hover:text-foreground transition-colors flex items-center gap-1">
                 <CalendarDays className="w-3.5 h-3.5" />
                 {t('קביעת ייעוץ', 'Book Consultation')}
