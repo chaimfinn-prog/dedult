@@ -1,11 +1,11 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { useParams, notFound } from 'next/navigation';
 import {
   Building2, Ruler, Layers, Users, ChevronLeft, Home,
   ArrowUpDown, Info, Warehouse, Car, ParkingCircle,
-  Shield, Merge, RectangleHorizontal,
+  Shield, Merge, RectangleHorizontal, Loader2, MapPin, AlertCircle,
 } from 'lucide-react';
 import { getCityPlan } from '@/data/plans';
 import { calculateCityPlan } from '@/services/city-plan-calculator';
@@ -45,6 +45,88 @@ function CityPlanCalculator({ config }: { config: CityPlanConfig }) {
 
   const [gush, setGush] = useState('');
   const [helka, setHelka] = useState('');
+  const [parcelLookup, setParcelLookup] = useState<{
+    loading: boolean;
+    found: boolean | null;
+    city?: string;
+    address?: string;
+    areaSqm?: number;
+    estimatedWidth?: number;
+    estimatedDepth?: number;
+    existingFloors?: number;
+    existingUnits?: number;
+    avgUnitSize?: number;
+    estimatedBuiltArea?: number;
+    ownership?: string;
+    zoning?: string;
+    planNumber?: string;
+    error?: string;
+  }>({ loading: false, found: null });
+  const manuallyEdited = useRef<Set<string>>(new Set());
+
+  // Auto-lookup when gush + helka are both filled
+  useEffect(() => {
+    const g = parseInt(gush);
+    const h = parseInt(helka);
+    if (!g || !h || g <= 0 || h <= 0) {
+      setParcelLookup({ loading: false, found: null });
+      return;
+    }
+
+    const controller = new AbortController();
+    setParcelLookup({ loading: true, found: null });
+
+    fetch(`/api/parcel?gush=${g}&helka=${h}`, { signal: controller.signal })
+      .then(res => res.json())
+      .then(data => {
+        if (data.found) {
+          setParcelLookup({
+            loading: false,
+            found: true,
+            city: data.city,
+            address: data.address,
+            areaSqm: data.areaSqm,
+            estimatedWidth: data.estimatedWidth,
+            estimatedDepth: data.estimatedDepth,
+            existingFloors: data.existingFloors,
+            existingUnits: data.existingUnits,
+            avgUnitSize: data.avgUnitSize,
+            estimatedBuiltArea: data.estimatedBuiltArea,
+            ownership: data.ownership,
+            zoning: data.zoning,
+            planNumber: data.planNumber,
+          });
+          // Auto-fill fields that haven't been manually edited
+          setInput(prev => {
+            const next = { ...prev };
+            const m = manuallyEdited.current;
+            if (data.areaSqm && !m.has('plotArea')) next.plotArea = data.areaSqm;
+            if (data.estimatedWidth && !m.has('plotWidth')) next.plotWidth = data.estimatedWidth;
+            if (data.estimatedDepth && !m.has('plotDepth')) next.plotDepth = data.estimatedDepth;
+            if (data.existingFloors && !m.has('existingFloors')) {
+              const validFloors = config.coefficientTable.map(c => c.existingFloors);
+              const closest = validFloors.reduce((a, b) =>
+                Math.abs(b - data.existingFloors) < Math.abs(a - data.existingFloors) ? b : a,
+              );
+              next.existingFloors = closest;
+            }
+            if (data.existingUnits && !m.has('existingUnits')) next.existingUnits = data.existingUnits;
+            if (data.avgUnitSize && !m.has('existingAvgUnitSize')) next.existingAvgUnitSize = data.avgUnitSize;
+            if (data.estimatedBuiltArea && !m.has('existingBuiltArea')) next.existingBuiltArea = data.estimatedBuiltArea;
+            return next;
+          });
+        } else {
+          setParcelLookup({ loading: false, found: false, error: data.error });
+        }
+      })
+      .catch(err => {
+        if (err.name !== 'AbortError') {
+          setParcelLookup({ loading: false, found: false, error: 'שגיאה בחיפוש' });
+        }
+      });
+
+    return () => controller.abort();
+  }, [gush, helka, config.coefficientTable]);
 
   const result = useMemo(
     () => input.plotArea > 0 ? calculateCityPlan(input, config) : null,
@@ -52,6 +134,7 @@ function CityPlanCalculator({ config }: { config: CityPlanConfig }) {
   );
 
   const update = (field: keyof CityPlanInput, value: number | boolean | string[]) => {
+    manuallyEdited.current.add(field);
     setInput(prev => ({ ...prev, [field]: value }));
   };
 
@@ -86,13 +169,59 @@ function CityPlanCalculator({ config }: { config: CityPlanConfig }) {
           </div>
         </div>
 
-        {/* Gush/Helka (optional display) */}
-        <div className="db-card p-5 mb-4" style={{ borderColor: 'var(--accent)' }}>
-          <SectionLabel icon={<Layers className="w-3.5 h-3.5" />} label="גוש / חלקה (לא חובה)" />
+        {/* Gush/Helka with auto-lookup */}
+        <div className="db-card p-5 mb-4" style={{ borderColor: parcelLookup.found === true ? 'var(--green)' : parcelLookup.found === false ? '#e53e3e' : 'var(--accent)' }}>
+          <SectionLabel icon={<MapPin className="w-3.5 h-3.5" />} label="גוש / חלקה — חיפוש אוטומטי" />
           <div className="grid grid-cols-2 gap-3">
-            <Field label="גוש" value={gush} onChange={setGush} type="text" placeholder="—" />
-            <Field label="חלקה" value={helka} onChange={setHelka} type="text" placeholder="—" />
+            <Field label="גוש" value={gush} onChange={setGush} type="text" placeholder="לדוגמה: 7662" />
+            <Field label="חלקה" value={helka} onChange={setHelka} type="text" placeholder="לדוגמה: 100" />
           </div>
+          {parcelLookup.loading && (
+            <div className="mt-3 flex items-center gap-2 text-xs text-foreground-muted">
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              מחפש חלקה ב-GovMap...
+            </div>
+          )}
+          {parcelLookup.found === true && (
+            <div className="mt-3 p-3 rounded-lg text-xs space-y-1.5" style={{ background: 'rgba(72,187,120,0.1)', border: '1px solid rgba(72,187,120,0.2)' }}>
+              <div className="flex items-center gap-2" style={{ color: 'var(--green)' }}>
+                <MapPin className="w-3.5 h-3.5 flex-shrink-0" />
+                <span className="font-bold">
+                  חלקה נמצאה{parcelLookup.city ? ` — ${parcelLookup.city}` : ''}
+                  {parcelLookup.address ? `, ${parcelLookup.address}` : ''}
+                </span>
+              </div>
+              <div className="text-foreground-muted mr-5 flex flex-wrap gap-x-4 gap-y-0.5">
+                {parcelLookup.areaSqm && <span>שטח רשום: {parcelLookup.areaSqm.toLocaleString('he-IL')} מ"ר</span>}
+                {parcelLookup.estimatedWidth && parcelLookup.estimatedDepth && (
+                  <span>מידות: ~{parcelLookup.estimatedWidth}×{parcelLookup.estimatedDepth} מ'</span>
+                )}
+                {parcelLookup.ownership && <span>בעלות: {parcelLookup.ownership}</span>}
+              </div>
+              {(parcelLookup.zoning || parcelLookup.planNumber) && (
+                <div className="text-foreground-muted mr-5 flex flex-wrap gap-x-4 gap-y-0.5">
+                  {parcelLookup.planNumber && <span>תכנית: {parcelLookup.planNumber}</span>}
+                  {parcelLookup.zoning && <span>ייעוד: {parcelLookup.zoning}</span>}
+                </div>
+              )}
+              {(parcelLookup.existingFloors || parcelLookup.existingUnits) && (
+                <div className="text-foreground-muted mr-5 flex flex-wrap gap-x-4 gap-y-0.5">
+                  {parcelLookup.existingFloors && <span>קומות: {parcelLookup.existingFloors}</span>}
+                  {parcelLookup.existingUnits && <span>דירות: ~{parcelLookup.existingUnits}</span>}
+                  {parcelLookup.avgUnitSize && <span>שטח ממוצע: {parcelLookup.avgUnitSize} מ"ר</span>}
+                </div>
+              )}
+            </div>
+          )}
+          {parcelLookup.found === false && (
+            <div className="mt-3 p-2 rounded-lg text-xs flex items-center gap-2" style={{ background: 'rgba(229,62,62,0.1)', color: '#e53e3e' }}>
+              <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
+              <span>{parcelLookup.error || 'חלקה לא נמצאה'} — </span>
+              <a href={`https://www.govmap.gov.il/?q=גוש ${gush} חלקה ${helka}`} target="_blank" rel="noopener noreferrer" className="underline">
+                חפש ב-GovMap
+              </a>
+            </div>
+          )}
         </div>
 
         {/* Parcel inputs */}
