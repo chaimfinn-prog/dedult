@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Building2, ChevronLeft, Search, CalendarDays, BarChart3, Globe, Calculator } from 'lucide-react';
+import { Building2, ChevronLeft, Search, CalendarDays, BarChart3, Globe, Calculator, LineChart } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useLang } from '@/lib/i18n';
 
@@ -69,6 +69,10 @@ export default function Home() {
               <a href="/plans/raanana" className="text-xs text-foreground-muted hover:text-foreground transition-colors flex items-center gap-1">
                 <Building2 className="w-3.5 h-3.5" />
                 {t('מחשבון זכויות רעננה', 'Ra\'anana Rights Calculator')}
+              </a>
+              <a href="/stocks" className="text-xs text-foreground-muted hover:text-foreground transition-colors flex items-center gap-1">
+                <LineChart className="w-3.5 h-3.5" />
+                {t('מניות', 'Stocks')}
               </a>
               <a href="/booking" className="text-xs text-foreground-muted hover:text-foreground transition-colors flex items-center gap-1">
                 <CalendarDays className="w-3.5 h-3.5" />
