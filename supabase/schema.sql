@@ -69,12 +69,14 @@ create table if not exists public.odds (
 -- ============================================================
 create table if not exists public.matches (
   id          bigint generated always as identity primary key,
+  ext_id      text unique,              -- מזהה המשחק ב-The Odds API (לעדכון אוטומטי)
   stage       text not null default 'groups',
   home_team   text not null,
   away_team   text not null,
   kickoff     timestamptz not null,
-  home_score  int,                      -- null עד שמוזן ע"י אדמין
+  home_score  int,                      -- מתעדכן אוטומטית מ-fetch-scores (או ע"י אדמין)
   away_score  int,
+  live        boolean not null default false,  -- משחק מתנהל כעת
   finished    boolean not null default false,
   created_at  timestamptz not null default now()
 );

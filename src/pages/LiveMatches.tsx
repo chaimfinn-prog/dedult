@@ -14,12 +14,14 @@ import {
 
 interface Match {
   id: number;
+  ext_id: string | null;
   stage: string;
   home_team: string;
   away_team: string;
   kickoff: string;
   home_score: number | null;
   away_score: number | null;
+  live: boolean;
   finished: boolean;
 }
 interface Pick {
@@ -43,7 +45,7 @@ export default function LiveMatches() {
 
   useEffect(() => {
     let alive = true;
-    (async () => {
+    async function refresh() {
       if (!isSupabaseConfigured || !user) {
         setLoading(false);
         return;
@@ -64,9 +66,13 @@ export default function LiveMatches() {
       });
       setPicks(map);
       setLoading(false);
-    })();
+    }
+    refresh();
+    // רענון אוטומטי כל 60 שניות — תוצאות חיות מתעדכנות מאליהן
+    const t = setInterval(refresh, 60_000);
     return () => {
       alive = false;
+      clearInterval(t);
     };
   }, [user]);
 
@@ -93,7 +99,7 @@ export default function LiveMatches() {
           key={m.id}
           match={m}
           pick={picks[m.id]}
-          marketOptions={market(`match:${m.id}`)}
+          marketOptions={market(`match:${m.ext_id ?? m.id}`)}
           onSave={(pick) => setPicks((prev) => ({ ...prev, [m.id]: pick }))}
         />
       ))}
@@ -160,12 +166,16 @@ function MatchCard({
     <div className="card overflow-hidden">
       <div className="flex items-center justify-between bg-grass-50/60 px-4 py-2 text-xs font-bold text-grass-600">
         <span>{kickoffStr}</span>
-        {locked ? (
-          <span className="chip bg-black/5 text-grass-700">
-            {match.finished
-              ? `הסתיים ${match.home_score}:${match.away_score}`
-              : "🔒 ננעל"}
+        {match.live ? (
+          <span className="chip animate-pulse bg-red-500/15 text-red-600">
+            🔴 חי {match.home_score}:{match.away_score}
           </span>
+        ) : match.finished ? (
+          <span className="chip bg-black/5 text-grass-700">
+            הסתיים {match.home_score}:{match.away_score}
+          </span>
+        ) : locked ? (
+          <span className="chip bg-black/5 text-grass-700">🔒 ננעל</span>
         ) : (
           <span className="chip bg-grass-100 text-grass-700">פתוח לניחוש</span>
         )}

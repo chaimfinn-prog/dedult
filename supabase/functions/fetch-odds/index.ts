@@ -10,6 +10,7 @@
 
 // @ts-nocheck — רץ ב-Deno בצד Supabase, לא ב-build של הלקוח.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { codeFor } from "../_shared/teams.ts";
 
 const ODDS_API_KEY = Deno.env.get("ODDS_API_KEY")!;
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -70,13 +71,22 @@ Deno.serve(async (req) => {
       }
     }
 
-    // ---- שוקי 1X2 לכל משחק (h2h) ----
+    // ---- שוקי 1X2 לכל משחק (h2h) + יצירת/עדכון המשחקים אוטומטית ----
+    const matchRows: Record<string, unknown>[] = [];
     const h2hRes = await fetch(
       `${BASE}/sports/${SPORT_KEY}/odds?regions=eu&markets=h2h&oddsFormat=decimal&apiKey=${ODDS_API_KEY}`,
     );
     if (h2hRes.ok) {
       const games = await h2hRes.json();
       for (const game of games) {
+        // יצירת/עדכון שורת המשחק (לפי ext_id) — מאוכלס אוטומטית מה-API
+        matchRows.push({
+          ext_id: game.id,
+          home_team: codeFor(game.home_team),
+          away_team: codeFor(game.away_team),
+          kickoff: game.commence_time,
+        });
+
         const m = game?.bookmakers?.[0]?.markets?.[0];
         if (!m?.outcomes?.length) continue;
         const probs = normalize(
@@ -88,7 +98,7 @@ Deno.serve(async (req) => {
           if (o.name === game.home_team) dir = "home";
           else if (o.name === game.away_team) dir = "away";
           rows.push({
-            market: `match:${game.id}`,
+            market: `match:${game.id}`, // ext_id של המשחק
             option_id: dir,
             label: o.name,
             prob: probs[i],
@@ -96,6 +106,11 @@ Deno.serve(async (req) => {
           });
         });
       }
+    }
+
+    // upsert של המשחקים (לא דורס תוצאות קיימות — רק פרטי המשחק)
+    if (matchRows.length) {
+      await db.from("matches").upsert(matchRows, { onConflict: "ext_id" });
     }
 
     if (rows.length) {

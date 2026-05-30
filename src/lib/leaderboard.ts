@@ -31,6 +31,7 @@ export interface GeneralPickRow {
 }
 export interface MatchRow {
   id: number;
+  ext_id?: string | null;
   home_score: number | null;
   away_score: number | null;
   finished: boolean;
@@ -123,7 +124,8 @@ export function computeLeaderboard(input: ScoreInput): LeaderRow[] {
     for (const mp of matchPicks.filter((x) => x.user_id === p.id)) {
       const m = matchById.get(mp.match_id);
       if (!m || !m.finished || m.home_score == null || m.away_score == null) continue;
-      const prob = probOf(`match:${mp.match_id}`, mp.direction);
+      // היחסים נשמרים לפי ext_id (מזהה The Odds API); נפילה ל-id פנימי
+      const prob = probOf(`match:${m.ext_id ?? mp.match_id}`, mp.direction);
       const res = scoreMatchPick(
         prob,
         { home: mp.pred_home, away: mp.pred_away },

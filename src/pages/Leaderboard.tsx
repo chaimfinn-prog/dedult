@@ -20,7 +20,7 @@ export default function Leaderboard() {
 
   useEffect(() => {
     let alive = true;
-    (async () => {
+    async function refresh() {
       if (!isSupabaseConfigured) {
         setLoading(false);
         return;
@@ -28,13 +28,15 @@ export default function Leaderboard() {
       const [profiles, gp, matches, mp, results] = await Promise.all([
         supabase.from("profiles").select("id, full_name, avatar_url"),
         supabase.from("general_picks").select("*"),
-        supabase.from("matches").select("id, home_score, away_score, finished"),
+        supabase
+          .from("matches")
+          .select("id, ext_id, stage, home_team, away_team, home_score, away_score, finished"),
         supabase.from("match_picks").select("*"),
         supabase.from("results").select("*"),
       ]);
       if (!alive) return;
 
-      // בניית מפת שווקים מתוך שורות היחסים, + זריעה לאלוף/סגנית
+      // בניית מפת שווקים מתוך שורות היחסים, + זריעה לאלוף/סגנית/שחקנים
       const markets: Record<string, MarketOption[]> = {};
       for (const r of oddsRows) {
         (markets[r.market] ??= []).push({ id: r.option_id, label: r.label, prob: r.prob });
@@ -48,6 +50,18 @@ export default function Leaderboard() {
       const resultsMap: Record<string, string> = {};
       (results.data ?? []).forEach((r: any) => (resultsMap[r.key] = r.value));
 
+      // אלוף + סגנית נגזרים אוטומטית מהגמר (אם הסתיים) — בלי הזנה ידנית
+      const finalMatch = (matches.data ?? []).find(
+        (m: any) => m.stage === "final" && m.finished && m.home_score != null,
+      );
+      if (finalMatch) {
+        const homeWon = finalMatch.home_score > finalMatch.away_score;
+        const champ = homeWon ? finalMatch.home_team : finalMatch.away_team;
+        const runner = homeWon ? finalMatch.away_team : finalMatch.home_team;
+        if (!resultsMap["champion"]) resultsMap["champion"] = champ;
+        if (!resultsMap["runnerUp"]) resultsMap["runnerUp"] = runner;
+      }
+
       setBoard(
         computeLeaderboard({
           profiles: (profiles.data ?? []) as any,
@@ -59,9 +73,13 @@ export default function Leaderboard() {
         }),
       );
       setLoading(false);
-    })();
+    }
+    refresh();
+    // רענון אוטומטי כל 60 שניות כדי שהדירוג יתעדכן לייב
+    const t = setInterval(refresh, 60_000);
     return () => {
       alive = false;
+      clearInterval(t);
     };
   }, [oddsRows]);
 

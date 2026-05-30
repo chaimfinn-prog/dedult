@@ -53,36 +53,51 @@ function Card({ title, children }: { title: string; children: React.ReactNode })
 }
 
 function OddsRefresh({ lastUpdated }: { lastUpdated: string | null }) {
-  const [busy, setBusy] = useState(false);
+  const [busy, setBusy] = useState<null | "odds" | "scores">(null);
   const [msg, setMsg] = useState<string | null>(null);
 
-  async function refresh() {
-    setBusy(true);
+  async function run(fn: "fetch-odds" | "fetch-scores", kind: "odds" | "scores") {
+    setBusy(kind);
     setMsg(null);
     try {
-      const { data, error } = await supabase.functions.invoke("fetch-odds", {
-        method: "POST",
-      });
+      const { data, error } = await supabase.functions.invoke(fn, { method: "POST" });
       if (error) throw error;
-      setMsg(`✓ עודכנו ${data?.upserted ?? 0} יחסים`);
-    } catch (e) {
-      setMsg("שגיאה ברענון — בדוק שה-Edge Function פרוס ושמפתח ה-API מוגדר.");
+      setMsg(
+        kind === "odds"
+          ? `✓ עודכנו ${data?.upserted ?? 0} יחסים`
+          : `✓ עודכנו ${data?.updated ?? 0} תוצאות משחקים`,
+      );
+    } catch {
+      setMsg("שגיאה — בדוק שה-Edge Functions פרוסות ושמפתח ה-API מוגדר ב-Secrets.");
     } finally {
-      setBusy(false);
+      setBusy(null);
     }
   }
 
   return (
-    <Card title="🔄 יחסים (Odds)">
+    <Card title="🔄 עדכון אוטומטי (יחסים + תוצאות)">
       <p className="mb-3 text-sm text-grass-500">
-        עדכון אחרון:{" "}
-        {lastUpdated
-          ? new Date(lastUpdated).toLocaleString("he-IL")
-          : "טרם נמשכו יחסים"}
+        עדכון יחסים אחרון:{" "}
+        {lastUpdated ? new Date(lastUpdated).toLocaleString("he-IL") : "טרם נמשכו יחסים"}
+        <br />
+        התוצאות מתעדכנות אוטומטית כל ~10 דקות (cron). הכפתורים כאן לרענון ידני מיידי.
       </p>
-      <button onClick={refresh} disabled={busy} className="btn-primary w-full">
-        {busy ? "מרענן…" : "רענן יחסים עכשיו"}
-      </button>
+      <div className="grid grid-cols-2 gap-2">
+        <button
+          onClick={() => run("fetch-scores", "scores")}
+          disabled={busy != null}
+          className="btn-primary"
+        >
+          {busy === "scores" ? "מעדכן…" : "רענן תוצאות עכשיו"}
+        </button>
+        <button
+          onClick={() => run("fetch-odds", "odds")}
+          disabled={busy != null}
+          className="btn-ghost ring-1 ring-grass-200"
+        >
+          {busy === "odds" ? "מעדכן…" : "רענן יחסים עכשיו"}
+        </button>
+      </div>
       {msg && <p className="mt-2 text-sm font-semibold text-grass-700">{msg}</p>}
     </Card>
   );
