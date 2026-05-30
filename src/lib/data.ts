@@ -3,6 +3,12 @@ import { isSupabaseConfigured, supabase } from "./supabase";
 import { buildNormalizedMarket, probFromAmerican } from "./odds";
 import { normalizeProbabilities } from "./odds";
 import { CHAMPION_ODDS_AMERICAN } from "../data/seedOdds";
+import {
+  TOP_ASSISTS_SEED,
+  TOP_SCORER_SEED,
+  playerLabel,
+  type PlayerSeed,
+} from "../data/seedPlayers";
 import { TEAM_BY_CODE } from "../data/teams";
 import type { MarketOption } from "./types";
 
@@ -27,6 +33,15 @@ export function seedChampionMarket(): MarketOption[] {
   const normalized = normalizeProbabilities(raw);
   return entries
     .map((e, i) => ({ id: e.id, label: e.label, prob: normalized[i] }))
+    .sort((a, b) => b.prob - a.prob);
+}
+
+/** ברירת מחדל לשוק שחקנים (מלך שערים / בישולים) מנתוני הזריעה */
+export function seedPlayerMarket(seed: PlayerSeed[]): MarketOption[] {
+  const raw = seed.map((p) => probFromAmerican(p.odds));
+  const normalized = normalizeProbabilities(raw);
+  return seed
+    .map((p, i) => ({ id: p.name, label: playerLabel(p), prob: normalized[i] }))
     .sort((a, b) => b.prob - a.prob);
 }
 
@@ -69,6 +84,9 @@ export function useOdds() {
         .sort((a, b) => b.prob - a.prob);
     }
     if (name === "champion" || name === "runnerUp") return seedChampionMarket();
+    if (name === "topScorer" || name === "secondScorer")
+      return seedPlayerMarket(TOP_SCORER_SEED);
+    if (name === "topAssists") return seedPlayerMarket(TOP_ASSISTS_SEED);
     return [];
   }
 

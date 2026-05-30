@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { isSupabaseConfigured, supabase } from "../lib/supabase";
-import { useOdds, seedChampionMarket } from "../lib/data";
+import { useOdds, seedChampionMarket, seedPlayerMarket } from "../lib/data";
+import { TOP_ASSISTS_SEED, TOP_SCORER_SEED } from "../data/seedPlayers";
 import Loading from "../components/Loading";
 import {
   computeLeaderboard,
@@ -40,6 +41,9 @@ export default function Leaderboard() {
       }
       if (!markets["champion"]) markets["champion"] = seedChampionMarket();
       if (!markets["runnerUp"]) markets["runnerUp"] = seedChampionMarket();
+      if (!markets["topScorer"]) markets["topScorer"] = seedPlayerMarket(TOP_SCORER_SEED);
+      if (!markets["secondScorer"]) markets["secondScorer"] = seedPlayerMarket(TOP_SCORER_SEED);
+      if (!markets["topAssists"]) markets["topAssists"] = seedPlayerMarket(TOP_ASSISTS_SEED);
 
       const resultsMap: Record<string, string> = {};
       (results.data ?? []).forEach((r: any) => (resultsMap[r.key] = r.value));
