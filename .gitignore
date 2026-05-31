@@ -32,3 +32,6 @@ pnpm-debug.log*
 
 # typescript build info
 *.tsbuildinfo
+
+# deployment artifacts
+*.zip
