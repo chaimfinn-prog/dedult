@@ -127,30 +127,42 @@ alter table public.match_picks   enable row level security;
 alter table public.results       enable row level security;
 
 -- פרופילים: כולם רואים את כולם (לטבלת המובילים), כל אחד מעדכן רק את שלו
+drop policy if exists "profiles_select_all" on public.profiles;
 create policy "profiles_select_all" on public.profiles for select
   to authenticated using (true);
+drop policy if exists "profiles_update_own" on public.profiles;
 create policy "profiles_update_own" on public.profiles for update
   to authenticated using (auth.uid() = id);
 
 -- יחסים/משחקים/תוצאות: קריאה לכולם; כתיבה לאדמין בלבד
+drop policy if exists "odds_select_all" on public.odds;
 create policy "odds_select_all" on public.odds for select to authenticated using (true);
+drop policy if exists "odds_admin_write" on public.odds;
 create policy "odds_admin_write" on public.odds for all to authenticated
   using (public.is_admin()) with check (public.is_admin());
 
+drop policy if exists "matches_select_all" on public.matches;
 create policy "matches_select_all" on public.matches for select to authenticated using (true);
+drop policy if exists "matches_admin_write" on public.matches;
 create policy "matches_admin_write" on public.matches for all to authenticated
   using (public.is_admin()) with check (public.is_admin());
 
+drop policy if exists "results_select_all" on public.results;
 create policy "results_select_all" on public.results for select to authenticated using (true);
+drop policy if exists "results_admin_write" on public.results;
 create policy "results_admin_write" on public.results for all to authenticated
   using (public.is_admin()) with check (public.is_admin());
 
 -- ניחושים כלליים: כולם רואים (לשקיפות הדירוג), כל אחד כותב רק את שלו
+drop policy if exists "gp_select_all" on public.general_picks;
 create policy "gp_select_all" on public.general_picks for select to authenticated using (true);
+drop policy if exists "gp_write_own" on public.general_picks;
 create policy "gp_write_own" on public.general_picks for all to authenticated
   using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
 -- ניחושי משחקים: כולם רואים, כל אחד כותב רק את שלו
+drop policy if exists "mp_select_all" on public.match_picks;
 create policy "mp_select_all" on public.match_picks for select to authenticated using (true);
+drop policy if exists "mp_write_own" on public.match_picks;
 create policy "mp_write_own" on public.match_picks for all to authenticated
   using (auth.uid() = user_id) with check (auth.uid() = user_id);
