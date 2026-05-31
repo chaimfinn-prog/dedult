@@ -6,7 +6,6 @@ import { CHAMPION_ODDS_AMERICAN } from "../data/seedOdds";
 import {
   TOP_ASSISTS_SEED,
   TOP_SCORER_SEED,
-  playerLabel,
   type PlayerSeed,
 } from "../data/seedPlayers";
 import { TEAM_BY_CODE } from "../data/teams";
@@ -25,14 +24,15 @@ export interface OddsRow {
 export function seedChampionMarket(): MarketOption[] {
   const entries = Object.entries(CHAMPION_ODDS_AMERICAN).map(([code, odds]) => ({
     id: code,
-    label: `${TEAM_BY_CODE[code]?.flag ?? ""} ${TEAM_BY_CODE[code]?.nameHe ?? code}`,
+    label: TEAM_BY_CODE[code]?.nameHe ?? code,
+    code,
     odds,
   }));
   // המרה אמריקאית → הסתברות → נרמול ל-100%
   const raw = entries.map((e) => probFromAmerican(e.odds));
   const normalized = normalizeProbabilities(raw);
   return entries
-    .map((e, i) => ({ id: e.id, label: e.label, prob: normalized[i] }))
+    .map((e, i) => ({ id: e.id, label: e.label, code: e.code, prob: normalized[i] }))
     .sort((a, b) => b.prob - a.prob);
 }
 
@@ -41,7 +41,7 @@ export function seedPlayerMarket(seed: PlayerSeed[]): MarketOption[] {
   const raw = seed.map((p) => probFromAmerican(p.odds));
   const normalized = normalizeProbabilities(raw);
   return seed
-    .map((p, i) => ({ id: p.name, label: playerLabel(p), prob: normalized[i] }))
+    .map((p, i) => ({ id: p.name, label: p.name, code: p.team, prob: normalized[i] }))
     .sort((a, b) => b.prob - a.prob);
 }
 
@@ -79,8 +79,15 @@ export function useOdds() {
   function market(name: string): MarketOption[] {
     const sel = rows.filter((r) => r.market === name);
     if (sel.length) {
+      // לאלוף/סגנית מזהה האופציה הוא קוד נבחרת → אפשר לצרף דגל
+      const isTeamMarket = name === "champion" || name === "runnerUp";
       return sel
-        .map((r) => ({ id: r.option_id, label: r.label, prob: r.prob }))
+        .map((r) => ({
+          id: r.option_id,
+          label: isTeamMarket ? TEAM_BY_CODE[r.option_id]?.nameHe ?? r.label : r.label,
+          code: isTeamMarket ? r.option_id : undefined,
+          prob: r.prob,
+        }))
         .sort((a, b) => b.prob - a.prob);
     }
     if (name === "champion" || name === "runnerUp") return seedChampionMarket();

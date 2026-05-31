@@ -60,4 +60,6 @@ export interface MarketOption {
   label: string;
   /** הסתברות מובלעת מנורמלת (0..1) — מסתכמת ל-1 בכל השוק */
   prob: number;
+  /** קוד נבחרת לשיוך דגל (אופציונלי — קיים לאלוף/סגנית/שחקנים) */
+  code?: string;
 }

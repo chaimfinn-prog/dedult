@@ -4,12 +4,10 @@ import { isSupabaseConfigured, supabase } from "../lib/supabase";
 import { useOdds } from "../lib/data";
 import Loading from "../components/Loading";
 import OptionCard from "../components/OptionCard";
-import {
-  potentialGeneralPoints,
-  potentialStagePoints,
-} from "../lib/scoring";
+import Flag from "../components/Flag";
+import { potentialGeneralPoints, potentialStagePoints } from "../lib/scoring";
 import { TOURNAMENT_KICKOFF_ISO } from "../config";
-import { TEAMS } from "../data/teams";
+import { TEAMS, TEAM_BY_CODE } from "../data/teams";
 import {
   STAGE_LABELS_HE,
   STAGE_ORDER,
@@ -158,7 +156,8 @@ export default function GeneralPicks() {
 function Hero({ locked }: { locked: boolean }) {
   return (
     <div className="card overflow-hidden">
-      <div className="bg-gradient-to-l from-grass-700 to-grass-600 p-5 text-white">
+      <div className="relative bg-gradient-to-l from-grass-700 to-grass-600 p-5 text-white">
+        <span className="pointer-events-none absolute -left-3 -top-4 text-7xl opacity-15">🏆</span>
         <h1 className="text-xl font-extrabold">הניחושים הכלליים שלי</h1>
         <p className="mt-1 text-sm text-grass-100/90">
           נסגרים עם שריקת הפתיחה — 11.6.2026. ליד כל בחירה רואים את הסיכוי
@@ -201,6 +200,12 @@ function MarketSection({
     return top;
   }, [options, expanded, selected]);
 
+  // לשחקנים מציגים גם את שם הנבחרת מתחת לשם השחקן
+  const subtitleFor = (o: MarketOption) =>
+    o.code && TEAM_BY_CODE[o.code]?.nameHe !== o.label
+      ? TEAM_BY_CODE[o.code]?.nameHe
+      : undefined;
+
   return (
     <section>
       <h2 className="mb-2 px-1 text-lg font-extrabold text-grass-900">{title}</h2>
@@ -214,6 +219,8 @@ function MarketSection({
             <OptionCard
               key={o.id}
               title={o.label}
+              subtitle={subtitleFor(o)}
+              code={o.code}
               prob={o.prob}
               points={potentialGeneralPoints(category, o.prob)}
               selected={selected === o.id}
@@ -270,7 +277,7 @@ function StageSection({
             const pts = sel ? potentialStagePoints(sel, stageProb(sel)) : 0;
             return (
               <div key={t.code} className="card flex items-center gap-3 p-3">
-                <span className="text-xl">{t.flag}</span>
+                <Flag code={t.code} size={30} />
                 <span className="flex-1 font-bold text-grass-900">{t.nameHe}</span>
                 {sel && (
                   <span className="chip bg-accent-400/15 text-accent-600">

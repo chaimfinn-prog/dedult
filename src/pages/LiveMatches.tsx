@@ -3,6 +3,7 @@ import { useAuth } from "../context/AuthContext";
 import { isSupabaseConfigured, supabase } from "../lib/supabase";
 import { useOdds } from "../lib/data";
 import Loading from "../components/Loading";
+import Flag from "../components/Flag";
 import { potentialDirectionPoints } from "../lib/scoring";
 import { EXACT_SCORE_BONUS } from "../config";
 import { TEAM_BY_CODE } from "../data/teams";
@@ -182,9 +183,9 @@ function MatchCard({
       </div>
 
       <div className="flex items-center justify-center gap-4 px-4 py-4">
-        <TeamSide name={home?.nameHe ?? match.home_team} flag={home?.flag} />
+        <TeamSide name={home?.nameHe ?? match.home_team} code={match.home_team} />
         <div className="text-lg font-black text-grass-400">VS</div>
-        <TeamSide name={away?.nameHe ?? match.away_team} flag={away?.flag} />
+        <TeamSide name={away?.nameHe ?? match.away_team} code={match.away_team} />
       </div>
 
       {/* בחירת כיוון 1X2 */}
@@ -236,10 +237,10 @@ function MatchCard({
   );
 }
 
-function TeamSide({ name, flag }: { name: string; flag?: string }) {
+function TeamSide({ name, code }: { name: string; code: string }) {
   return (
-    <div className="flex flex-1 flex-col items-center gap-1 text-center">
-      <span className="text-3xl">{flag ?? "🏳️"}</span>
+    <div className="flex flex-1 flex-col items-center gap-1.5 text-center">
+      <Flag code={code} size={48} />
       <span className="text-sm font-extrabold text-grass-900">{name}</span>
     </div>
   );

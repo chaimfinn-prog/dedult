@@ -3,8 +3,6 @@
 // ⚠️ חשוב: היחסים משתנים כל הזמן — מומלץ לאמת/לעדכן במסך הניהול לפני הטורניר.
 // הזריעה כאן רק כדי שהאפליקציה תיראה מלאה גם לפני שמזינים נתונים סופיים.
 
-import { TEAM_BY_CODE } from "./teams";
-
 export interface PlayerSeed {
   name: string; // שם השחקן
   team: string; // קוד נבחרת
@@ -27,6 +25,22 @@ export const TOP_SCORER_SEED: PlayerSeed[] = [
   { name: "אלברו מוראטה", team: "ESP", odds: 3300 },
   { name: "פלוריאן וירץ", team: "GER", odds: 4000 },
   { name: "קודי חאקפו", team: "NED", odds: 4500 },
+  { name: "אוסמן דמבלה", team: "FRA", odds: 5000 },
+  { name: "רומלו לוקאקו", team: "BEL", odds: 5000 },
+  { name: "כריסטיאנו רונאלדו", team: "POR", odds: 5500 },
+  { name: "ראסמוס הוילונד", team: "DEN", odds: 6000 },
+  { name: "דוסאן ולאחוביץ'", team: "SRB", odds: 6500 },
+  { name: "גונסאלו ראמוש", team: "POR", odds: 7000 },
+  { name: "ממפיס דפאי", team: "NED", odds: 7500 },
+  { name: "לי קאנג-אין", team: "KOR", odds: 9000 },
+  { name: "סון הונג-מין", team: "KOR", odds: 9000 },
+  { name: "דארווין נונייס", team: "URU", odds: 9000 },
+  { name: "ג'מאל מוסיאלה", team: "GER", odds: 10000 },
+  { name: "פדרו נטו", team: "POR", odds: 11000 },
+  { name: "כריסטיאן פוליסיץ'", team: "USA", odds: 12000 },
+  { name: "טאקפוסה קובו", team: "JPN", odds: 13000 },
+  { name: "אכרף חכימי", team: "MAR", odds: 16000 },
+  { name: "רחים סטרלינג", team: "ENG", odds: 18000 },
 ];
 
 /** מלך הבישולים (אסיסטים) — מועמדים מובילים */
@@ -43,9 +57,17 @@ export const TOP_ASSISTS_SEED: PlayerSeed[] = [
   { name: "ג'מאל מוסיאלה", team: "GER", odds: 1800 },
   { name: "ראפיניה", team: "BRA", odds: 1900 },
   { name: "טריינט אלכסנדר-ארנולד", team: "ENG", odds: 2500 },
+  { name: "מרטין אדגור", team: "NOR", odds: 2800 },
+  { name: "פיל פודן", team: "ENG", odds: 3000 },
+  { name: "אכרף חכימי", team: "MAR", odds: 3200 },
+  { name: "אוסמן דמבלה", team: "FRA", odds: 3500 },
+  { name: "רודריגו", team: "BRA", odds: 3500 },
+  { name: "אנטואן גריזמן", team: "FRA", odds: 3800 },
+  { name: "דאני אולמו", team: "ESP", odds: 4000 },
+  { name: "כריסטיאן פוליסיץ'", team: "USA", odds: 4500 },
+  { name: "ממפיס דפאי", team: "NED", odds: 5000 },
+  { name: "קאורו מיטומה", team: "JPN", odds: 6000 },
+  { name: "לוקא מודריץ'", team: "CRO", odds: 6500 },
+  { name: "תייאני ריינדרס", team: "NED", odds: 7000 },
+  { name: "ג'ובאני לו סלסו", team: "ARG", odds: 8000 },
 ];
-
-export function playerLabel(p: PlayerSeed): string {
-  const flag = TEAM_BY_CODE[p.team]?.flag ?? "";
-  return `${flag} ${p.name}`;
-}

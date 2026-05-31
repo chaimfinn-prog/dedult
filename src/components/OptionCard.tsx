@@ -1,10 +1,13 @@
 // כרטיס אופציה לבחירה — הלב של האפליקציה:
 // מציג ליד כל בחירה את אחוז הסיכוי ואת מספר הנקודות אם יצדיק (שקיפות).
+import Flag from "./Flag";
 
 interface Props {
   title: string;
   subtitle?: string;
   emoji?: string;
+  /** קוד נבחרת לדגל (אם קיים) */
+  code?: string;
   /** הסתברות מנורמלת 0..1 */
   prob: number;
   /** נקודות פוטנציאליות אם יצדיק */
@@ -18,6 +21,7 @@ export default function OptionCard({
   title,
   subtitle,
   emoji,
+  code,
   prob,
   points,
   selected,
@@ -39,7 +43,11 @@ export default function OptionCard({
         disabled && !selected ? "opacity-60" : "",
       ].join(" ")}
     >
-      {emoji && <span className="text-2xl leading-none">{emoji}</span>}
+      {code ? (
+        <Flag code={code} size={38} />
+      ) : emoji ? (
+        <span className="text-2xl leading-none">{emoji}</span>
+      ) : null}
       <div className="min-w-0 flex-1">
         <div className="truncate font-bold text-grass-900">{title}</div>
         {subtitle && (
