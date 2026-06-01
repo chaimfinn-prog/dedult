@@ -27,11 +27,11 @@ export default function Leaderboard() {
       }
       const [profiles, gp, matches, mp, results] = await Promise.all([
         supabase.from("profiles").select("id, full_name, avatar_url"),
-        supabase.from("general_picks").select("*"),
+        supabase.rpc("reveal_general_picks"), // חשוף רק אחרי הנעילה (RPC מאובטח)
         supabase
           .from("matches")
           .select("id, ext_id, stage, home_team, away_team, home_score, away_score, finished"),
-        supabase.from("match_picks").select("*"),
+        supabase.rpc("reveal_match_picks"),
         supabase.from("results").select("*"),
       ]);
       if (!alive) return;

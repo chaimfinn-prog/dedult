@@ -7,6 +7,7 @@ const NAV = [
   { to: "/matches", label: "משחקים", icon: "⚽" },
   { to: "/bracket", label: "לוח עץ", icon: "🗺️" },
   { to: "/leaderboard", label: "דירוג", icon: "🏆" },
+  { to: "/stats", label: "סטטיסטיקה", icon: "📊" },
   { to: "/rules", label: "חוקים", icon: "📖" },
 ];
 
@@ -67,7 +68,7 @@ export default function Layout({ children }: { children: ReactNode }) {
 
       {/* ניווט תחתון (מובייל-פירסט) */}
       <nav className="fixed inset-x-0 bottom-0 z-20 mx-auto max-w-2xl border-t border-black/5 bg-white/95 px-2 pb-[max(env(safe-area-inset-bottom),0.4rem)] pt-1.5 backdrop-blur">
-        <div className="grid grid-cols-5 gap-1">
+        <div className="grid grid-cols-6 gap-0.5">
           {NAV.map((n) => (
             <NavLink
               key={n.to}
@@ -75,14 +76,14 @@ export default function Layout({ children }: { children: ReactNode }) {
               end={n.end}
               className={({ isActive }) =>
                 [
-                  "flex flex-col items-center gap-0.5 rounded-xl py-1.5 text-[11px] font-bold transition",
+                  "flex flex-col items-center gap-0.5 rounded-xl py-1.5 text-[10px] font-bold transition",
                   isActive
                     ? "bg-grass-50 text-grass-700"
                     : "text-grass-400 hover:text-grass-600",
                 ].join(" ")
               }
             >
-              <span className="text-lg leading-none">{n.icon}</span>
+              <span className="text-base leading-none">{n.icon}</span>
               {n.label}
             </NavLink>
           ))}
