@@ -59,3 +59,10 @@ export const TOURNAMENT_KICKOFF_ISO = "2026-06-11T19:00:00Z";
 
 /** כל כמה זמן מותר לרענן יחסים אוטומטית (שעות) */
 export const ODDS_STALE_HOURS = 12;
+
+/**
+ * דדליין לניחושי משחק: כמה דקות לפני שריקת הפתיחה הניחוש נסגר.
+ * ברירת מחדל: 15 דקות לפני המשחק.
+ */
+export const MATCH_LOCK_MINUTES_BEFORE = 15;
+

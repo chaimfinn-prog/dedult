@@ -15,9 +15,20 @@ export default function Layout({ children }: { children: ReactNode }) {
 
   return (
     <div className="mx-auto flex min-h-full w-full max-w-2xl flex-col">
-      {/* כותרת עליונה */}
-      <header className="sticky top-0 z-20 border-b border-black/5 bg-grass-600/95 px-4 py-3 text-white backdrop-blur supports-[backdrop-filter]:bg-grass-600/80">
-        <div className="flex items-center justify-between">
+      {/* כותרת עליונה — בסגנון יציע/מגרש */}
+      <header className="sticky top-0 z-20 overflow-hidden border-b border-black/5 bg-gradient-to-l from-grass-700 via-grass-600 to-grass-700 px-4 py-3 text-white backdrop-blur">
+        {/* קווי מגרש עדינים ברקע הכותרת */}
+        <svg
+          className="pointer-events-none absolute inset-0 h-full w-full opacity-10"
+          viewBox="0 0 400 60"
+          preserveAspectRatio="none"
+          aria-hidden
+        >
+          <rect x="1" y="6" width="398" height="48" fill="none" stroke="white" strokeWidth="1.5" />
+          <circle cx="200" cy="30" r="16" fill="none" stroke="white" strokeWidth="1.5" />
+          <line x1="200" y1="6" x2="200" y2="54" stroke="white" strokeWidth="1.5" />
+        </svg>
+        <div className="relative flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span className="text-2xl">⚽</span>
             <div className="leading-tight">

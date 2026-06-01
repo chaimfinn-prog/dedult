@@ -154,6 +154,13 @@ export default function GeneralPicks() {
 }
 
 function Hero({ locked }: { locked: boolean }) {
+  const kickoffLabel = new Date(TOURNAMENT_KICKOFF_ISO).toLocaleString("he-IL", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
   return (
     <div className="card overflow-hidden">
       <div className="relative bg-gradient-to-l from-grass-700 to-grass-600 p-5 text-white">
@@ -164,9 +171,13 @@ function Hero({ locked }: { locked: boolean }) {
           ואת הנקודות אם תצדיק.
         </p>
       </div>
-      {locked && (
+      {locked ? (
         <div className="bg-amber-50 px-5 py-3 text-sm font-bold text-amber-700">
           🔒 הניחושים ננעלו — הטורניר התחיל.
+        </div>
+      ) : (
+        <div className="bg-grass-50 px-5 py-3 text-sm font-bold text-grass-700">
+          ⏱️ דדליין: עד שריקת הפתיחה של הטורניר ({kickoffLabel})
         </div>
       )}
     </div>

@@ -5,7 +5,7 @@ import { useOdds } from "../lib/data";
 import Loading from "../components/Loading";
 import Flag from "../components/Flag";
 import { potentialDirectionPoints } from "../lib/scoring";
-import { EXACT_SCORE_BONUS } from "../config";
+import { EXACT_SCORE_BONUS, MATCH_LOCK_MINUTES_BEFORE } from "../config";
 import { TEAM_BY_CODE } from "../data/teams";
 import {
   DIRECTION_LABELS_HE,
@@ -120,24 +120,27 @@ function MatchCard({
   onSave: (p: Pick) => void;
 }) {
   const { user } = useAuth();
-  const locked = match.finished || Date.now() >= new Date(match.kickoff).getTime();
   const home = TEAM_BY_CODE[match.home_team];
   const away = TEAM_BY_CODE[match.away_team];
+
+  // דדליין: נסגר MATCH_LOCK_MINUTES_BEFORE דקות לפני שריקת הפתיחה
+  const lockTime =
+    new Date(match.kickoff).getTime() - MATCH_LOCK_MINUTES_BEFORE * 60_000;
+  const locked = match.finished || match.live || Date.now() >= lockTime;
 
   const probOf = useMemo(() => {
     const src = marketOptions.length ? marketOptions : EQUAL;
     return (d: Direction) => src.find((o) => o.id === d)?.prob ?? 1 / 3;
   }, [marketOptions]);
 
-  const [dir, setDir] = useState<Direction | "">(pick?.direction ?? "");
   const [h, setH] = useState(pick?.pred_home ?? 0);
   const [a, setA] = useState(pick?.pred_away ?? 0);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
-  // כיוון ניגזר אוטומטית מהתוצאה המדויקת אם הוזנה
-  const derivedDir: Direction = h > a ? "home" : h < a ? "away" : "draw";
-  const effectiveDir = (dir || derivedDir) as Direction;
+  // הכיוון נגזר אוטומטית מהתוצאה שהוזנה — המשתמש מזין רק תוצאה
+  const dir: Direction = h > a ? "home" : h < a ? "away" : "draw";
+  const dirPts = potentialDirectionPoints(probOf(dir));
 
   async function save() {
     if (!user || locked) return;
@@ -145,7 +148,7 @@ function MatchCard({
     await supabase.from("match_picks").upsert({
       user_id: user.id,
       match_id: match.id,
-      direction: effectiveDir,
+      direction: dir,
       pred_home: h,
       pred_away: a,
       updated_at: new Date().toISOString(),
@@ -153,10 +156,11 @@ function MatchCard({
     setSaving(false);
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
-    onSave({ direction: effectiveDir, pred_home: h, pred_away: a });
+    onSave({ direction: dir, pred_home: h, pred_away: a });
   }
 
   const kickoffStr = new Date(match.kickoff).toLocaleString("he-IL", {
+    weekday: "short",
     day: "2-digit",
     month: "2-digit",
     hour: "2-digit",
@@ -188,50 +192,38 @@ function MatchCard({
         <TeamSide name={away?.nameHe ?? match.away_team} code={match.away_team} />
       </div>
 
-      {/* בחירת כיוון 1X2 */}
-      <div className="grid grid-cols-3 gap-2 px-4">
-        {(["home", "draw", "away"] as Direction[]).map((d) => {
-          const pts = potentialDirectionPoints(probOf(d));
-          const active = effectiveDir === d;
-          return (
-            <button
-              key={d}
-              disabled={locked}
-              onClick={() => setDir(d)}
-              className={[
-                "rounded-2xl border p-2.5 text-center transition disabled:opacity-60",
-                active
-                  ? "border-grass-500 bg-grass-50 ring-2 ring-grass-300"
-                  : "border-black/10 hover:bg-grass-50/50",
-              ].join(" ")}
-            >
-              <div className="text-sm font-bold text-grass-900">
-                {DIRECTION_LABELS_HE[d]}
-              </div>
-              <div className="text-[11px] font-semibold text-grass-500">
-                {(probOf(d) * 100).toFixed(0)}% · {pts} נק'
-              </div>
-            </button>
-          );
-        })}
-      </div>
-
-      {/* תוצאה מדויקת */}
-      <div className="mt-3 flex items-center justify-center gap-3 px-4">
+      {/* תוצאה מדויקת בלבד — הכיוון נגזר אוטומטית */}
+      <div className="flex items-center justify-center gap-3 px-4">
         <ScoreInput value={h} onChange={setH} disabled={locked} />
         <span className="text-xl font-black text-grass-400">:</span>
         <ScoreInput value={a} onChange={setA} disabled={locked} />
-        <span className="text-xs font-semibold text-accent-600">
-          תוצאה מדויקת = +{EXACT_SCORE_BONUS} בונוס
+      </div>
+
+      {/* תצוגת הכיוון הנגזר + הנקודות הצפויות */}
+      <div className="mt-3 px-4 text-center text-xs">
+        <span className="chip bg-grass-100 text-grass-700">
+          ניחוש: {DIRECTION_LABELS_HE[dir]}
+        </span>{" "}
+        <span className="font-semibold text-grass-500">
+          כיוון נכון ≈ {dirPts} נק' · תוצאה מדויקת +{EXACT_SCORE_BONUS} בונוס
         </span>
       </div>
 
-      {!locked && (
+      {!locked ? (
         <div className="p-4">
           <button onClick={save} disabled={saving} className="btn-primary w-full">
             {saving ? "שומר…" : saved ? "✓ נשמר!" : "שמירת ניחוש"}
           </button>
+          <p className="mt-2 text-center text-[11px] font-semibold text-grass-400">
+            ⏱️ ניתן לנחש עד {MATCH_LOCK_MINUTES_BEFORE} דקות לפני שריקת הפתיחה
+          </p>
         </div>
+      ) : (
+        pick && (
+          <p className="px-4 pb-4 text-center text-xs font-bold text-grass-600">
+            הניחוש שלך: {pick.pred_home}:{pick.pred_away}
+          </p>
+        )
       )}
     </div>
   );
