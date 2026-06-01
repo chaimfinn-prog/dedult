@@ -5,6 +5,7 @@ import { useAuth } from "../context/AuthContext";
 const NAV = [
   { to: "/", label: "ניחושים", icon: "🎯", end: true },
   { to: "/matches", label: "משחקים", icon: "⚽" },
+  { to: "/bracket", label: "לוח עץ", icon: "🗺️" },
   { to: "/leaderboard", label: "דירוג", icon: "🏆" },
   { to: "/rules", label: "חוקים", icon: "📖" },
 ];
@@ -66,7 +67,7 @@ export default function Layout({ children }: { children: ReactNode }) {
 
       {/* ניווט תחתון (מובייל-פירסט) */}
       <nav className="fixed inset-x-0 bottom-0 z-20 mx-auto max-w-2xl border-t border-black/5 bg-white/95 px-2 pb-[max(env(safe-area-inset-bottom),0.4rem)] pt-1.5 backdrop-blur">
-        <div className="grid grid-cols-4 gap-1">
+        <div className="grid grid-cols-5 gap-1">
           {NAV.map((n) => (
             <NavLink
               key={n.to}

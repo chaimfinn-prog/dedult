@@ -6,6 +6,7 @@ import Login from "./pages/Login";
 import GeneralPicks from "./pages/GeneralPicks";
 import LiveMatches from "./pages/LiveMatches";
 import Leaderboard from "./pages/Leaderboard";
+import Bracket from "./pages/Bracket";
 import Admin from "./pages/Admin";
 import Rules from "./pages/Rules";
 
@@ -27,6 +28,7 @@ export default function App() {
       <Routes>
         <Route path="/" element={<GeneralPicks />} />
         <Route path="/matches" element={<LiveMatches />} />
+        <Route path="/bracket" element={<Bracket />} />
         <Route path="/leaderboard" element={<Leaderboard />} />
         <Route path="/rules" element={<Rules />} />
         <Route path="/admin" element={<Admin />} />
