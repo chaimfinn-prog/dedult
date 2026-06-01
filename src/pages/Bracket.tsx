@@ -49,11 +49,13 @@ export default function Bracket() {
       if (data?.bracket && data.bracket.groupRankings) {
         // מיזוג בטוח עם ברירת המחדל (אם נוספו בתים)
         const base = emptyBracketPick();
-        setPick({
+        const loaded: BracketPick = {
           groupRankings: { ...base.groupRankings, ...data.bracket.groupRankings },
-          thirdSlots: data.bracket.thirdSlots ?? {},
+          // השלישיות נקבעות אוטומטית — תמיד נחשב מחדש (מתעלם מערכים ישנים)
+          thirdSlots: base.thirdSlots,
           winners: data.bracket.winners ?? {},
-        });
+        };
+        setPick(loaded);
       }
       setLoading(false);
     })();
@@ -231,9 +233,6 @@ function KnockoutStage({
     if (!code || locked) return;
     setPick({ ...pick, winners: { ...pick.winners, [match]: code } });
   }
-  function chooseThird(match: number, group: string) {
-    setPick({ ...pick, thirdSlots: { ...pick.thirdSlots, [match]: group } });
-  }
 
   return (
     <div className="space-y-5">
@@ -263,7 +262,6 @@ function KnockoutStage({
                 pick={pick}
                 locked={locked}
                 onPickWinner={chooseWinner}
-                onPickThird={chooseThird}
               />
             ))}
           </div>
@@ -278,19 +276,14 @@ function KnockoutMatch({
   pick,
   locked,
   onPickWinner,
-  onPickThird,
 }: {
   match: BracketMatch;
   pick: BracketPick;
   locked: boolean;
   onPickWinner: (match: number, code: string | null) => void;
-  onPickThird: (match: number, group: string) => void;
 }) {
   const { home, away } = matchTeams(match, pick);
   const winner = pick.winners[match.match];
-
-  // אם יש משבצת "שלישית" — צריך לבחור מאיזה בית
-  const thirdSlot = match.home.type === "third" ? match.home : match.away.type === "third" ? match.away : null;
 
   return (
     <div className="card p-2.5">
@@ -316,27 +309,6 @@ function KnockoutMatch({
           onClick={() => onPickWinner(match.match, away)}
         />
       </div>
-
-      {thirdSlot && thirdSlot.type === "third" && !locked && (
-        <div className="mt-2 flex items-center gap-2 px-1">
-          <span className="text-[11px] font-bold text-amber-600">שלישית עולה מ:</span>
-          <select
-            value={pick.thirdSlots[match.match] ?? ""}
-            onChange={(e) => onPickThird(match.match, e.target.value)}
-            className="flex-1 rounded-lg border border-black/10 bg-white px-2 py-1 text-xs font-semibold"
-          >
-            <option value="">בחר בית…</option>
-            {thirdSlot.groups.map((g) => {
-              const third = pick.groupRankings[g]?.[2];
-              return (
-                <option key={g} value={g}>
-                  בית {g} — {third ? TEAM_BY_CODE[third]?.nameHe : "?"}
-                </option>
-              );
-            })}
-          </select>
-        </div>
-      )}
     </div>
   );
 }

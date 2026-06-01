@@ -24,21 +24,25 @@ create policy "mp_select_own" on public.match_picks for select
 -- ============================================================
 
 -- ניחושים כלליים: נחשפים רק אחרי שריקת הפתיחה של הטורניר (ואת שלך תמיד).
+-- אדמין רואה הכל בכל עת (לצורך גיבוי/ייצוא).
 create or replace function public.reveal_general_picks()
 returns setof public.general_picks
 language sql stable security definer set search_path = public as $$
   select * from public.general_picks
   where user_id = auth.uid()
+     or public.is_admin()
      or now() >= public.tournament_kickoff();
 $$;
 
 -- ניחושי משחק: נחשפים רק אחרי שריקת הפתיחה של אותו משחק (ואת שלך תמיד).
+-- אדמין רואה הכל בכל עת.
 create or replace function public.reveal_match_picks()
 returns setof public.match_picks
 language sql stable security definer set search_path = public as $$
   select mp.* from public.match_picks mp
   join public.matches m on m.id = mp.match_id
   where mp.user_id = auth.uid()
+     or public.is_admin()
      or now() >= m.kickoff;
 $$;
 

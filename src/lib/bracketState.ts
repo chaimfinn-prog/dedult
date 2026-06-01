@@ -36,7 +36,13 @@ export function defaultGroupRankings(): Record<string, string[]> {
 }
 
 export function emptyBracketPick(): BracketPick {
-  return { groupRankings: defaultGroupRankings(), thirdSlots: {}, winners: {} };
+  const pick: BracketPick = {
+    groupRankings: defaultGroupRankings(),
+    thirdSlots: {},
+    winners: {},
+  };
+  autoAssignThirds(pick); // השלישיות נקבעות אוטומטית — אין בחירה ידנית
+  return pick;
 }
 
 /** מחזיר את קוד הנבחרת שיושבת ב-slot נתון, או null אם עדיין לא ידועה */
@@ -64,6 +70,44 @@ export function matchTeams(m: BracketMatch, pick: BracketPick) {
     home: resolveSlot(m.home, m.match, pick),
     away: resolveSlot(m.away, m.match, pick),
   };
+}
+
+/**
+ * שיבוץ אוטומטי של 8 השלישיות שעולות לנוקאאוט.
+ * כל משבצת "שלישי" ב-R32 מקבלת שלישית מאחד הבתים הזכאים לה (לפי הלוח הרשמי),
+ * כך שכל משבצת מקבלת בית שונה. נפתר בחיפוש (matching) — המשתמש לא צריך לבחור.
+ * מחזיר מיפוי { מספר_משחק → אות_בית } ומעדכן אותו על ה-pick.
+ */
+export function autoAssignThirds(pick: BracketPick): Record<number, string> {
+  // המשבצות עם דרישת "שלישי", כל אחת והבתים הזכאים לה
+  const slots = R32.flatMap((m) => {
+    const s = m.home.type === "third" ? m.home : m.away.type === "third" ? m.away : null;
+    return s ? [{ match: m.match, groups: s.groups }] : [];
+  });
+
+  // נמיין משבצות לפי מעט אפשרויות קודם (יעיל יותר ל-backtracking)
+  const ordered = [...slots].sort((a, b) => a.groups.length - b.groups.length);
+
+  const assignment: Record<number, string> = {};
+  const usedGroups = new Set<string>();
+
+  function backtrack(i: number): boolean {
+    if (i === ordered.length) return true;
+    const slot = ordered[i];
+    for (const g of slot.groups) {
+      if (usedGroups.has(g)) continue;
+      assignment[slot.match] = g;
+      usedGroups.add(g);
+      if (backtrack(i + 1)) return true;
+      usedGroups.delete(g);
+      delete assignment[slot.match];
+    }
+    return false;
+  }
+
+  backtrack(0);
+  pick.thirdSlots = assignment;
+  return assignment;
 }
 
 /**

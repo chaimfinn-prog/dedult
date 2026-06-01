@@ -6,6 +6,17 @@ import { useOdds } from "../lib/data";
 import Loading from "../components/Loading";
 import { TEAMS, TEAM_BY_CODE } from "../data/teams";
 import { STAGE_LABELS_HE, STAGE_ORDER } from "../lib/types";
+import {
+  fetchRevealedGeneral,
+  fetchRevealedMatchPicks,
+} from "../lib/social";
+import {
+  downloadCSV,
+  generalPicksCSV,
+  matchPicksCSV,
+  stagesCSV,
+  type ExportProfile,
+} from "../lib/export";
 
 interface Match {
   id: number;
@@ -35,11 +46,74 @@ export default function Admin() {
   return (
     <div className="space-y-6 animate-fade-up pb-4">
       <h1 className="px-1 text-xl font-extrabold text-grass-900">⚙️ ניהול</h1>
+      <ExportPicks />
       <OddsRefresh lastUpdated={lastUpdated} />
       <MatchesAdmin />
       <ResultsAdmin />
       <ManualMarketEditor />
     </div>
+  );
+}
+
+// ייצוא כל ההימורים של כולם ל-CSV (נפתח ב-Excel / Google Sheets)
+function ExportPicks() {
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+
+  async function run() {
+    setBusy(true);
+    setMsg(null);
+    try {
+      const [{ data: profs }, general, matchPicks, { data: matches }] =
+        await Promise.all([
+          supabase.from("profiles").select("id, full_name"),
+          fetchRevealedGeneral(),
+          fetchRevealedMatchPicks(),
+          supabase.from("matches").select("id, home_team, away_team, kickoff"),
+        ]);
+
+      const profiles: ExportProfile[] = (profs ?? []).map((p: any) => ({
+        id: p.id,
+        name: p.full_name ?? "אנונימי",
+      }));
+
+      const matchLabel = (id: number) => {
+        const m = (matches ?? []).find((x: any) => x.id === id);
+        if (!m) return `משחק ${id}`;
+        const h = TEAM_BY_CODE[m.home_team]?.nameHe ?? m.home_team;
+        const a = TEAM_BY_CODE[m.away_team]?.nameHe ?? m.away_team;
+        return `${h} - ${a}`;
+      };
+
+      const stamp = new Date().toISOString().slice(0, 10);
+      downloadCSV(`ניחושים-כלליים-${stamp}.csv`, generalPicksCSV(profiles, general));
+      downloadCSV(`שלבים-${stamp}.csv`, stagesCSV(profiles, general));
+      downloadCSV(
+        `ניחושי-משחקים-${stamp}.csv`,
+        matchPicksCSV(profiles, matchPicks, matchLabel),
+      );
+
+      setMsg(
+        `✓ הורדו 3 קבצים (${profiles.length} משתתפים). שים לב: ניחושים שעדיין נעולים לא ייכללו עד שייחשפו.`,
+      );
+    } catch {
+      setMsg("שגיאה בייצוא. נסה שוב.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Card title="📤 ייצוא כל ההימורים (גיבוי / Excel)">
+      <p className="mb-3 text-sm text-grass-500">
+        מוריד 3 קבצי CSV מסודרים (ניחושים כלליים, שלבים, ניחושי משחקים) —
+        נפתחים ישירות ב-Excel או Google Sheets ונשמרים כגיבוי.
+      </p>
+      <button onClick={run} disabled={busy} className="btn-primary w-full">
+        {busy ? "מייצא…" : "ייצוא ל-CSV"}
+      </button>
+      {msg && <p className="mt-2 text-sm font-semibold text-grass-700">{msg}</p>}
+    </Card>
   );
 }
 

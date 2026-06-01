@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   ALL_MATCHES,
+  autoAssignThirds,
   championFrom,
   emptyBracketPick,
   matchTeams,
@@ -8,6 +9,35 @@ import {
   stagesFromBracket,
 } from "./bracketState";
 import { FINAL, R32 } from "../data/bracket";
+
+describe("שיבוץ שלישיות אוטומטי", () => {
+  it("ממלא את כל משבצות השלישי, בית שונה לכל משבצת, ובית זכאי בלבד", () => {
+    const pick = emptyBracketPick();
+    const thirdSlotMatches = R32.filter(
+      (m) => m.home.type === "third" || m.away.type === "third",
+    );
+    // יש בדיוק 8 משבצות שלישי, וכולן שובצו
+    expect(thirdSlotMatches.length).toBe(8);
+    const assigned = Object.keys(pick.thirdSlots).length;
+    expect(assigned).toBe(8);
+
+    // כל בית מופיע פעם אחת לכל היותר
+    const groups = Object.values(pick.thirdSlots);
+    expect(new Set(groups).size).toBe(groups.length);
+
+    // כל שיבוץ הוא מאחד הבתים הזכאים למשבצת
+    for (const m of thirdSlotMatches) {
+      const slot = m.home.type === "third" ? m.home : (m.away as any);
+      expect(slot.groups).toContain(pick.thirdSlots[m.match]);
+    }
+  });
+
+  it("autoAssignThirds דטרמיניסטי ומחזיר 8 שיבוצים", () => {
+    const pick = emptyBracketPick();
+    const a = autoAssignThirds(pick);
+    expect(Object.keys(a).length).toBe(8);
+  });
+});
 
 describe("מצב לוח העץ", () => {
   it("משבצות R32 מתמלאות ממנצחי/סגני הבתים", () => {
