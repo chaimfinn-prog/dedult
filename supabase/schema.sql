@@ -91,6 +91,10 @@ create table if not exists public.general_picks (
   top_scorer     text,
   second_scorer  text,
   top_assists    text,
+  golden_glove      text, -- כפפת הזהב (שוער)
+  golden_ball       text, -- כדור הזהב (מצטיין)
+  most_goals_team   text, -- קבוצה שכובשת הכי הרבה
+  best_defense_team text, -- הגנה הכי טובה
   stages         jsonb not null default '{}'::jsonb, -- { "ARG": "final", ... } (נגזר מהלוח)
   bracket        jsonb not null default '{}'::jsonb, -- לוח העץ המלא של המשתמש
   updated_at     timestamptz not null default now()

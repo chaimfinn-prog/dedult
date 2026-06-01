@@ -28,7 +28,10 @@ export function generalPicksCSV(
   general: RevealedGeneral[],
 ): string {
   const byUser = new Map(general.map((g) => [g.user_id, g]));
-  const header = ["שם", "אלוף", "סגנית", "מלך שערים", "סגן מלך שערים", "מלך בישולים"];
+  const header = [
+    "שם", "אלוף", "סגנית", "מלך שערים", "סגן מלך שערים", "מלך בישולים",
+    "כדור הזהב", "כפפת הזהב", "קבוצה כובשת", "הגנה הכי טובה",
+  ];
   const rows = profiles.map((p) => {
     const g = byUser.get(p.id);
     const champ = g?.bracket ? championFrom(g.bracket) : null;
@@ -40,6 +43,10 @@ export function generalPicksCSV(
       g?.top_scorer ?? "",
       g?.second_scorer ?? "",
       g?.top_assists ?? "",
+      g?.golden_ball ?? "",
+      g?.golden_glove ?? "",
+      teamName(g?.most_goals_team),
+      teamName(g?.best_defense_team),
     ];
   });
   return [header, ...rows].map((r) => r.map(esc).join(",")).join("\n");

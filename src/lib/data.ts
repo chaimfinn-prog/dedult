@@ -8,8 +8,28 @@ import {
   TOP_SCORER_SEED,
   type PlayerSeed,
 } from "../data/seedPlayers";
+import {
+  BEST_DEFENSE_TEAM_AMERICAN,
+  GOLDEN_BALL_SEED,
+  GOLDEN_GLOVE_SEED,
+  MOST_GOALS_TEAM_AMERICAN,
+} from "../data/seedExtraMarkets";
 import { TEAM_BY_CODE } from "../data/teams";
 import type { MarketOption } from "./types";
+
+/** בונה שוק נבחרות מנורמל מטבלת יחס אמריקאי { code: odds } */
+export function seedTeamMarket(odds: Record<string, number>): MarketOption[] {
+  const entries = Object.entries(odds).map(([code, o]) => ({
+    id: code,
+    label: TEAM_BY_CODE[code]?.nameHe ?? code,
+    code,
+    odds: o,
+  }));
+  const normalized = normalizeProbabilities(entries.map((e) => probFromAmerican(e.odds)));
+  return entries
+    .map((e, i) => ({ id: e.id, label: e.label, code: e.code, prob: normalized[i] }))
+    .sort((a, b) => b.prob - a.prob);
+}
 
 export interface OddsRow {
   market: string;
@@ -77,10 +97,11 @@ export function useOdds() {
 
   /** מחזיר אופציות מנורמלות לשוק נתון (מ-DB), או fallback לזריעה לאלוף */
   function market(name: string): MarketOption[] {
+    // שווקים שמזהה האופציה בהם הוא קוד נבחרת (→ דגל)
+    const TEAM_MARKETS = ["champion", "runnerUp", "mostGoalsTeam", "bestDefenseTeam"];
     const sel = rows.filter((r) => r.market === name);
     if (sel.length) {
-      // לאלוף/סגנית מזהה האופציה הוא קוד נבחרת → אפשר לצרף דגל
-      const isTeamMarket = name === "champion" || name === "runnerUp";
+      const isTeamMarket = TEAM_MARKETS.includes(name);
       return sel
         .map((r) => ({
           id: r.option_id,
@@ -94,6 +115,10 @@ export function useOdds() {
     if (name === "topScorer" || name === "secondScorer")
       return seedPlayerMarket(TOP_SCORER_SEED);
     if (name === "topAssists") return seedPlayerMarket(TOP_ASSISTS_SEED);
+    if (name === "goldenGlove") return seedPlayerMarket(GOLDEN_GLOVE_SEED);
+    if (name === "goldenBall") return seedPlayerMarket(GOLDEN_BALL_SEED);
+    if (name === "mostGoalsTeam") return seedTeamMarket(MOST_GOALS_TEAM_AMERICAN);
+    if (name === "bestDefenseTeam") return seedTeamMarket(BEST_DEFENSE_TEAM_AMERICAN);
     return [];
   }
 

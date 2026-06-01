@@ -4,10 +4,19 @@ import type { RevealedGeneral, RevealedMatchPick } from "./social";
 
 describe("סטטיסטיקות כלליות", () => {
   it("סופר ומדרג מלך שערים לפי פופולריות", () => {
+    const base = {
+      second_scorer: null,
+      top_assists: null,
+      golden_glove: null,
+      golden_ball: null,
+      most_goals_team: null,
+      best_defense_team: null,
+      bracket: null,
+    };
     const rows: RevealedGeneral[] = [
-      { user_id: "a", top_scorer: "מסי", second_scorer: null, top_assists: null, bracket: null },
-      { user_id: "b", top_scorer: "מסי", second_scorer: null, top_assists: null, bracket: null },
-      { user_id: "c", top_scorer: "אמבפה", second_scorer: null, top_assists: null, bracket: null },
+      { user_id: "a", top_scorer: "מסי", ...base },
+      { user_id: "b", top_scorer: "מסי", ...base },
+      { user_id: "c", top_scorer: "אמבפה", ...base },
     ];
     const s = generalStats(rows);
     expect(s.topScorer[0].key).toBe("מסי");

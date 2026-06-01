@@ -30,6 +30,10 @@ export interface GeneralStats {
   topScorer: CountItem[];
   secondScorer: CountItem[];
   topAssists: CountItem[];
+  goldenBall: CountItem[];
+  goldenGlove: CountItem[];
+  mostGoalsTeam: CountItem[];
+  bestDefenseTeam: CountItem[];
   totalVoters: number;
 }
 
@@ -40,6 +44,10 @@ export function generalStats(rows: RevealedGeneral[]): GeneralStats {
     topScorer: tally(rows.map((r) => r.top_scorer)),
     secondScorer: tally(rows.map((r) => r.second_scorer)),
     topAssists: tally(rows.map((r) => r.top_assists)),
+    goldenBall: tally(rows.map((r) => r.golden_ball)),
+    goldenGlove: tally(rows.map((r) => r.golden_glove)),
+    mostGoalsTeam: tally(rows.map((r) => r.most_goals_team)),
+    bestDefenseTeam: tally(rows.map((r) => r.best_defense_team)),
     totalVoters: rows.length,
   };
 }

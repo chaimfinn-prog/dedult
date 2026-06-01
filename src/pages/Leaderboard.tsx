@@ -1,8 +1,14 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { isSupabaseConfigured, supabase } from "../lib/supabase";
-import { useOdds, seedChampionMarket, seedPlayerMarket } from "../lib/data";
+import { useOdds, seedChampionMarket, seedPlayerMarket, seedTeamMarket } from "../lib/data";
 import { TOP_ASSISTS_SEED, TOP_SCORER_SEED } from "../data/seedPlayers";
+import {
+  BEST_DEFENSE_TEAM_AMERICAN,
+  GOLDEN_BALL_SEED,
+  GOLDEN_GLOVE_SEED,
+  MOST_GOALS_TEAM_AMERICAN,
+} from "../data/seedExtraMarkets";
 import Loading from "../components/Loading";
 import {
   computeLeaderboard,
@@ -46,6 +52,10 @@ export default function Leaderboard() {
       if (!markets["topScorer"]) markets["topScorer"] = seedPlayerMarket(TOP_SCORER_SEED);
       if (!markets["secondScorer"]) markets["secondScorer"] = seedPlayerMarket(TOP_SCORER_SEED);
       if (!markets["topAssists"]) markets["topAssists"] = seedPlayerMarket(TOP_ASSISTS_SEED);
+      if (!markets["goldenGlove"]) markets["goldenGlove"] = seedPlayerMarket(GOLDEN_GLOVE_SEED);
+      if (!markets["goldenBall"]) markets["goldenBall"] = seedPlayerMarket(GOLDEN_BALL_SEED);
+      if (!markets["mostGoalsTeam"]) markets["mostGoalsTeam"] = seedTeamMarket(MOST_GOALS_TEAM_AMERICAN);
+      if (!markets["bestDefenseTeam"]) markets["bestDefenseTeam"] = seedTeamMarket(BEST_DEFENSE_TEAM_AMERICAN);
 
       const resultsMap: Record<string, string> = {};
       (results.data ?? []).forEach((r: any) => (resultsMap[r.key] = r.value));

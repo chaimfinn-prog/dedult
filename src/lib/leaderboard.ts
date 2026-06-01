@@ -3,6 +3,7 @@
 //  מקבל את כל הנתונים ומחזיר דירוג עם פירוט מקור הנקודות.
 // ============================================================
 
+import { CHAMPION_DOUBLE_BONUS } from "../config";
 import {
   potentialGeneralPoints,
   potentialStagePoints,
@@ -33,6 +34,10 @@ export interface GeneralPickRow {
   top_scorer: string | null;
   second_scorer: string | null;
   top_assists: string | null;
+  golden_glove?: string | null;
+  golden_ball?: string | null;
+  most_goals_team?: string | null;
+  best_defense_team?: string | null;
   stages: Record<string, string>;
   /** לוח העץ של המשתמש — ממנו נגזרים אלוף/סגנית/שלבים */
   bracket?: BracketPick | null;
@@ -85,6 +90,10 @@ const GENERAL_FIELDS: {
   { field: "top_scorer", cat: "topScorer", market: "topScorer", label: "מלך שערים" },
   { field: "second_scorer", cat: "secondScorer", market: "secondScorer", label: "סגן מלך שערים" },
   { field: "top_assists", cat: "topAssists", market: "topAssists", label: "מלך בישולים" },
+  { field: "golden_ball", cat: "goldenBall", market: "goldenBall", label: "כדור הזהב" },
+  { field: "golden_glove", cat: "goldenGlove", market: "goldenGlove", label: "כפפת הזהב" },
+  { field: "most_goals_team", cat: "mostGoalsTeam", market: "mostGoalsTeam", label: "קבוצה כובשת" },
+  { field: "best_defense_team", cat: "bestDefenseTeam", market: "bestDefenseTeam", label: "הגנה הכי טובה" },
 ];
 
 // הסתברות שלב ברירת מחדל (תואם ל-GeneralPicks)
@@ -117,15 +126,22 @@ export function computeLeaderboard(input: ScoreInput): LeaderRow[] {
       // אלוף + סגנית — נגזרים מלוח העץ של המשתמש
       const champ = gp.bracket ? championFrom(gp.bracket) : gp.champion;
       const runner = gp.bracket ? runnerUpFrom(gp.bracket) : gp.runner_up;
-      if (champ && results["champion"] === champ) {
-        const pts = potentialGeneralPoints("champion", probOf("champion", champ));
+      const champCorrect = !!champ && results["champion"] === champ;
+      const runnerCorrect = !!runner && results["runnerUp"] === runner;
+      if (champCorrect) {
+        const pts = potentialGeneralPoints("champion", probOf("champion", champ!));
         total += pts;
         breakdown.push({ label: "אלוף", points: pts });
       }
-      if (runner && results["runnerUp"] === runner) {
-        const pts = potentialGeneralPoints("runnerUp", probOf("runnerUp", runner));
+      if (runnerCorrect) {
+        const pts = potentialGeneralPoints("runnerUp", probOf("runnerUp", runner!));
         total += pts;
         breakdown.push({ label: "סגנית", points: pts });
+      }
+      // בונוס ענק: מי שצדק גם באלוף וגם בסגנית
+      if (champCorrect && runnerCorrect) {
+        total += CHAMPION_DOUBLE_BONUS;
+        breakdown.push({ label: "🎯 בונוס אלוף+סגנית", points: CHAMPION_DOUBLE_BONUS });
       }
 
       // ניחושי שלב לכל נבחרת — נגזרים מהלוח (או מהשדה הישן)

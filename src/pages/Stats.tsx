@@ -68,6 +68,10 @@ export default function Stats() {
           <StatBlock title="👟 מלך השערים" items={stats.topScorer} kind="player" total={stats.totalVoters} />
           <StatBlock title="🎯 סגן מלך השערים" items={stats.secondScorer} kind="player" total={stats.totalVoters} />
           <StatBlock title="🅰️ מלך הבישולים" items={stats.topAssists} kind="player" total={stats.totalVoters} />
+          <StatBlock title="⭐ כדור הזהב" items={stats.goldenBall} kind="player" total={stats.totalVoters} />
+          <StatBlock title="🧤 כפפת הזהב" items={stats.goldenGlove} kind="player" total={stats.totalVoters} />
+          <StatBlock title="⚽ קבוצה כובשת" items={stats.mostGoalsTeam} kind="team" total={stats.totalVoters} />
+          <StatBlock title="🛡️ הגנה הכי טובה" items={stats.bestDefenseTeam} kind="team" total={stats.totalVoters} />
 
           <div className="card p-4 text-center text-sm text-grass-500">
             סה"כ <b className="text-grass-800">{stats.totalVoters}</b> חברים מילאו ניחושים כלליים ·{" "}

@@ -16,7 +16,18 @@ export const CATEGORY_WEIGHTS: Record<GeneralCategory, number> = {
   topScorer: 10, // מלך השערים (נעל הזהב)
   secondScorer: 5, // סגן מלך השערים
   topAssists: 5, // מלך הבישולים
+  goldenGlove: 6, // כפפת הזהב — השוער הטוב ביותר
+  goldenBall: 8, // כדור הזהב — שחקן המצטיין
+  mostGoalsTeam: 6, // הקבוצה שכובשת הכי הרבה
+  bestDefenseTeam: 6, // הקבוצה שסופגת הכי מעט
 };
+
+/**
+ * בונוס "דאבל" ענק: ניחוש נכון של גם האלוף וגם הסגנית (שניהם!).
+ * זה ניחוש קשה במיוחד, ולכן מקבל בונוס קבוע גדול **בנוסף** לנקודות
+ * האלוף והסגנית עצמן.
+ */
+export const CHAMPION_DOUBLE_BONUS = 250;
 
 /**
  * ניחוש "מי עולה / לאיזה שלב הגיעה כל נבחרת".

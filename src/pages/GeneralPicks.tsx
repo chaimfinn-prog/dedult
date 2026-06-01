@@ -14,14 +14,30 @@ interface GP {
   top_scorer: string;
   second_scorer: string;
   top_assists: string;
+  golden_glove: string;
+  golden_ball: string;
+  most_goals_team: string;
+  best_defense_team: string;
 }
-const EMPTY: GP = { top_scorer: "", second_scorer: "", top_assists: "" };
+const EMPTY: GP = {
+  top_scorer: "",
+  second_scorer: "",
+  top_assists: "",
+  golden_glove: "",
+  golden_ball: "",
+  most_goals_team: "",
+  best_defense_team: "",
+};
 
-// אלוף + סגנית נבחרים בלוח העץ (טאב "לוח עץ"), כאן רק שווקי השחקנים.
+// אלוף + סגנית נבחרים בלוח העץ (טאב "לוח עץ"), כאן שאר השווקים הכלליים.
 const PLAYER_MARKETS: { key: keyof GP; cat: GeneralCategory; title: string }[] = [
   { key: "top_scorer", cat: "topScorer", title: "👟 מלך השערים (נעל הזהב)" },
   { key: "second_scorer", cat: "secondScorer", title: "🎯 סגן מלך השערים" },
   { key: "top_assists", cat: "topAssists", title: "🅰️ מלך הבישולים" },
+  { key: "golden_ball", cat: "goldenBall", title: "⭐ כדור הזהב (שחקן מצטיין)" },
+  { key: "golden_glove", cat: "goldenGlove", title: "🧤 כפפת הזהב (השוער הטוב ביותר)" },
+  { key: "most_goals_team", cat: "mostGoalsTeam", title: "⚽ הקבוצה שתכבוש הכי הרבה" },
+  { key: "best_defense_team", cat: "bestDefenseTeam", title: "🛡️ ההגנה הטובה ביותר (סופגת הכי מעט)" },
 ];
 
 export default function GeneralPicks() {
@@ -43,7 +59,9 @@ export default function GeneralPicks() {
       }
       const { data } = await supabase
         .from("general_picks")
-        .select("top_scorer, second_scorer, top_assists")
+        .select(
+          "top_scorer, second_scorer, top_assists, golden_glove, golden_ball, most_goals_team, best_defense_team",
+        )
         .eq("user_id", user.id)
         .maybeSingle();
       if (!alive) return;
@@ -52,6 +70,10 @@ export default function GeneralPicks() {
           top_scorer: data.top_scorer ?? "",
           second_scorer: data.second_scorer ?? "",
           top_assists: data.top_assists ?? "",
+          golden_glove: data.golden_glove ?? "",
+          golden_ball: data.golden_ball ?? "",
+          most_goals_team: data.most_goals_team ?? "",
+          best_defense_team: data.best_defense_team ?? "",
         });
       }
       setLoadingPicks(false);
@@ -69,6 +91,10 @@ export default function GeneralPicks() {
       top_scorer: picks.top_scorer || null,
       second_scorer: picks.second_scorer || null,
       top_assists: picks.top_assists || null,
+      golden_glove: picks.golden_glove || null,
+      golden_ball: picks.golden_ball || null,
+      most_goals_team: picks.most_goals_team || null,
+      best_defense_team: picks.best_defense_team || null,
       updated_at: new Date().toISOString(),
     });
     setSaving(false);

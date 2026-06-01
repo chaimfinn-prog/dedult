@@ -8,6 +8,10 @@ export interface RevealedGeneral {
   top_scorer: string | null;
   second_scorer: string | null;
   top_assists: string | null;
+  golden_glove: string | null;
+  golden_ball: string | null;
+  most_goals_team: string | null;
+  best_defense_team: string | null;
   bracket: any | null;
 }
 export interface RevealedMatchPick {

@@ -1,5 +1,6 @@
 import {
   CATEGORY_WEIGHTS,
+  CHAMPION_DOUBLE_BONUS,
   DIRECTION_WEIGHT,
   EXACT_SCORE_BONUS,
 } from "../config";
@@ -59,7 +60,11 @@ export default function Rules() {
           {[
             ["אלוף", CATEGORY_WEIGHTS.champion],
             ["סגנית", CATEGORY_WEIGHTS.runnerUp],
+            ["כדור הזהב", CATEGORY_WEIGHTS.goldenBall],
             ["מלך שערים", CATEGORY_WEIGHTS.topScorer],
+            ["כפפת הזהב", CATEGORY_WEIGHTS.goldenGlove],
+            ["קבוצה כובשת", CATEGORY_WEIGHTS.mostGoalsTeam],
+            ["הגנה הכי טובה", CATEGORY_WEIGHTS.bestDefenseTeam],
             ["סגן מלך שערים", CATEGORY_WEIGHTS.secondScorer],
             ["מלך בישולים", CATEGORY_WEIGHTS.topAssists],
           ].map(([label, w]) => (
@@ -69,6 +74,14 @@ export default function Rules() {
             </li>
           ))}
         </ul>
+      </Section>
+
+      <Section title="🎯 בונוס אלוף + סגנית">
+        <p>
+          מי שיצדק <b>גם באלוף וגם בסגנית</b> (שניהם נכון!) יקבל בונוס ענק של{" "}
+          <b className="text-accent-600">+{CHAMPION_DOUBLE_BONUS}</b> נקודות,
+          בנוסף לנקודות של כל אחד מהם. זה הניחוש הקשה והמתגמל ביותר במשחק.
+        </p>
       </Section>
 
       <Section title="שקיפות מלאה">

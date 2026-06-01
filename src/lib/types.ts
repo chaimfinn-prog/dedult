@@ -45,7 +45,11 @@ export type GeneralCategory =
   | "runnerUp"
   | "topScorer"
   | "secondScorer"
-  | "topAssists";
+  | "topAssists"
+  | "goldenGlove" // כפפת הזהב — השוער הטוב ביותר
+  | "goldenBall" // כדור הזהב — שחקן המצטיין
+  | "mostGoalsTeam" // הקבוצה שכובשת הכי הרבה
+  | "bestDefenseTeam"; // הקבוצה שסופגת הכי מעט
 
 export interface Team {
   code: string; // קוד דו-תלת אותיות, למשל "ARG"

@@ -318,6 +318,10 @@ function ResultsAdmin() {
         {textResult("topScorer")}
         {textResult("secondScorer")}
         {textResult("topAssists")}
+        {textResult("goldenBall")}
+        {textResult("goldenGlove")}
+        {teamSelect("mostGoalsTeam")}
+        {teamSelect("bestDefenseTeam")}
       </div>
 
       <h3 className="mt-4 mb-2 text-sm font-extrabold text-grass-800">שלב סופי של נבחרת</h3>
@@ -340,6 +344,10 @@ const LABELS: Record<string, string> = {
   topScorer: "מלך שערים",
   secondScorer: "סגן מלך שערים",
   topAssists: "מלך בישולים",
+  goldenBall: "כדור הזהב",
+  goldenGlove: "כפפת הזהב",
+  mostGoalsTeam: "קבוצה כובשת",
+  bestDefenseTeam: "הגנה הכי טובה",
 };
 
 // עורך יחסים ידני לשווקים שה-API לא מכסה — מזין כמה אופציות, מנרמל ל-100% ושומר.
