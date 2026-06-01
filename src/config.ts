@@ -11,11 +11,11 @@ import type { GeneralCategory, Stage } from "./lib/types";
  * ככל שהניחוש מפתיע יותר (p נמוך) — כך מקבלים יותר נקודות.
  */
 export const CATEGORY_WEIGHTS: Record<GeneralCategory, number> = {
-  champion: 10, // אלוף המונדיאל — הכי הרבה נקודות
-  runnerUp: 6, // מקום שני (סגנית)
-  topScorer: 5, // מלך השערים (נעל הזהב)
-  secondScorer: 3, // סגן מלך השערים
-  topAssists: 3, // מלך הבישולים
+  champion: 20, // אלוף המונדיאל — הכי הרבה נקודות
+  runnerUp: 10, // מקום שני (סגנית)
+  topScorer: 10, // מלך השערים (נעל הזהב)
+  secondScorer: 5, // סגן מלך השערים
+  topAssists: 5, // מלך הבישולים
 };
 
 /**
@@ -23,13 +23,13 @@ export const CATEGORY_WEIGHTS: Record<GeneralCategory, number> = {
  * מעט נקודות, גדל ככל שהשלב מתקדם (1–2 בסיס, וגדל מעבר לכך לשלבים הגבוהים).
  */
 export const STAGE_WEIGHTS: Record<Stage, number> = {
-  groups: 1,
-  r32: 1,
-  r16: 1.5,
-  qf: 1.5,
-  sf: 2,
-  final: 2,
-  winner: 2,
+  groups: 0.5,
+  r32: 0.5,
+  r16: 0.75,
+  qf: 0.75,
+  sf: 1,
+  final: 1,
+  winner: 1,
 };
 
 /**
@@ -48,7 +48,7 @@ export const EXACT_SCORE_BONUS = 10;
  * תקרת נקודות אופציונלית לכל ניחוש בודד, כדי לרסן אאוטסיידרים.
  * ברירת מחדל: ללא תקרה (null). שנה למשל ל-300 כדי להגביל.
  */
-export const MAX_POINTS_PER_PICK: number | null = null;
+export const MAX_POINTS_PER_PICK: number | null = 400;
 
 /**
  * תאריך/שעת שריקת הפתיחה של הטורניר (UTC).

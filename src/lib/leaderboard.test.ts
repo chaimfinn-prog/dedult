@@ -44,11 +44,11 @@ describe("חישוב טבלת מובילים", () => {
     expect(board[0].total).toBeGreaterThan(board[1].total);
   });
 
-  it("u1: אלוף(100) + שלב qf + משחק מדויק; u2: 0", () => {
+  it("u1: אלוף(200) + שלב qf + משחק מדויק; u2: 0", () => {
     const board = computeLeaderboard(baseInput());
     const u1 = board.find((r) => r.userId === "u1")!;
     const u2 = board.find((r) => r.userId === "u2")!;
-    expect(u1.breakdown.find((b) => b.label === "אלוף")?.points).toBe(100);
+    expect(u1.breakdown.find((b) => b.label === "אלוף")?.points).toBe(200);
     expect(u1.breakdown.some((b) => b.label === "ניחושי שלב")).toBe(true);
     expect(u1.breakdown.some((b) => b.label === "משחקים")).toBe(true);
     expect(u2.total).toBe(0);
