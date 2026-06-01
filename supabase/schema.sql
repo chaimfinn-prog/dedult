@@ -91,7 +91,8 @@ create table if not exists public.general_picks (
   top_scorer     text,
   second_scorer  text,
   top_assists    text,
-  stages         jsonb not null default '{}'::jsonb, -- { "ARG": "final", ... }
+  stages         jsonb not null default '{}'::jsonb, -- { "ARG": "final", ... } (נגזר מהלוח)
+  bracket        jsonb not null default '{}'::jsonb, -- לוח העץ המלא של המשתמש
   updated_at     timestamptz not null default now()
 );
 

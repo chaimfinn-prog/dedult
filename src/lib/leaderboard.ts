@@ -8,6 +8,12 @@ import {
   potentialStagePoints,
   scoreMatchPick,
 } from "./scoring";
+import {
+  championFrom,
+  runnerUpFrom,
+  stagesFromBracket,
+  type BracketPick,
+} from "./bracketState";
 import type {
   Direction,
   GeneralCategory,
@@ -28,6 +34,8 @@ export interface GeneralPickRow {
   second_scorer: string | null;
   top_assists: string | null;
   stages: Record<string, string>;
+  /** לוח העץ של המשתמש — ממנו נגזרים אלוף/סגנית/שלבים */
+  bracket?: BracketPick | null;
 }
 export interface MatchRow {
   id: number;
@@ -67,14 +75,13 @@ export interface LeaderRow {
   breakdown: Breakdown[];
 }
 
+// שווקי שחקנים בלבד (אלוף/סגנית נגזרים מהלוח, ראו למטה)
 const GENERAL_FIELDS: {
   field: keyof GeneralPickRow;
   cat: GeneralCategory;
   market: string;
   label: string;
 }[] = [
-  { field: "champion", cat: "champion", market: "champion", label: "אלוף" },
-  { field: "runner_up", cat: "runnerUp", market: "runnerUp", label: "סגנית" },
   { field: "top_scorer", cat: "topScorer", market: "topScorer", label: "מלך שערים" },
   { field: "second_scorer", cat: "secondScorer", market: "secondScorer", label: "סגן מלך שערים" },
   { field: "top_assists", cat: "topAssists", market: "topAssists", label: "מלך בישולים" },
@@ -97,7 +104,7 @@ export function computeLeaderboard(input: ScoreInput): LeaderRow[] {
 
     const gp = gpByUser.get(p.id);
     if (gp) {
-      // קטגוריות כלליות
+      // שווקי שחקנים (מלך שערים / סגן / בישולים)
       for (const { field, cat, market, label } of GENERAL_FIELDS) {
         const pick = gp[field] as string | null;
         if (pick && results[market] && results[market] === pick) {
@@ -106,9 +113,27 @@ export function computeLeaderboard(input: ScoreInput): LeaderRow[] {
           breakdown.push({ label, points: pts });
         }
       }
-      // ניחושי שלב לכל נבחרת
+
+      // אלוף + סגנית — נגזרים מלוח העץ של המשתמש
+      const champ = gp.bracket ? championFrom(gp.bracket) : gp.champion;
+      const runner = gp.bracket ? runnerUpFrom(gp.bracket) : gp.runner_up;
+      if (champ && results["champion"] === champ) {
+        const pts = potentialGeneralPoints("champion", probOf("champion", champ));
+        total += pts;
+        breakdown.push({ label: "אלוף", points: pts });
+      }
+      if (runner && results["runnerUp"] === runner) {
+        const pts = potentialGeneralPoints("runnerUp", probOf("runnerUp", runner));
+        total += pts;
+        breakdown.push({ label: "סגנית", points: pts });
+      }
+
+      // ניחושי שלב לכל נבחרת — נגזרים מהלוח (או מהשדה הישן)
+      const stages: Record<string, string> = gp.bracket
+        ? stagesFromBracket(gp.bracket)
+        : (gp.stages ?? {});
       let stageTotal = 0;
-      for (const [code, stage] of Object.entries(gp.stages ?? {})) {
+      for (const [code, stage] of Object.entries(stages)) {
         const truth = results[`stage:${code}`];
         if (truth && truth === stage) {
           const prob = DEFAULT_STAGE_PROB[stage as Stage] / SP_SUM;
