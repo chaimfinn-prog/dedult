@@ -50,7 +50,7 @@ describe("חישוב טבלת מובילים", () => {
     const u2 = board.find((r) => r.userId === "u2")!;
     expect(u1.breakdown.find((b) => b.label === "אלוף")?.points).toBe(200);
     expect(u1.breakdown.some((b) => b.label === "ניחושי שלב")).toBe(true);
-    expect(u1.breakdown.some((b) => b.label === "משחקים")).toBe(true);
+    expect(u1.breakdown.some((b) => b.label.includes("משחקי"))).toBe(true);
     expect(u2.total).toBe(0);
   });
 
@@ -59,6 +59,6 @@ describe("חישוב טבלת מובילים", () => {
     input.matches = [{ id: 1, home_score: null, away_score: null, finished: false }];
     const board = computeLeaderboard(input);
     const u1 = board.find((r) => r.userId === "u1")!;
-    expect(u1.breakdown.some((b) => b.label === "משחקים")).toBe(false);
+    expect(u1.breakdown.some((b) => b.label.includes("משחקי"))).toBe(false);
   });
 });

@@ -1,61 +1,114 @@
 import {
   CATEGORY_WEIGHTS,
   CHAMPION_DOUBLE_BONUS,
-  DIRECTION_WEIGHT,
+  ENTRY_FEE_ILS,
   EXACT_SCORE_BONUS,
+  PRIZE_LABELS,
+  PRIZE_SHARES,
+  type PrizeCategory,
 } from "../config";
 import { potentialGeneralPoints } from "../lib/scoring";
 
 export default function Rules() {
   return (
     <div className="space-y-4 animate-fade-up pb-4">
-      <h1 className="px-1 text-xl font-extrabold text-grass-900">📖 איך זה עובד</h1>
+      <h1 className="px-1 text-xl font-extrabold text-grass-900">📖 חוקי המשחק</h1>
 
-      <Section title="שני שלבים של ניחושים">
+      <Section title="🎬 בקצרה">
         <p>
-          <b>שלב 1 — ניחושים כלליים:</b> אלוף, סגנית, מלך שערים, סגן מלך שערים,
-          מלך בישולים, ולאיזה שלב תגיע כל נבחרת. נסגרים עם שריקת הפתיחה של הטורניר.
-        </p>
-        <p className="mt-2">
-          <b>שלב 2 — ניחושי משחקים:</b> לכל משחק בוחרים כיוון (בית / תיקו / חוץ)
-          ותוצאה מדויקת. כל ניחוש נסגר עם שריקת הפתיחה של אותו משחק.
+          מנחשים תוצאות במונדיאל 2026 וצוברים נקודות. <b>ככל שהניחוש מפתיע
+          יותר — שווה יותר נקודות.</b> בסוף הטורניר מחלקים את הקופה לפי הדירוג.
+          עלות השתתפות: <b>{ENTRY_FEE_ILS} ₪</b> (נאסף בנפרד מחוץ לאפליקציה).
         </p>
       </Section>
 
-      <Section title="הניקוד — מפתיע = שווה יותר">
-        <p>
-          הניקוד פרופורציונלי לסיכוי האמיתי. ככל שהניחוש פחות סביר, כך הוא שווה
-          יותר נקודות:
+      <Section title="✍️ מה צריך לנחש">
+        <ol className="list-inside list-decimal space-y-1.5">
+          <li>
+            <b>לוח עץ</b> — מדרגים כל בית 1–4, והעולות מטפסות אוטומטית לנוקאאוט.
+            בוחרים מנצח בכל שלב עד האלוף. מכאן נגזרים האלוף, הסגנית, ולאיזה שלב
+            הגיעה כל נבחרת.
+          </li>
+          <li>
+            <b>ניחושים כלליים</b> — מלך השערים, סגן, מלך בישולים, כדור הזהב,
+            כפפת הזהב, הקבוצה הכובשת וההגנה הטובה ביותר.
+          </li>
+          <li>
+            <b>משחקים</b> — לכל משחק מזינים תוצאה מדויקת (הכיוון נגזר מאליו).
+          </li>
+        </ol>
+        <p className="mt-2 text-grass-500">
+          ⏱️ הניחושים הכלליים והלוח נסגרים בשריקת הפתיחה של הטורניר. כל ניחוש
+          משחק נסגר 15 דקות לפני אותו משחק. אחרי הנעילה אי אפשר לשנות.
         </p>
+      </Section>
+
+      <Section title="🧮 איך צוברים נקודות">
+        <p>הנוסחה לכל ניחוש נכון:</p>
         <div className="my-3 rounded-2xl bg-grass-50 p-3 text-center font-mono text-grass-800">
-          נקודות = משקל × (1 / סיכוי)
+          נקודות = משקל × (1 ÷ הסיכוי)
         </div>
         <ul className="space-y-1.5">
           <li className="flex justify-between">
-            <span>ניחוש אלוף עם סיכוי 17% (ספרד)</span>
-            <b className="text-accent-600">{potentialGeneralPoints("champion", 0.17)} נק'</b>
+            <span>אלוף עם סיכוי ~15% (פייבוריט)</span>
+            <b className="text-accent-600">{potentialGeneralPoints("champion", 0.15)} נק'</b>
           </li>
           <li className="flex justify-between">
-            <span>ניחוש אלוף עם סיכוי 10% (ארגנטינה)</span>
-            <b className="text-accent-600">{potentialGeneralPoints("champion", 0.1)} נק'</b>
+            <span>אלוף עם סיכוי 8% (לא צפוי)</span>
+            <b className="text-accent-600">{potentialGeneralPoints("champion", 0.08)} נק'</b>
           </li>
           <li className="flex justify-between">
-            <span>ניחוש אלוף אאוטסיידר עם סיכוי 0.5%</span>
+            <span>ניחוש אאוטסיידר (מוגבל בתקרה)</span>
             <b className="text-accent-600">{potentialGeneralPoints("champion", 0.005)} נק'</b>
           </li>
         </ul>
       </Section>
 
-      <Section title="ניחוש משחק — מדורג">
+      <Section title="⚽ ניחוש משחק — מדורג">
         <p>
-          <b>כיוון נכון</b> נותן ניקוד בסיסי (משקל {DIRECTION_WEIGHT} × 1/סיכוי).{" "}
+          <b>כיוון נכון</b> (ידעת מי ניצח) נותן נקודות לפי הסיכוי.{" "}
           <b>תוצאה מדויקת</b> מוסיפה בונוס קבוע של{" "}
           <b className="text-accent-600">+{EXACT_SCORE_BONUS}</b> מעל ניקוד הכיוון.
-          מי שצדק גם בכיוון וגם בתוצאה — מקבל את המקסימום.
         </p>
       </Section>
 
-      <Section title="משקלי הקטגוריות">
+      <Section title="🎯 בונוס אלוף + סגנית">
+        <p>
+          מי שיצדק <b>גם באלוף וגם בסגנית</b> מקבל בונוס ענק של{" "}
+          <b className="text-accent-600">+{CHAMPION_DOUBLE_BONUS}</b> נקודות —
+          הניחוש המתגמל ביותר במשחק.
+        </p>
+      </Section>
+
+      <Section title="🛡️ ההגנה הטובה ביותר">
+        <p>
+          נמדדת לפי <b>ממוצע ספיגות למשחק</b> (לא סך הכול), כדי שקבוצה שמעפילה
+          לשלבים מתקדמים — ולכן משחקת יותר משחקים — לא תיענש מול קבוצה שעפה מוקדם.
+        </p>
+      </Section>
+
+      <Section title="💰 חלוקת הקופה">
+        <p className="mb-2">
+          הקופה = מספר המשתתפים × {ENTRY_FEE_ILS}₪. מתחלקת ל-6 קטגוריות:
+        </p>
+        <ul className="space-y-1">
+          {(Object.keys(PRIZE_SHARES) as PrizeCategory[]).map((c) => (
+            <li
+              key={c}
+              className="flex justify-between rounded-xl bg-grass-50 px-3 py-1.5"
+            >
+              <span>{PRIZE_LABELS[c]}</span>
+              <b className="text-grass-700">{(PRIZE_SHARES[c] * 100).toFixed(0)}%</b>
+            </li>
+          ))}
+        </ul>
+        <p className="mt-2 text-grass-500">
+          <b>אדם לא זוכה בכמה קטגוריות:</b> אם מישהו ניצח ביותר מאחת, נשארת לו
+          הגדולה, והאחוז של הקטנות מתחלק מחדש בין שאר הקטגוריות.
+        </p>
+      </Section>
+
+      <Section title="📊 משקלי הקטגוריות הכלליות">
         <ul className="grid grid-cols-2 gap-1.5">
           {[
             ["אלוף", CATEGORY_WEIGHTS.champion],
@@ -68,7 +121,10 @@ export default function Rules() {
             ["סגן מלך שערים", CATEGORY_WEIGHTS.secondScorer],
             ["מלך בישולים", CATEGORY_WEIGHTS.topAssists],
           ].map(([label, w]) => (
-            <li key={label as string} className="flex justify-between rounded-xl bg-grass-50 px-3 py-1.5">
+            <li
+              key={label as string}
+              className="flex justify-between rounded-xl bg-grass-50 px-3 py-1.5"
+            >
               <span>{label}</span>
               <b className="text-grass-700">×{w}</b>
             </li>
@@ -76,18 +132,10 @@ export default function Rules() {
         </ul>
       </Section>
 
-      <Section title="🎯 בונוס אלוף + סגנית">
+      <Section title="👀 שקיפות">
         <p>
-          מי שיצדק <b>גם באלוף וגם בסגנית</b> (שניהם נכון!) יקבל בונוס ענק של{" "}
-          <b className="text-accent-600">+{CHAMPION_DOUBLE_BONUS}</b> נקודות,
-          בנוסף לנקודות של כל אחד מהם. זה הניחוש הקשה והמתגמל ביותר במשחק.
-        </p>
-      </Section>
-
-      <Section title="שקיפות מלאה">
-        <p>
-          ליד כל בחירה מוצגים <b>אחוז הסיכוי</b> ו<b>הנקודות שתקבל אם תצדיק</b> —
-          כדי שתראו את יחס הסיכון/תגמול לפני שאתם בוחרים.
+          ליד כל בחירה מוצגים האחוז והנקודות אם תצדיק. ניחושי החברים נחשפים רק
+          אחרי שהם ננעלים — אף אחד לא יכול להעתיק.
         </p>
       </Section>
     </div>

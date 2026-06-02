@@ -24,6 +24,7 @@ create table if not exists public.profiles (
   full_name   text,
   avatar_url  text,
   email       text,
+  active      boolean not null default true, -- אדמין יכול להוציא מי שלא שילם
   created_at  timestamptz not null default now()
 );
 

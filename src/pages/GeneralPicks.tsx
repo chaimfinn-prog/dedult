@@ -37,7 +37,7 @@ const PLAYER_MARKETS: { key: keyof GP; cat: GeneralCategory; title: string }[] =
   { key: "golden_ball", cat: "goldenBall", title: "⭐ כדור הזהב (שחקן מצטיין)" },
   { key: "golden_glove", cat: "goldenGlove", title: "🧤 כפפת הזהב (השוער הטוב ביותר)" },
   { key: "most_goals_team", cat: "mostGoalsTeam", title: "⚽ הקבוצה שתכבוש הכי הרבה" },
-  { key: "best_defense_team", cat: "bestDefenseTeam", title: "🛡️ ההגנה הטובה ביותר (סופגת הכי מעט)" },
+  { key: "best_defense_team", cat: "bestDefenseTeam", title: "🛡️ ההגנה הטובה ביותר (הכי מעט ספיגות בממוצע למשחק)" },
 ];
 
 export default function GeneralPicks() {

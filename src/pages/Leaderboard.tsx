@@ -15,14 +15,18 @@ import {
   makeProbOf,
   type LeaderRow,
 } from "../lib/leaderboard";
+import { computePrizes } from "../lib/prizes";
+import { ENTRY_FEE_ILS } from "../config";
 import type { MarketOption } from "../lib/types";
 
 export default function Leaderboard() {
   const { user } = useAuth();
   const { loading: oddsLoading, rows: oddsRows } = useOdds();
   const [board, setBoard] = useState<LeaderRow[]>([]);
+  const [activeCount, setActiveCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [openId, setOpenId] = useState<string | null>(null);
+  const [showPrizes, setShowPrizes] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -32,7 +36,7 @@ export default function Leaderboard() {
         return;
       }
       const [profiles, gp, matches, mp, results] = await Promise.all([
-        supabase.from("profiles").select("id, full_name, avatar_url"),
+        supabase.from("profiles").select("id, full_name, avatar_url, active"),
         supabase.rpc("reveal_general_picks"), // חשוף רק אחרי הנעילה (RPC מאובטח)
         supabase
           .from("matches")
@@ -72,9 +76,15 @@ export default function Leaderboard() {
         if (!resultsMap["runnerUp"]) resultsMap["runnerUp"] = runner;
       }
 
+      // רק משתתפים פעילים (אדמין יכול להוציא מי שלא שילם)
+      const activeProfiles = (profiles.data ?? []).filter(
+        (p: any) => p.active !== false,
+      );
+      setActiveCount(activeProfiles.length);
+
       setBoard(
         computeLeaderboard({
-          profiles: (profiles.data ?? []) as any,
+          profiles: activeProfiles as any,
           generalPicks: (gp.data ?? []) as any,
           matches: (matches.data ?? []) as any,
           matchPicks: (mp.data ?? []) as any,
@@ -95,9 +105,53 @@ export default function Leaderboard() {
 
   if (loading || oddsLoading) return <Loading />;
 
+  const pot = activeCount * ENTRY_FEE_ILS;
+  const prizes = computePrizes(board, pot);
+
   return (
     <div className="space-y-3 animate-fade-up">
       <h1 className="px-1 text-xl font-extrabold text-grass-900">🏆 טבלת המובילים</h1>
+
+      {/* קופת הפרסים */}
+      <div className="card overflow-hidden">
+        <button
+          onClick={() => setShowPrizes((s) => !s)}
+          className="flex w-full items-center justify-between bg-gradient-to-l from-accent-500 to-accent-400 px-4 py-3 text-right text-white"
+        >
+          <div>
+            <div className="text-xs font-bold opacity-90">💰 קופת הפרסים</div>
+            <div className="text-lg font-black">
+              {pot.toLocaleString("he-IL")} ₪
+            </div>
+          </div>
+          <div className="text-left text-xs font-bold opacity-90">
+            {activeCount} משתתפים × {ENTRY_FEE_ILS}₪
+            <div>{showPrizes ? "הסתר חלוקה ▲" : "הצג חלוקה ▼"}</div>
+          </div>
+        </button>
+        {showPrizes && (
+          <ul className="divide-y divide-black/5">
+            {prizes.map((pz) => (
+              <li key={pz.category} className="flex items-center justify-between px-4 py-2 text-sm">
+                <span className="font-bold text-grass-900">{pz.label}</span>
+                <div className="text-left">
+                  <span className="font-black text-accent-600">
+                    {pz.amount.toLocaleString("he-IL")}₪
+                  </span>
+                  <span className="ms-1 text-xs text-grass-500">
+                    ({(pz.share * 100).toFixed(0)}%)
+                  </span>
+                  {pz.winnerName && (
+                    <div className="text-[11px] font-semibold text-grass-600">
+                      {pz.winnerName}
+                    </div>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
 
       {board.length === 0 && (
         <p className="card p-6 text-center text-sm text-grass-500">

@@ -68,6 +68,41 @@ export const MAX_POINTS_PER_PICK: number | null = 400;
  */
 export const TOURNAMENT_KICKOFF_ISO = "2026-06-11T19:00:00Z";
 
+/** עלות השתתפות במשחק (נאסף חיצונית ע"י האדמין) */
+export const ENTRY_FEE_ILS = 250;
+
+/**
+ * חלוקת קופת הפרסים — 6 קטגוריות, כל אחת אחוז מהקופה.
+ * מנצח בקטגוריה = בעל הניקוד הגבוה ביותר בקטגוריה.
+ * אם אדם זוכה ב-2 קטגוריות, הקטן מביניהן נמחק ומתחלק מחדש
+ * (פרופורציונלית) על שאר הקטגוריות, כדי שאיש לא יזכה פעמיים.
+ */
+export type PrizeCategory =
+  | "overall" // מנצח כללי (סך כל הנקודות)
+  | "second" // מקום שני בכללי
+  | "third" // מקום שלישי בכללי
+  | "groupStage" // הכי הרבה נק' ממשחקי שלב הבתים
+  | "knockout" // הכי הרבה נק' ממשחקי הנוקאאוט
+  | "generalPicks"; // הכי הרבה נק' מהניחושים הכלליים
+
+export const PRIZE_SHARES: Record<PrizeCategory, number> = {
+  overall: 0.4, // 40%
+  second: 0.2, // 20%
+  third: 0.1, // 10%
+  groupStage: 0.1, // 10%
+  knockout: 0.1, // 10%
+  generalPicks: 0.1, // 10%
+};
+
+export const PRIZE_LABELS: Record<PrizeCategory, string> = {
+  overall: "🥇 מנצח כללי",
+  second: "🥈 מקום שני",
+  third: "🥉 מקום שלישי",
+  groupStage: "⚽ אלוף שלב הבתים",
+  knockout: "🏟️ אלוף הנוקאאוט",
+  generalPicks: "🎯 אלוף הניחושים הכלליים",
+};
+
 /** כל כמה זמן מותר לרענן יחסים אוטומטית (שעות) */
 export const ODDS_STALE_HOURS = 12;
 

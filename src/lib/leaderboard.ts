@@ -45,6 +45,7 @@ export interface GeneralPickRow {
 export interface MatchRow {
   id: number;
   ext_id?: string | null;
+  stage?: string | null; // 'groups' = שלב בתים; אחרת נוקאאוט
   home_score: number | null;
   away_score: number | null;
   finished: boolean;
@@ -78,6 +79,12 @@ export interface LeaderRow {
   avatar: string | null;
   total: number;
   breakdown: Breakdown[];
+  /** סכומי-משנה לפי קטגוריית פרס */
+  subtotals: {
+    generalPicks: number; // כל הניחושים הכלליים (כולל שלבים ובונוס)
+    groupStage: number; // נקודות ממשחקי שלב הבתים
+    knockout: number; // נקודות ממשחקי הנוקאאוט
+  };
 }
 
 // שווקי שחקנים בלבד (אלוף/סגנית נגזרים מהלוח, ראו למטה)
@@ -160,8 +167,12 @@ export function computeLeaderboard(input: ScoreInput): LeaderRow[] {
       total += stageTotal;
     }
 
-    // ניחושי משחקים
-    let matchTotal = 0;
+    // עד כאן הכל "ניחושים כלליים" — נשמור כסכום-משנה לקטגוריית הפרס
+    const generalPicksTotal = total;
+
+    // ניחושי משחקים — מפוצלים לשלב בתים מול נוקאאוט
+    let groupStageTotal = 0;
+    let knockoutTotal = 0;
     for (const mp of matchPicks.filter((x) => x.user_id === p.id)) {
       const m = matchById.get(mp.match_id);
       if (!m || !m.finished || m.home_score == null || m.away_score == null) continue;
@@ -172,10 +183,12 @@ export function computeLeaderboard(input: ScoreInput): LeaderRow[] {
         { home: mp.pred_home, away: mp.pred_away },
         { home: m.home_score, away: m.away_score },
       );
-      matchTotal += res.total;
+      if ((m.stage ?? "groups") === "groups") groupStageTotal += res.total;
+      else knockoutTotal += res.total;
     }
-    if (matchTotal > 0) breakdown.push({ label: "משחקים", points: matchTotal });
-    total += matchTotal;
+    if (groupStageTotal > 0) breakdown.push({ label: "משחקי שלב הבתים", points: groupStageTotal });
+    if (knockoutTotal > 0) breakdown.push({ label: "משחקי נוקאאוט", points: knockoutTotal });
+    total += groupStageTotal + knockoutTotal;
 
     return {
       userId: p.id,
@@ -183,6 +196,11 @@ export function computeLeaderboard(input: ScoreInput): LeaderRow[] {
       avatar: p.avatar_url,
       total,
       breakdown,
+      subtotals: {
+        generalPicks: generalPicksTotal,
+        groupStage: groupStageTotal,
+        knockout: knockoutTotal,
+      },
     };
   });
 

@@ -45,6 +45,21 @@ export function emptyBracketPick(): BracketPick {
   return pick;
 }
 
+/**
+ * מנרמל מצב לוח עץ שאולי חלקי/ריק (למשל {} מברירת המחדל של ה-DB),
+ * כדי שכל הפונקציות יוכלו לקרוא ממנו בבטחה בלי לקרוס.
+ */
+export function normalizeBracket(raw: unknown): BracketPick {
+  const r = (raw ?? {}) as Partial<BracketPick>;
+  const hasRankings =
+    r.groupRankings && Object.keys(r.groupRankings).length > 0;
+  return {
+    groupRankings: hasRankings ? r.groupRankings! : defaultGroupRankings(),
+    thirdSlots: r.thirdSlots ?? {},
+    winners: r.winners ?? {},
+  };
+}
+
 /** מחזיר את קוד הנבחרת שיושבת ב-slot נתון, או null אם עדיין לא ידועה */
 export function resolveSlot(
   slot: SlotRef,
@@ -115,7 +130,8 @@ export function autoAssignThirds(pick: BracketPick): Record<number, string> {
  * משתתפת ב-R32 → לפחות "r32"; מנצחת סיבוב → מקודמת לשלב הבא; מנצחת הגמר → "winner".
  * מי שלא עלתה כלל לנוקאאוט → "groups".
  */
-export function stagesFromBracket(pick: BracketPick): Record<string, Stage> {
+export function stagesFromBracket(raw: BracketPick): Record<string, Stage> {
+  const pick = normalizeBracket(raw);
   const stages: Record<string, Stage> = {};
 
   for (const m of R32) {
@@ -139,12 +155,13 @@ export function stagesFromBracket(pick: BracketPick): Record<string, Stage> {
 }
 
 /** האלוף לפי הלוח = מנצח הגמר */
-export function championFrom(pick: BracketPick): string | null {
-  return pick.winners[FINAL.match] ?? null;
+export function championFrom(raw: BracketPick): string | null {
+  return normalizeBracket(raw).winners[FINAL.match] ?? null;
 }
 
 /** הסגנית לפי הלוח = הצד המפסיד בגמר */
-export function runnerUpFrom(pick: BracketPick): string | null {
+export function runnerUpFrom(raw: BracketPick): string | null {
+  const pick = normalizeBracket(raw);
   const champ = pick.winners[FINAL.match];
   if (!champ) return null;
   const { home, away } = matchTeams(FINAL, pick);

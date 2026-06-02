@@ -46,12 +46,87 @@ export default function Admin() {
   return (
     <div className="space-y-6 animate-fade-up pb-4">
       <h1 className="px-1 text-xl font-extrabold text-grass-900">⚙️ ניהול</h1>
+      <PlayersAdmin />
       <ExportPicks />
       <OddsRefresh lastUpdated={lastUpdated} />
       <MatchesAdmin />
       <ResultsAdmin />
       <ManualMarketEditor />
     </div>
+  );
+}
+
+// ניהול משתתפים — הוצאה/החזרה של מי שלא שילם (לא מוחק נתונים)
+interface PlayerRow {
+  id: string;
+  full_name: string | null;
+  active: boolean;
+}
+function PlayersAdmin() {
+  const [players, setPlayers] = useState<PlayerRow[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  async function load() {
+    const { data } = await supabase
+      .from("profiles")
+      .select("id, full_name, active")
+      .order("full_name");
+    setPlayers((data ?? []) as PlayerRow[]);
+    setLoading(false);
+  }
+  useEffect(() => {
+    if (isSupabaseConfigured) load();
+    else setLoading(false);
+  }, []);
+
+  async function setActive(id: string, active: boolean) {
+    await supabase.from("profiles").update({ active }).eq("id", id);
+    setPlayers((prev) => prev.map((p) => (p.id === id ? { ...p, active } : p)));
+  }
+
+  const activeCount = players.filter((p) => p.active !== false).length;
+
+  if (loading) return <Card title="👥 משתתפים"><Loading /></Card>;
+
+  return (
+    <Card title={`👥 משתתפים (${activeCount} פעילים)`}>
+      <p className="mb-3 text-sm text-grass-500">
+        הוצא מהמשחק מי שלא שילם — הוא לא ייספר בדירוג ובקופה. ההוצאה אינה מוחקת
+        את הניחושים; אפשר להחזיר בכל עת.
+      </p>
+      <div className="space-y-1.5">
+        {players.map((p) => (
+          <div
+            key={p.id}
+            className={`flex items-center gap-2 rounded-2xl border p-2 text-sm ${
+              p.active === false ? "border-red-200 bg-red-50/50" : "border-black/10"
+            }`}
+          >
+            <span className="flex-1 font-bold text-grass-900">
+              {p.full_name ?? "אנונימי"}
+              {p.active === false && (
+                <span className="ms-2 text-xs font-semibold text-red-500">(הוצא)</span>
+              )}
+            </span>
+            {p.active === false ? (
+              <button onClick={() => setActive(p.id, true)} className="btn-ghost text-xs">
+                החזר
+              </button>
+            ) : (
+              <button
+                onClick={() => setActive(p.id, false)}
+                className="rounded-xl px-3 py-1.5 text-xs font-bold text-red-600 transition hover:bg-red-50"
+              >
+                הוצא מהמשחק
+              </button>
+            )}
+          </div>
+        ))}
+        {players.length === 0 && (
+          <p className="text-sm text-grass-500">אין משתתפים עדיין.</p>
+        )}
+      </div>
+    </Card>
   );
 }
 
