@@ -10,10 +10,11 @@
 create extension if not exists pg_cron;
 create extension if not exists pg_net;
 
--- ---- תוצאות חיות: כל 10 דקות ----
+-- ---- תוצאות: כל 30 דקות, רק בשעות משחקים (16:00–23:00 UTC) ----
+--  (חיסכון בקרדיטים — ה-tier החינמי = 500 קריאות/חודש)
 select cron.schedule(
   'fetch-scores-live',
-  '*/10 * * * *',
+  '*/30 16-22 * * *',
   $$
   select net.http_post(
     url     := 'https://<PROJECT_REF>.supabase.co/functions/v1/fetch-scores',
@@ -26,10 +27,10 @@ select cron.schedule(
   $$
 );
 
--- ---- יחסים (אלוף + 1X2 + יצירת משחקים): פעמיים ביום (06:00 ו-18:00 UTC) ----
+-- ---- יחסים (אלוף + 1X2 + יצירת משחקים): פעם ביום (12:00 UTC) ----
 select cron.schedule(
   'fetch-odds-daily',
-  '0 6,18 * * *',
+  '0 12 * * *',
   $$
   select net.http_post(
     url     := 'https://<PROJECT_REF>.supabase.co/functions/v1/fetch-odds',
@@ -41,6 +42,9 @@ select cron.schedule(
   );
   $$
 );
+
+-- שים לב: ה-tier החינמי = 500 קריאות/חודש. התזמון כאן (~450/חודש) נשאר בתוך
+-- המכסה. אם תרצה תוצאות תכופות יותר (כל 10 דק') — דרוש tier בתשלום.
 
 -- לצפייה בתזמונים:   select * from cron.job;
 -- לביטול תזמון:      select cron.unschedule('fetch-scores-live');
