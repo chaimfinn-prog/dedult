@@ -47,12 +47,19 @@ Deno.serve(async (req) => {
     source: string;
   }[] = [];
 
+  // אחרי שריקת הפתיחה של הטורניר — יחסי האלוף ננעלו ממילא, אין טעם
+  // למשוך אותם שוב (חוסך קריאת API). מושכים רק יחסי משחקים ותוצאות.
+  const TOURNAMENT_KICKOFF = Date.parse("2026-06-11T19:00:00Z");
+  const tournamentStarted = Date.now() >= TOURNAMENT_KICKOFF;
+
   try {
-    // ---- שוק אלוף הטורניר (outrights) ----
-    const outRes = await fetch(
-      `${BASE}/sports/${SPORT_KEY}/odds?regions=eu&markets=outrights&oddsFormat=decimal&apiKey=${ODDS_API_KEY}`,
-    );
-    if (outRes.ok) {
+    // ---- שוק אלוף הטורניר (outrights) — רק לפני תחילת הטורניר ----
+    const outRes = tournamentStarted
+      ? null
+      : await fetch(
+          `${BASE}/sports/${SPORT_KEY}/odds?regions=eu&markets=outrights&oddsFormat=decimal&apiKey=${ODDS_API_KEY}`,
+        );
+    if (outRes && outRes.ok) {
       const data = await outRes.json();
       const outcomes = data?.[0]?.bookmakers?.[0]?.markets?.[0]?.outcomes ?? [];
       if (outcomes.length) {
