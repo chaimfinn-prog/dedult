@@ -50,10 +50,15 @@ export const STAGE_WEIGHTS: Record<Stage, number> = {
 export const DIRECTION_WEIGHT = 1.5;
 
 /**
- * בונוס תוצאה מדויקת — קבוע, מתווסף לניקוד הכיוון
- * (רק כשגם הכיוון וגם התוצאה המדויקת נכונים).
+ * בונוס תוצאה מדויקת — מתווסף לניקוד הכיוון כשהתוצאה המדויקת נכונה.
+ * הבונוס פרופורציונלי לנדירות התוצאה (כמו שוק Correct Score באתרי הימורים):
+ *   בונוס = round( EXACT_BONUS_WEIGHT × (1 / p_תוצאה) )
+ * כך 1:0 (תוצאה שכיחה) נותן בונוס קטן, ו-8:0 (תוצאה נדירה) בונוס ענק.
+ * מוגבל בין מינימום למקסימום כדי לשמור על הגינות.
  */
-export const EXACT_SCORE_BONUS = 10;
+export const EXACT_BONUS_WEIGHT = 0.6;
+export const EXACT_BONUS_MIN = 5;
+export const EXACT_BONUS_MAX = 120;
 
 /**
  * תקרת נקודות אופציונלית לכל ניחוש בודד, כדי לרסן אאוטסיידרים.
@@ -69,7 +74,7 @@ export const MAX_POINTS_PER_PICK: number | null = 400;
 export const TOURNAMENT_KICKOFF_ISO = "2026-06-11T19:00:00Z";
 
 /** עלות השתתפות במשחק (נאסף חיצונית ע"י האדמין) */
-export const ENTRY_FEE_ILS = 250;
+export const ENTRY_FEE_ILS = 200;
 
 /**
  * חלוקת קופת הפרסים — 6 קטגוריות, כל אחת אחוז מהקופה.

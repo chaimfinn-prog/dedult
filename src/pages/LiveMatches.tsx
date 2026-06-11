@@ -5,7 +5,8 @@ import { useOdds } from "../lib/data";
 import Loading from "../components/Loading";
 import Flag from "../components/Flag";
 import { potentialDirectionPoints } from "../lib/scoring";
-import { EXACT_SCORE_BONUS, MATCH_LOCK_MINUTES_BEFORE } from "../config";
+import { exactBonusFor } from "../lib/matchOdds";
+import { MATCH_LOCK_MINUTES_BEFORE } from "../config";
 import { TEAM_BY_CODE } from "../data/teams";
 import {
   DIRECTION_LABELS_HE,
@@ -185,6 +186,11 @@ function MatchCard({
   // הכיוון נגזר אוטומטית מהתוצאה שהוזנה — המשתמש מזין רק תוצאה
   const dir: Direction = h > a ? "home" : h < a ? "away" : "draw";
   const dirPts = potentialDirectionPoints(probOf(dir));
+  // בונוס התוצאה המדויקת הנוכחית (לפי נדירות התוצאה — מודל הפואסון)
+  const exactBonus = useMemo(
+    () => exactBonusFor(probOf("home"), probOf("draw"), probOf("away"), h, a),
+    [probOf, h, a],
+  );
 
   async function save() {
     if (!user || locked) return;
@@ -217,11 +223,11 @@ function MatchCard({
         <span>{kickoffStr}</span>
         {match.live ? (
           <span className="chip animate-pulse bg-red-500/15 text-red-600">
-            🔴 חי {match.home_score}:{match.away_score}
+            🔴 חי <Score h={match.home_score} a={match.away_score} />
           </span>
         ) : match.finished ? (
           <span className="chip bg-black/5 text-grass-700">
-            הסתיים {match.home_score}:{match.away_score}
+            הסתיים <Score h={match.home_score} a={match.away_score} />
           </span>
         ) : locked ? (
           <span className="chip bg-black/5 text-grass-700">🔒 ננעל</span>
@@ -230,27 +236,41 @@ function MatchCard({
         )}
       </div>
 
-      <div className="flex items-center justify-center gap-4 px-4 py-4">
-        <TeamSide name={home?.nameHe ?? match.home_team} code={match.home_team} />
+      {/* שורת קבוצות — LTR קבוע (בית משמאל, חוץ מימין) למניעת בלבול RTL */}
+      <div dir="ltr" className="flex items-center justify-center gap-4 px-4 py-4">
+        <TeamSide name={home?.nameHe ?? match.home_team} code={match.home_team} sub="בית" />
         <div className="text-lg font-black text-grass-400">VS</div>
-        <TeamSide name={away?.nameHe ?? match.away_team} code={match.away_team} />
+        <TeamSide name={away?.nameHe ?? match.away_team} code={match.away_team} sub="חוץ" />
       </div>
 
-      {/* תוצאה מדויקת בלבד — הכיוון נגזר אוטומטית */}
-      <div className="flex items-center justify-center gap-3 px-4">
+      {/* יחסי 1X2 — כמה נקודות על כל כיוון (לפי אתרי ההימורים) */}
+      <div className="px-4">
+        <OddsRow
+          home={home?.nameHe ?? match.home_team}
+          away={away?.nameHe ?? match.away_team}
+          probOf={probOf}
+          activeDir={dir}
+        />
+      </div>
+
+      {/* תוצאה מדויקת בלבד — הכיוון נגזר אוטומטית (LTR: בית משמאל) */}
+      <div dir="ltr" className="mt-3 flex items-center justify-center gap-3 px-4">
         <ScoreInput value={h} onChange={setH} disabled={locked} />
         <span className="text-xl font-black text-grass-400">:</span>
         <ScoreInput value={a} onChange={setA} disabled={locked} />
       </div>
 
-      {/* תצוגת הכיוון הנגזר + הנקודות הצפויות */}
+      {/* תצוגת הניקוד הצפוי: כיוון + בונוס דינמי לפי נדירות התוצאה */}
       <div className="mt-3 px-4 text-center text-xs">
         <span className="chip bg-grass-100 text-grass-700">
-          ניחוש: {DIRECTION_LABELS_HE[dir]}
+          {DIRECTION_LABELS_HE[dir]} ≈ {dirPts} נק'
         </span>{" "}
-        <span className="font-semibold text-grass-500">
-          כיוון נכון ≈ {dirPts} נק' · תוצאה מדויקת +{EXACT_SCORE_BONUS} בונוס
+        <span className="chip bg-accent-400/15 text-accent-600">
+          תוצאה מדויקת +{exactBonus} בונוס
         </span>
+        <div className="mt-1 font-bold text-grass-700">
+          סה"כ אם תפגע במדויק: {dirPts + exactBonus} נק'
+        </div>
       </div>
 
       {!locked ? (
@@ -265,7 +285,7 @@ function MatchCard({
       ) : (
         pick && (
           <p className="px-4 pt-1 text-center text-xs font-bold text-grass-600">
-            הניחוש שלך: {pick.pred_home}:{pick.pred_away}
+            הניחוש שלך: <Score h={pick.pred_home} a={pick.pred_away} />
           </p>
         )
       )}
@@ -331,7 +351,7 @@ function RevealSection({
                   {p?.name ?? "אנונימי"}
                 </span>
                 <span className="chip bg-grass-100 text-grass-700">
-                  {r.pred_home}:{r.pred_away}
+                  <Score h={r.pred_home} a={r.pred_away} />
                 </span>
               </li>
             );
@@ -342,12 +362,69 @@ function RevealSection({
   );
 }
 
-function TeamSide({ name, code }: { name: string; code: string }) {
+function TeamSide({ name, code, sub }: { name: string; code: string; sub?: string }) {
   return (
-    <div className="flex flex-1 flex-col items-center gap-1.5 text-center">
+    <div className="flex flex-1 flex-col items-center gap-1 text-center">
       <Flag code={code} size={48} />
       <span className="text-sm font-extrabold text-grass-900">{name}</span>
+      {sub && <span className="text-[10px] font-bold text-grass-400">{sub}</span>}
     </div>
+  );
+}
+
+/** שורת יחסי 1X2 — מציגה לכל כיוון את אחוז הסיכוי ואת הנקודות אם יצדיק */
+function OddsRow({
+  home,
+  away,
+  probOf,
+  activeDir,
+}: {
+  home: string;
+  away: string;
+  probOf: (d: Direction) => number;
+  activeDir: Direction;
+}) {
+  const cells: { dir: Direction; label: string }[] = [
+    { dir: "home", label: `ניצחון ${home}` },
+    { dir: "draw", label: "תיקו" },
+    { dir: "away", label: `ניצחון ${away}` },
+  ];
+  return (
+    <div className="grid grid-cols-3 gap-1.5">
+      {cells.map((c) => {
+        const p = probOf(c.dir);
+        const pts = potentialDirectionPoints(p);
+        const active = c.dir === activeDir;
+        return (
+          <div
+            key={c.dir}
+            className={[
+              "rounded-xl border p-2 text-center transition",
+              active
+                ? "border-grass-400 bg-grass-50 ring-1 ring-grass-300"
+                : "border-black/10",
+            ].join(" ")}
+          >
+            <div className="truncate text-[11px] font-bold text-grass-700">
+              {c.label}
+            </div>
+            <div className="text-base font-black text-grass-900">{pts}</div>
+            <div className="text-[10px] font-semibold text-grass-400">
+              נק' · {(p * 100).toFixed(0)}%
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/** תצוגת תוצאה עקבית LTR: בית:חוץ — נמנע מהיפוך RTL */
+function Score({ h, a }: { h: number | null; a: number | null }) {
+  return (
+    <span dir="ltr" style={{ unicodeBidi: "isolate" }}>
+      {h ?? 0}:{a ?? 0}
+    </span>
   );
 }
 

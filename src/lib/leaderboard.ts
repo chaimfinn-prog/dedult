@@ -15,6 +15,7 @@ import {
   stagesFromBracket,
   type BracketPick,
 } from "./bracketState";
+import { exactBonusFor } from "./matchOdds";
 import type {
   Direction,
   GeneralCategory,
@@ -177,11 +178,21 @@ export function computeLeaderboard(input: ScoreInput): LeaderRow[] {
       const m = matchById.get(mp.match_id);
       if (!m || !m.finished || m.home_score == null || m.away_score == null) continue;
       // היחסים נשמרים לפי ext_id (מזהה The Odds API); נפילה ל-id פנימי
-      const prob = probOf(`match:${m.ext_id ?? mp.match_id}`, mp.direction);
+      const mkt = `match:${m.ext_id ?? mp.match_id}`;
+      const prob = probOf(mkt, mp.direction);
+      // בונוס תוצאה מדויקת לפי נדירות התוצאה בפועל (מודל פואסון מהיחסים)
+      const exactBonus = exactBonusFor(
+        probOf(mkt, "home"),
+        probOf(mkt, "draw"),
+        probOf(mkt, "away"),
+        m.home_score,
+        m.away_score,
+      );
       const res = scoreMatchPick(
         prob,
         { home: mp.pred_home, away: mp.pred_away },
         { home: m.home_score, away: m.away_score },
+        exactBonus,
       );
       if ((m.stage ?? "groups") === "groups") groupStageTotal += res.total;
       else knockoutTotal += res.total;

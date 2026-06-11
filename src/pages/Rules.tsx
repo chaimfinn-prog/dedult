@@ -2,7 +2,6 @@ import {
   CATEGORY_WEIGHTS,
   CHAMPION_DOUBLE_BONUS,
   ENTRY_FEE_ILS,
-  EXACT_SCORE_BONUS,
   PRIZE_LABELS,
   PRIZE_SHARES,
   type PrizeCategory,
@@ -64,11 +63,16 @@ export default function Rules() {
         </ul>
       </Section>
 
-      <Section title="⚽ ניחוש משחק — מדורג">
+      <Section title="⚽ ניחוש משחק — מדורג לפי היחסים">
         <p>
-          <b>כיוון נכון</b> (ידעת מי ניצח) נותן נקודות לפי הסיכוי.{" "}
-          <b>תוצאה מדויקת</b> מוסיפה בונוס קבוע של{" "}
-          <b className="text-accent-600">+{EXACT_SCORE_BONUS}</b> מעל ניקוד הכיוון.
+          <b>כיוון נכון</b> (בית / תיקו / חוץ) נותן נקודות לפי היחסים — כיוון
+          מפתיע שווה יותר. ליד כל משחק רואים כמה נקודות על כל כיוון (כמו
+          באתרי הימורים).
+        </p>
+        <p className="mt-2">
+          <b>תוצאה מדויקת</b> מוסיפה <b>בונוס לפי נדירות התוצאה</b>: תוצאה
+          שכיחה כמו 1:0 → בונוס קטן; תוצאה נדירה כמו 5:0 → בונוס ענק. הבונוס
+          מחושב ממודל הסתברות על בסיס היחסים.
         </p>
       </Section>
 

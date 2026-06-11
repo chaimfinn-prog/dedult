@@ -8,7 +8,6 @@
 import {
   CATEGORY_WEIGHTS,
   DIRECTION_WEIGHT,
-  EXACT_SCORE_BONUS,
   MAX_POINTS_PER_PICK,
   STAGE_WEIGHTS,
 } from "../config";
@@ -72,14 +71,6 @@ export function potentialDirectionPoints(prob: number): number {
   return pointsForProbability(DIRECTION_WEIGHT, prob);
 }
 
-/**
- * הנקודות המקסימליות האפשריות לניחוש משחק (כיוון + בונוס מדויק),
- * להצגה למשתמש כ"עד X נק'".
- */
-export function potentialMatchPoints(directionProb: number): number {
-  return applyCap(potentialDirectionPoints(directionProb) + EXACT_SCORE_BONUS);
-}
-
 export interface MatchPickResult {
   /** האם הכיוון (1X2) נוחש נכון */
   directionCorrect: boolean;
@@ -94,17 +85,20 @@ export interface MatchPickResult {
  * חישוב ניקוד מלא לניחוש משחק.
  * ניקוד מדורג:
  *  - כיוון נכון בלבד → ניקוד הכיוון (לפי ההסתברות).
- *  - תוצאה מדויקת נכונה → ניקוד הכיוון + בונוס קבוע גדול.
+ *  - תוצאה מדויקת נכונה → ניקוד הכיוון + בונוס לפי נדירות התוצאה.
  *  - הכל שגוי → 0.
  *
  * @param directionProb  הסתברות מנורמלת של הכיוון שהמשתמש בחר
  * @param predicted      תוצאה מנוחשת { home, away }
  * @param actual         תוצאה בפועל { home, away }
+ * @param exactBonusValue  הבונוס שיינתן אם התוצאה המדויקת נכונה
+ *                         (נגזר מנדירות התוצאה — ראו matchOdds.ts)
  */
 export function scoreMatchPick(
   directionProb: number,
   predicted: { home: number; away: number },
   actual: { home: number; away: number },
+  exactBonusValue: number,
 ): MatchPickResult {
   const predictedDir = directionOf(predicted.home, predicted.away);
   const actualDir = directionOf(actual.home, actual.away);
@@ -116,7 +110,7 @@ export function scoreMatchPick(
   const directionPoints = directionCorrect
     ? potentialDirectionPoints(directionProb)
     : 0;
-  const exactBonus = exactCorrect ? EXACT_SCORE_BONUS : 0;
+  const exactBonus = exactCorrect ? exactBonusValue : 0;
 
   return {
     directionCorrect,

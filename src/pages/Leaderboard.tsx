@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { isSupabaseConfigured, supabase } from "../lib/supabase";
 import { useOdds, seedChampionMarket, seedPlayerMarket, seedTeamMarket } from "../lib/data";
@@ -27,6 +27,9 @@ export default function Leaderboard() {
   const [loading, setLoading] = useState(true);
   const [openId, setOpenId] = useState<string | null>(null);
   const [showPrizes, setShowPrizes] = useState(false);
+  // מעקב אחר שינויי דירוג בין רענונים (חצים ▲▼)
+  const prevRanks = useRef<Record<string, number>>({});
+  const [rankDelta, setRankDelta] = useState<Record<string, number>>({});
 
   useEffect(() => {
     let alive = true;
@@ -82,21 +85,33 @@ export default function Leaderboard() {
       );
       setActiveCount(activeProfiles.length);
 
-      setBoard(
-        computeLeaderboard({
-          profiles: activeProfiles as any,
-          generalPicks: (gp.data ?? []) as any,
-          matches: (matches.data ?? []) as any,
-          matchPicks: (mp.data ?? []) as any,
-          results: resultsMap,
-          probOf: makeProbOf(markets),
-        }),
-      );
+      const newBoard = computeLeaderboard({
+        profiles: activeProfiles as any,
+        generalPicks: (gp.data ?? []) as any,
+        matches: (matches.data ?? []) as any,
+        matchPicks: (mp.data ?? []) as any,
+        results: resultsMap,
+        probOf: makeProbOf(markets),
+      });
+
+      // חישוב שינוי דירוג מול הרענון הקודם (חיובי = עלה למעלה)
+      const prev = prevRanks.current;
+      const delta: Record<string, number> = {};
+      newBoard.forEach((row, i) => {
+        if (prev[row.userId] != null) delta[row.userId] = prev[row.userId] - i;
+      });
+      const next: Record<string, number> = {};
+      newBoard.forEach((row, i) => (next[row.userId] = i));
+      prevRanks.current = next;
+      setRankDelta(delta);
+
+      setBoard(newBoard);
       setLoading(false);
     }
     refresh();
     // רענון אוטומטי כל 60 שניות כדי שהדירוג יתעדכן לייב
-    const t = setInterval(refresh, 60_000);
+    // רענון תכוף — הדירוג זז דינמית עם עדכון התוצאות (חילופי מקומות בזמן משחק)
+    const t = setInterval(refresh, 20_000);
     return () => {
       alive = false;
       clearInterval(t);
@@ -168,7 +183,7 @@ export default function Leaderboard() {
               onClick={() => setOpenId(open ? null : row.userId)}
               className="flex w-full items-center gap-3 p-3 text-right"
             >
-              <Rank i={i} />
+              <Rank i={i} delta={rankDelta[row.userId] ?? 0} />
               {row.avatar ? (
                 <img src={row.avatar} alt="" className="h-10 w-10 rounded-full" referrerPolicy="no-referrer" />
               ) : (
@@ -214,11 +229,18 @@ export default function Leaderboard() {
   );
 }
 
-function Rank({ i }: { i: number }) {
+function Rank({ i, delta }: { i: number; delta: number }) {
   const medal = ["🥇", "🥈", "🥉"][i];
   return (
-    <span className="grid w-7 shrink-0 place-items-center text-lg font-black text-grass-400">
-      {medal ?? i + 1}
+    <span className="grid w-8 shrink-0 place-items-center">
+      <span className="text-lg font-black text-grass-400">{medal ?? i + 1}</span>
+      {delta !== 0 && (
+        <span
+          className={`text-[10px] font-bold ${delta > 0 ? "text-grass-600" : "text-red-500"}`}
+        >
+          {delta > 0 ? `▲${delta}` : `▼${-delta}`}
+        </span>
+      )}
     </span>
   );
 }
