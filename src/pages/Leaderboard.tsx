@@ -195,7 +195,15 @@ export default function Leaderboard() {
                 <div className="truncate font-extrabold text-grass-900">
                   {row.name} {isMe && <span className="text-xs text-grass-500">(אני)</span>}
                 </div>
-                <div className="text-xs text-grass-500">{open ? "הסתר פירוט" : "הצג פירוט"}</div>
+                <div className="flex items-center gap-2 text-[11px] font-bold text-grass-500">
+                  {row.bingo > 0 && (
+                    <span className="text-accent-600">🎯 {row.bingo} בינגו</span>
+                  )}
+                  {row.directionHits > 0 && (
+                    <span>✓ {row.directionHits} כיוונים</span>
+                  )}
+                  <span className="text-grass-400">{open ? "הסתר" : "פירוט"}</span>
+                </div>
               </div>
               <div className="text-left">
                 <div className="text-xl font-black text-grass-700">

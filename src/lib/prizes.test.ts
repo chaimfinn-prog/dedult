@@ -10,6 +10,8 @@ function row(id: string, total: number, sub: Partial<LeaderRow["subtotals"]> = {
     total,
     breakdown: [],
     subtotals: { generalPicks: 0, groupStage: 0, knockout: 0, ...sub },
+    bingo: 0,
+    directionHits: 0,
   };
 }
 

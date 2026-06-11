@@ -86,6 +86,10 @@ export interface LeaderRow {
     groupStage: number; // נקודות ממשחקי שלב הבתים
     knockout: number; // נקודות ממשחקי הנוקאאוט
   };
+  /** מספר ניחושי משחק עם תוצאה מדויקת ("בינגו") */
+  bingo: number;
+  /** מספר ניחושי משחק עם כיוון נכון (כולל בינגו) */
+  directionHits: number;
 }
 
 // שווקי שחקנים בלבד (אלוף/סגנית נגזרים מהלוח, ראו למטה)
@@ -174,6 +178,8 @@ export function computeLeaderboard(input: ScoreInput): LeaderRow[] {
     // ניחושי משחקים — מפוצלים לשלב בתים מול נוקאאוט
     let groupStageTotal = 0;
     let knockoutTotal = 0;
+    let bingo = 0; // תוצאות מדויקות
+    let directionHits = 0; // כיוונים נכונים
     for (const mp of matchPicks.filter((x) => x.user_id === p.id)) {
       const m = matchById.get(mp.match_id);
       if (!m || !m.finished || m.home_score == null || m.away_score == null) continue;
@@ -194,6 +200,8 @@ export function computeLeaderboard(input: ScoreInput): LeaderRow[] {
         { home: m.home_score, away: m.away_score },
         exactBonus,
       );
+      if (res.exactCorrect) bingo++;
+      if (res.directionCorrect) directionHits++;
       if ((m.stage ?? "groups") === "groups") groupStageTotal += res.total;
       else knockoutTotal += res.total;
     }
@@ -212,6 +220,8 @@ export function computeLeaderboard(input: ScoreInput): LeaderRow[] {
         groupStage: groupStageTotal,
         knockout: knockoutTotal,
       },
+      bingo,
+      directionHits,
     };
   });
 
