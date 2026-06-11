@@ -2,9 +2,14 @@
 --  הוספת משתתף "עדיאל הכט" עם ניחושים מלאים (פייבוריטים)
 --  הרץ פעם אחת ב-SQL Editor. בטוח להריץ שוב (idempotent).
 -- ============================================================
--- מנטרל זמנית את טריגרי הנעילה (כדי שאפשר יהיה למלא גם אחרי תחילת הטורניר)
-alter table public.general_picks disable trigger trg_general_lock;
-alter table public.match_picks   disable trigger trg_match_lock;
+-- אם קיימים טריגרי נעילה — נטרל אותם זמנית (מתעלם בשקט אם לא קיימים)
+do $$
+begin
+  begin alter table public.general_picks disable trigger trg_general_lock; exception when others then null; end;
+  begin alter table public.match_picks   disable trigger trg_match_lock;   exception when others then null; end;
+end $$;
+
+create extension if not exists pgcrypto;
 
 do $$
 declare
@@ -57,6 +62,9 @@ begin
   on conflict (user_id, match_id) do nothing;
 end $$;
 
--- מחזיר את טריגרי הנעילה
-alter table public.general_picks enable trigger trg_general_lock;
-alter table public.match_picks   enable trigger trg_match_lock;
+-- מחזיר את טריגרי הנעילה (אם קיימים)
+do $$
+begin
+  begin alter table public.general_picks enable trigger trg_general_lock; exception when others then null; end;
+  begin alter table public.match_picks   enable trigger trg_match_lock;   exception when others then null; end;
+end $$;
