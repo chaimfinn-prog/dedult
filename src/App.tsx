@@ -27,8 +27,10 @@ export default function App() {
   return (
     <Layout>
       <Routes>
-        <Route path="/" element={<GeneralPicks />} />
-        <Route path="/matches" element={<LiveMatches />} />
+        {/* עמוד הבית = משחקים/תוצאות (הניחושים הכלליים כבר נעולים) */}
+        <Route path="/" element={<LiveMatches />} />
+        <Route path="/picks" element={<GeneralPicks />} />
+        <Route path="/matches" element={<Navigate to="/" replace />} />
         <Route path="/bracket" element={<Bracket />} />
         <Route path="/leaderboard" element={<Leaderboard />} />
         <Route path="/stats" element={<Stats />} />

@@ -26,15 +26,23 @@ describe("מודל פואסון לתוצאות מדויקות", () => {
     expect(big).toBeGreaterThan(small);
   });
 
-  it("בונוס חתוך בין מינימום למקסימום", () => {
-    expect(exactBonusFromProb(0.99)).toBeGreaterThanOrEqual(5);
-    expect(exactBonusFromProb(1e-9)).toBeLessThanOrEqual(120);
+  it("בונוס חתוך בין מינימום למקסימום (תקרה מתונה ≤ 40)", () => {
+    expect(exactBonusFromProb(0.99)).toBeGreaterThanOrEqual(6);
+    expect(exactBonusFromProb(1e-9)).toBeLessThanOrEqual(40);
   });
 
   it("ברזיל מול האיטי: 1:0 בונוס קטן, 5:0 בונוס גדול", () => {
-    // ברזיל פייבוריטית כבדה
     const b10 = exactBonusFor(0.85, 0.1, 0.05, 1, 0);
     const b50 = exactBonusFor(0.85, 0.1, 0.05, 5, 0);
     expect(b50).toBeGreaterThan(b10);
+  });
+
+  it("היחס 3:0 מול 2:0 הגיוני (~פי 2, לא פי 5) — כמו אתרי הימורים", () => {
+    // משחק שקול
+    const b20 = exactBonusFor(0.4, 0.28, 0.32, 2, 0);
+    const b30 = exactBonusFor(0.4, 0.28, 0.32, 3, 0);
+    const ratio = b30 / b20;
+    expect(ratio).toBeGreaterThan(1.4);
+    expect(ratio).toBeLessThan(2.6); // לא מוגזם
   });
 });

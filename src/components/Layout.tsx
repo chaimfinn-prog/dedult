@@ -3,11 +3,11 @@ import type { ReactNode } from "react";
 import { useAuth } from "../context/AuthContext";
 
 const NAV = [
-  { to: "/", label: "ניחושים", icon: "🎯", end: true },
-  { to: "/matches", label: "משחקים", icon: "⚽" },
-  { to: "/bracket", label: "לוח עץ", icon: "🗺️" },
+  { to: "/", label: "משחקים", icon: "⚽", end: true },
   { to: "/leaderboard", label: "דירוג", icon: "🏆" },
   { to: "/stats", label: "סטטיסטיקה", icon: "📊" },
+  { to: "/bracket", label: "לוח עץ", icon: "🗺️" },
+  { to: "/picks", label: "ניחושים", icon: "🎯" },
   { to: "/rules", label: "חוקים", icon: "📖" },
 ];
 

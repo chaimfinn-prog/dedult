@@ -51,14 +51,16 @@ export const DIRECTION_WEIGHT = 1.5;
 
 /**
  * בונוס תוצאה מדויקת — מתווסף לניקוד הכיוון כשהתוצאה המדויקת נכונה.
- * הבונוס פרופורציונלי לנדירות התוצאה (כמו שוק Correct Score באתרי הימורים):
- *   בונוס = round( EXACT_BONUS_WEIGHT × (1 / p_תוצאה) )
- * כך 1:0 (תוצאה שכיחה) נותן בונוס קטן, ו-8:0 (תוצאה נדירה) בונוס ענק.
- * מוגבל בין מינימום למקסימום כדי לשמור על הגינות.
+ * מכויל מול שוק "Correct Score" של אתרי הימורים גדולים (משחק שקול:
+ * 1-0≈10%, 2-0≈7%, 3-0≈3.5% → 3-0 בערך פי 2 מ-2-0, לא פי 5).
+ * נוסחה מרוסנת עם חזקה כדי שהקצה לא יתפוצץ:
+ *   בונוס = round( WEIGHT × (1/p)^POWER )   [חתוך בין מין למקס]
+ * תוצאות: 1-0≈8, 2-0≈11, 3-0≈21 (פי ~1.9), 4-0≈40 (תקרה).
  */
-export const EXACT_BONUS_WEIGHT = 0.6;
-export const EXACT_BONUS_MIN = 5;
-export const EXACT_BONUS_MAX = 120;
+export const EXACT_BONUS_WEIGHT = 1.3;
+export const EXACT_BONUS_POWER = 0.82;
+export const EXACT_BONUS_MIN = 6;
+export const EXACT_BONUS_MAX = 40;
 
 /**
  * תקרת נקודות אופציונלית לכל ניחוש בודד, כדי לרסן אאוטסיידרים.

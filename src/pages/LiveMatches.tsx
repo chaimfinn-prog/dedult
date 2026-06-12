@@ -55,6 +55,7 @@ export default function LiveMatches() {
   const [revealed, setRevealed] = useState<RevealRow[]>([]);
   const [profiles, setProfiles] = useState<Record<string, ProfileLite>>({});
   const [loading, setLoading] = useState(true);
+  const [lastSync, setLastSync] = useState<Date | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -92,12 +93,12 @@ export default function LiveMatches() {
         pm[p.id] = { name: p.full_name ?? "אנונימי", avatar: p.avatar_url };
       });
       setProfiles(pm);
-
+      setLastSync(new Date());
       setLoading(false);
     }
     refresh();
-    // רענון אוטומטי כל 60 שניות — תוצאות חיות מתעדכנות מאליהן
-    const t = setInterval(refresh, 60_000);
+    // רענון אוטומטי כל 30 שניות — תוצאות חיות מתעדכנות מאליהן
+    const t = setInterval(refresh, 30_000);
     return () => {
       alive = false;
       clearInterval(t);
@@ -125,9 +126,31 @@ export default function LiveMatches() {
     );
   }
 
+  const anyLive = matches.some((m) => m.live);
+
   return (
     <div className="space-y-3 animate-fade-up">
-      <h1 className="px-1 text-xl font-extrabold text-grass-900">משחקים</h1>
+      <div className="flex items-center justify-between px-1">
+        <h1 className="text-xl font-extrabold text-grass-900">משחקים</h1>
+        <span className="flex items-center gap-1.5 text-[11px] font-bold text-grass-400">
+          {anyLive && (
+            <span className="inline-flex items-center gap-1 text-red-500">
+              <span className="h-2 w-2 animate-pulse rounded-full bg-red-500" />
+              שידור חי
+            </span>
+          )}
+          {lastSync && (
+            <span>
+              עודכן{" "}
+              {lastSync.toLocaleTimeString("he-IL", {
+                hour: "2-digit",
+                minute: "2-digit",
+                second: "2-digit",
+              })}
+            </span>
+          )}
+        </span>
+      </div>
       {matches.map((m) => (
         <MatchCard
           key={m.id}

@@ -8,6 +8,7 @@
 import {
   EXACT_BONUS_MAX,
   EXACT_BONUS_MIN,
+  EXACT_BONUS_POWER,
   EXACT_BONUS_WEIGHT,
 } from "../config";
 
@@ -67,13 +68,14 @@ export function exactScoreProb(
 }
 
 /**
- * בונוס תוצאה מדויקת לפי נדירותה:
- *   round( EXACT_BONUS_WEIGHT × (1 / p) ), חתוך בין מינימום למקסימום.
- * p נמוך (תוצאה נדירה כמו 8:0) → בונוס גדול; p גבוה (1:0) → בונוס קטן.
+ * בונוס תוצאה מדויקת לפי נדירותה, מכויל מול אתרי הימורים:
+ *   round( WEIGHT × (1/p)^POWER ), חתוך בין מינימום למקסימום.
+ * החזקה (<1) מרסנת את הקצה כך שתוצאה נדירה לא מקבלת בונוס מוגזם
+ * (3-0 בערך פי 2 מ-2-0, כמו בשוק Correct Score אמיתי).
  */
 export function exactBonusFromProb(p: number): number {
   if (p <= 0) return EXACT_BONUS_MAX;
-  const raw = Math.round(EXACT_BONUS_WEIGHT * (1 / p));
+  const raw = Math.round(EXACT_BONUS_WEIGHT * Math.pow(1 / p, EXACT_BONUS_POWER));
   return Math.max(EXACT_BONUS_MIN, Math.min(EXACT_BONUS_MAX, raw));
 }
 
