@@ -211,13 +211,14 @@ function OddsRefresh({ lastUpdated }: { lastUpdated: string | null }) {
     try {
       const { data, error } = await supabase.functions.invoke(fn, { method: "POST" });
       if (error) throw error;
+      if (data && data.ok === false) throw new Error(data.error || "שגיאה לא ידועה");
       setMsg(
         kind === "odds"
           ? `✓ עודכנו ${data?.upserted ?? 0} יחסים`
           : `✓ עודכנו ${data?.updated ?? 0} תוצאות משחקים`,
       );
-    } catch {
-      setMsg("שגיאה — בדוק שה-Edge Functions פרוסות ושמפתח ה-API מוגדר ב-Secrets.");
+    } catch (e: any) {
+      setMsg("שגיאה: " + (e?.message || String(e)));
     } finally {
       setBusy(null);
     }
@@ -258,6 +259,7 @@ function MatchesAdmin() {
   const [home, setHome] = useState("ARG");
   const [away, setAway] = useState("FRA");
   const [kickoff, setKickoff] = useState("");
+  const [msg, setMsg] = useState<string | null>(null);
 
   async function load() {
     const { data } = await supabase.from("matches").select("*").order("kickoff");
@@ -271,20 +273,22 @@ function MatchesAdmin() {
 
   async function addMatch() {
     if (!kickoff) return;
-    await supabase.from("matches").insert({
+    const { error } = await supabase.from("matches").insert({
       home_team: home,
       away_team: away,
       kickoff: new Date(kickoff).toISOString(),
     });
+    setMsg(error ? "שגיאת הוספה: " + error.message : "✓ המשחק נוסף");
     setKickoff("");
     load();
   }
 
   async function saveResult(m: Match, hs: number, as: number, finished: boolean) {
-    await supabase
+    const { error } = await supabase
       .from("matches")
-      .update({ home_score: hs, away_score: as, finished })
+      .update({ home_score: hs, away_score: as, finished, live: !finished })
       .eq("id", m.id);
+    setMsg(error ? "שגיאת שמירה: " + error.message : `✓ נשמרה תוצאה ${hs}-${as}`);
     load();
   }
 
@@ -302,6 +306,8 @@ function MatchesAdmin() {
         <input type="datetime-local" value={kickoff} onChange={(e) => setKickoff(e.target.value)} className="input" />
         <button onClick={addMatch} className="btn-primary">הוסף משחק</button>
       </div>
+
+      {msg && <p className="mb-2 text-sm font-semibold text-grass-700">{msg}</p>}
 
       <div className="space-y-2">
         {matches.map((m) => (
