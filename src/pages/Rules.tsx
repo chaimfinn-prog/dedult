@@ -6,7 +6,7 @@ import {
   PRIZE_SHARES,
   type PrizeCategory,
 } from "../config";
-import { potentialGeneralPoints } from "../lib/scoring";
+import { directionPointsFromDecimal, potentialGeneralPoints } from "../lib/scoring";
 
 export default function Rules() {
   return (
@@ -63,16 +63,41 @@ export default function Rules() {
         </ul>
       </Section>
 
-      <Section title="⚽ ניחוש משחק — מדורג לפי היחסים">
+      <Section title="⚽ ניחוש משחק — לפי יחסי אתר ההימורים">
         <p>
-          <b>כיוון נכון</b> (בית / תיקו / חוץ) נותן נקודות לפי היחסים — כיוון
-          מפתיע שווה יותר. ליד כל משחק רואים כמה נקודות על כל כיוון (כמו
-          באתרי הימורים).
+          לכל משחק מזינים <b>תוצאה מדויקת</b>, והכיוון (בית/תיקו/חוץ) נגזר ממנה.
+          ליד כל משחק מוצגים <b>היחסים האמיתיים מאתר ההימורים</b> (למשל 2.53)
+          — ככל שהכיוון מפתיע יותר, היחס גבוה יותר.
         </p>
-        <p className="mt-2">
-          <b>תוצאה מדויקת</b> מוסיפה <b>בונוס לפי נדירות התוצאה</b>: תוצאה
-          שכיחה כמו 1:0 → בונוס קטן; תוצאה נדירה כמו 5:0 → בונוס ענק. הבונוס
-          מחושב ממודל הסתברות על בסיס היחסים.
+        <div className="my-3 rounded-2xl bg-grass-50 p-3 text-center font-mono text-grass-800">
+          נקודות כיוון = 6 × (היחס)^0.6
+        </div>
+        <p>
+          <b>למה לא היחס המלא?</b> כדי שלא ישתלם "לזרוק" הפתעות: הפתעה עדיין
+          שווה יותר, אבל מרוסנת — כך שניחוש חכם עדיף בתוחלת. דוגמאות:
+        </p>
+        <ul className="mt-2 space-y-1">
+          <li className="flex justify-between rounded-xl bg-grass-50 px-3 py-1.5">
+            <span>פייבוריט (יחס 1.6)</span>
+            <b className="text-grass-700">{directionPointsFromDecimal(1.6)} נק'</b>
+          </li>
+          <li className="flex justify-between rounded-xl bg-grass-50 px-3 py-1.5">
+            <span>משחק שקול (יחס 3.0)</span>
+            <b className="text-grass-700">{directionPointsFromDecimal(3.0)} נק'</b>
+          </li>
+          <li className="flex justify-between rounded-xl bg-grass-50 px-3 py-1.5">
+            <span>אנדרדוג (יחס 6.0)</span>
+            <b className="text-grass-700">{directionPointsFromDecimal(6.0)} נק'</b>
+          </li>
+          <li className="flex justify-between rounded-xl bg-grass-50 px-3 py-1.5">
+            <span>הפתעה ענקית (יחס 30)</span>
+            <b className="text-grass-700">{directionPointsFromDecimal(30)} נק'</b>
+          </li>
+        </ul>
+        <p className="mt-3">
+          🎯 <b>בונוס בינגו</b> — אם פגעת ב<b>תוצאה המדויקת</b>, מקבלים בונוס
+          נוסף מעל ניקוד הכיוון, לפי נדירות התוצאה: תוצאה שכיחה (1:0) בונוס קטן,
+          תוצאה נדירה (כמו 4:0) בונוס גדול יותר.
         </p>
       </Section>
 
