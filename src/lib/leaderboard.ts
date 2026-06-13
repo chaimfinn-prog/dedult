@@ -16,6 +16,7 @@ import {
   type BracketPick,
 } from "./bracketState";
 import { exactBonusFor } from "./matchOdds";
+import { TEAM_BY_CODE } from "../data/teams";
 import type {
   Direction,
   GeneralCategory,
@@ -47,6 +48,8 @@ export interface MatchRow {
   id: number;
   ext_id?: string | null;
   stage?: string | null; // 'groups' = שלב בתים; אחרת נוקאאוט
+  home_team?: string | null;
+  away_team?: string | null;
   home_score: number | null;
   away_score: number | null;
   finished: boolean;
@@ -73,6 +76,7 @@ export interface ScoreInput {
 export interface Breakdown {
   label: string;
   points: number;
+  detail?: string; // פירוט נוסף (למשל "ניחשת 2-1 · יצא 2-1 · בינגו!")
 }
 export interface LeaderRow {
   userId: string;
@@ -180,6 +184,8 @@ export function computeLeaderboard(input: ScoreInput): LeaderRow[] {
     let knockoutTotal = 0;
     let bingo = 0; // תוצאות מדויקות
     let directionHits = 0; // כיוונים נכונים
+    const matchDetails: Breakdown[] = []; // פירוט שקוף לכל משחק
+    const teamName = (c?: string | null) => (c ? TEAM_BY_CODE[c]?.nameHe ?? c : "?");
     for (const mp of matchPicks.filter((x) => x.user_id === p.id)) {
       const m = matchById.get(mp.match_id);
       if (!m || !m.finished || m.home_score == null || m.away_score == null) continue;
@@ -204,9 +210,21 @@ export function computeLeaderboard(input: ScoreInput): LeaderRow[] {
       if (res.directionCorrect) directionHits++;
       if ((m.stage ?? "groups") === "groups") groupStageTotal += res.total;
       else knockoutTotal += res.total;
+
+      // פירוט שקוף לכל משחק שהסתיים שבו ניחש המשתמש
+      if (res.total > 0) {
+        const label = `${teamName(m.home_team)} ${m.home_score}-${m.away_score} ${teamName(m.away_team)}`;
+        const detail = res.exactCorrect
+          ? `🎯 בינגו! ניחשת ${mp.pred_home}-${mp.pred_away} (כיוון ${res.directionPoints} + בונוס ${res.exactBonus})`
+          : res.directionCorrect
+            ? `✓ כיוון נכון · ניחשת ${mp.pred_home}-${mp.pred_away}`
+            : `ניחשת ${mp.pred_home}-${mp.pred_away}`;
+        matchDetails.push({ label, points: res.total, detail });
+      }
     }
-    if (groupStageTotal > 0) breakdown.push({ label: "משחקי שלב הבתים", points: groupStageTotal });
-    if (knockoutTotal > 0) breakdown.push({ label: "משחקי נוקאאוט", points: knockoutTotal });
+    if (groupStageTotal > 0) breakdown.push({ label: "משחקי שלב הבתים (סה\"כ)", points: groupStageTotal });
+    if (knockoutTotal > 0) breakdown.push({ label: "משחקי נוקאאוט (סה\"כ)", points: knockoutTotal });
+    breakdown.push(...matchDetails);
     total += groupStageTotal + knockoutTotal;
 
     return {

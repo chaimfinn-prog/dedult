@@ -217,13 +217,18 @@ export default function Leaderboard() {
                 {row.breakdown.length === 0 ? (
                   <p className="text-sm text-grass-500">עדיין לא נצברו נקודות.</p>
                 ) : (
-                  <ul className="space-y-1">
+                  <ul className="space-y-1.5">
                     {row.breakdown.map((b, j) => (
-                      <li key={j} className="flex justify-between text-sm">
-                        <span className="text-grass-700">{b.label}</span>
-                        <span className="font-bold text-grass-900">
-                          {b.points.toLocaleString("he-IL")} נק'
-                        </span>
+                      <li key={j} className="text-sm">
+                        <div className="flex justify-between">
+                          <span className="text-grass-700">{b.label}</span>
+                          <span className="font-bold text-grass-900">
+                            {b.points.toLocaleString("he-IL")} נק'
+                          </span>
+                        </div>
+                        {b.detail && (
+                          <div className="text-[11px] text-grass-400">{b.detail}</div>
+                        )}
                       </li>
                     ))}
                   </ul>

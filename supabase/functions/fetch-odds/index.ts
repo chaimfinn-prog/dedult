@@ -99,19 +99,36 @@ Deno.serve(async (req) => {
         const probs = normalize(
           m.outcomes.map((o: any) => probFromDecimal(o.price)),
         );
-        m.outcomes.forEach((o: any, i: number) => {
-          // מיפוי שם הקבוצה לכיוון home/away, ותיקו → draw
+
+        // מיפוי חסין: התאמת שם מדויקת (case-insensitive) לבית/חוץ, והשאר = תיקו.
+        const norm = (s: string) => (s ?? "").trim().toLowerCase();
+        const homeN = norm(game.home_team);
+        const awayN = norm(game.away_team);
+        const mapped = m.outcomes.map((o: any, i: number) => {
+          const n = norm(o.name);
           let dir = "draw";
-          if (o.name === game.home_team) dir = "home";
-          else if (o.name === game.away_team) dir = "away";
+          if (n === homeN) dir = "home";
+          else if (n === awayN) dir = "away";
+          else if (n === "draw" || n === "tie") dir = "draw";
+          return { dir, label: o.name, prob: probs[i] };
+        });
+
+        // בדיקת שפיות: חייבים בדיוק home + away + draw שונים. אם לא — מדלגים
+        // על המשחק (לא כותבים יחסים שגויים, נשמרים הקיימים/התיקון הידני).
+        const dirs = new Set(mapped.map((x) => x.dir));
+        if (!(dirs.size === 3 && dirs.has("home") && dirs.has("away") && dirs.has("draw"))) {
+          continue;
+        }
+
+        for (const mm of mapped) {
           rows.push({
             market: `match:${game.id}`, // ext_id של המשחק
-            option_id: dir,
-            label: o.name,
-            prob: probs[i],
+            option_id: mm.dir,
+            label: mm.dir === "draw" ? "Draw" : mm.label,
+            prob: mm.prob,
             source: "api",
           });
-        });
+        }
       }
     }
 
@@ -121,10 +138,20 @@ Deno.serve(async (req) => {
     }
 
     if (rows.length) {
+      // לא דורסים תיקונים ידניים (source='manual-fix') — מסננים אותם החוצה
+      const markets = [...new Set(rows.map((r) => r.market))];
+      const { data: locked } = await db
+        .from("odds")
+        .select("market")
+        .eq("source", "manual-fix")
+        .in("market", markets);
+      const lockedSet = new Set((locked ?? []).map((r: any) => r.market));
+      const toWrite = rows.filter((r) => !lockedSet.has(r.market));
+
       const { error } = await db
         .from("odds")
         .upsert(
-          rows.map((r) => ({ ...r, updated_at: new Date().toISOString() })),
+          toWrite.map((r) => ({ ...r, updated_at: new Date().toISOString() })),
           { onConflict: "market,option_id" },
         );
       if (error) throw error;
