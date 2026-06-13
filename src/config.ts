@@ -44,10 +44,15 @@ export const STAGE_WEIGHTS: Record<Stage, number> = {
 };
 
 /**
- * משקל הכיוון (1X2) בניחושי משחק חי.
- * ניקוד הכיוון: round( DIRECTION_WEIGHT × (1 / p_כיוון) ).
+ * ניקוד הכיוון (1X2) בניחוש משחק, מכויל להיות הוגן ועקבי לכל הטורניר:
+ *   round( DIRECTION_WEIGHT × (1/p)^DIRECTION_POWER )  [רצפה 2, תקרה DIRECTION_MAX]
+ * החזקה (<1) מרסנת את הקצה כך שהפתעה נותנת ניקוד יפה אך לא מוגזם:
+ *   פייבוריט ~85% → 3, שקול ~33% → 6, הפתעה ~15% → 10, הפתעה ענקית ~5% → 22.
+ * (במקום 1/p ליניארי שהתפוצץ ל-75 נק' בקצה.)
  */
-export const DIRECTION_WEIGHT = 1.5;
+export const DIRECTION_WEIGHT = 2.6;
+export const DIRECTION_POWER = 0.72;
+export const DIRECTION_MAX = 25;
 
 /**
  * בונוס תוצאה מדויקת — מתווסף לניקוד הכיוון כשהתוצאה המדויקת נכונה.

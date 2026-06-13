@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   directionOf,
   pointsForProbability,
+  potentialDirectionPoints,
   potentialGeneralPoints,
   scoreGeneralPick,
   scoreMatchPick,
@@ -49,6 +50,23 @@ describe("כיוון תוצאה (1X2)", () => {
   });
 });
 
+describe("ניקוד כיוון — הוגן ומרוסן", () => {
+  it("מונוטוני: ככל שהסיכוי נמוך יותר — יותר נקודות", () => {
+    expect(potentialDirectionPoints(0.15)).toBeGreaterThan(potentialDirectionPoints(0.5));
+    expect(potentialDirectionPoints(0.5)).toBeGreaterThan(potentialDirectionPoints(0.8));
+  });
+  it("פייבוריט בטוח מקבל מעט (≤3), שקול בינוני (4-7)", () => {
+    expect(potentialDirectionPoints(0.85)).toBeLessThanOrEqual(3);
+    const even = potentialDirectionPoints(0.33);
+    expect(even).toBeGreaterThanOrEqual(4);
+    expect(even).toBeLessThanOrEqual(7);
+  });
+  it("הקצה מרוסן — הפתעה ענקית לא מתפוצצת (≤25)", () => {
+    expect(potentialDirectionPoints(0.02)).toBeLessThanOrEqual(25);
+    expect(potentialDirectionPoints(0.001)).toBeLessThanOrEqual(25);
+  });
+});
+
 describe("ניקוד ניחוש משחק — מדורג", () => {
   const p = 0.5; // הסתברות הכיוון שנבחר
 
@@ -65,7 +83,7 @@ describe("ניקוד ניחוש משחק — מדורג", () => {
     expect(r.exactCorrect).toBe(false);
     expect(r.exactBonus).toBe(0);
     expect(r.total).toBe(r.directionPoints);
-    expect(r.directionPoints).toBe(3); // round(1.5 × 1/0.5)
+    expect(r.directionPoints).toBe(4); // round(2.6 × (1/0.5)^0.72)
   });
 
   it("תוצאה מדויקת → ניקוד הכיוון + הבונוס שניתן", () => {
