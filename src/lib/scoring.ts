@@ -8,7 +8,8 @@
 import {
   CATEGORY_WEIGHTS,
   DECIMAL_ODDS_CAP,
-  ODDS_POINTS_FACTOR,
+  ODDS_POINTS_POWER,
+  ODDS_POINTS_WEIGHT,
   MAX_POINTS_PER_PICK,
   STAGE_WEIGHTS,
 } from "../config";
@@ -65,12 +66,14 @@ export function scoreStagePick(
 }
 
 /**
- * נקודות הכיוון (1X2) מתוך היחס העשרוני הגולמי מאתר ההימורים.
- * דוגמה: יחס 1.50 → 15 נק', יחס 6.17 → 62 נק'. נחתך בתקרה הוגנת.
+ * נקודות הכיוון (1X2) מהיחס העשרוני, עם דעיכה (חזקה) שמרסנת הפתעות:
+ *   round( ODDS_POINTS_WEIGHT × decimal^ODDS_POINTS_POWER ).
+ * דוגמה: 1.6 → 8, 3.0 → 12, 6.0 → 18, 30 → 46. כך פייבוריט הוא הבחירה
+ * החכמה בתוחלת, אך פגיעה בהפתעה עדיין שווה יותר (לא משתלם "לזרוק" הפתעות).
  */
 export function directionPointsFromDecimal(decimal: number): number {
   const capped = Math.min(Math.max(decimal, 1.01), DECIMAL_ODDS_CAP);
-  return Math.max(2, Math.round(capped * ODDS_POINTS_FACTOR));
+  return Math.max(2, Math.round(ODDS_POINTS_WEIGHT * Math.pow(capped, ODDS_POINTS_POWER)));
 }
 
 /**

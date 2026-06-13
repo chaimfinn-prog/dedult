@@ -51,19 +51,24 @@ describe("כיוון תוצאה (1X2)", () => {
   });
 });
 
-describe("ניקוד כיוון — יחס עשרוני כמו אתר הימורים", () => {
-  it("נקודות = היחס העשרוני × 10 (יחס 2.53 → 25 נק')", () => {
-    expect(directionPointsFromDecimal(2.53)).toBe(25);
-    expect(directionPointsFromDecimal(6.17)).toBe(62);
-    expect(directionPointsFromDecimal(1.5)).toBe(15);
+describe("ניקוד כיוון — יחס עשרוני עם דעיכה מאוזנת", () => {
+  it("הפתעה שווה יותר אך מרוסנת (1.6→8, 6→18, 30→46)", () => {
+    expect(directionPointsFromDecimal(1.6)).toBe(8);
+    expect(directionPointsFromDecimal(6.0)).toBe(18);
+    expect(directionPointsFromDecimal(30)).toBe(46);
   });
-  it("מונוטוני: ככל שהסיכוי נמוך יותר — יותר נקודות", () => {
-    expect(potentialDirectionPoints(0.15)).toBeGreaterThan(potentialDirectionPoints(0.5));
-    expect(potentialDirectionPoints(0.5)).toBeGreaterThan(potentialDirectionPoints(0.8));
+  it("מונוטוני: יחס גבוה יותר → יותר נקודות", () => {
+    expect(directionPointsFromDecimal(6)).toBeGreaterThan(directionPointsFromDecimal(2));
+    expect(directionPointsFromDecimal(2)).toBeGreaterThan(directionPointsFromDecimal(1.3));
   });
-  it("הקצה נחתך בתקרה הוגנת (יחס ≤ 26 → ≤ 260 נק')", () => {
-    expect(directionPointsFromDecimal(100)).toBeLessThanOrEqual(260);
-    expect(potentialDirectionPoints(0.001)).toBeLessThanOrEqual(260);
+  it("דעיכה: היחס נקודות/יחס יורד (לא משתלם 'לזרוק' הפתעות)", () => {
+    // נקודות ל-יחיד-יחס: פייבוריט יעיל יותר בתוחלת מהפתעה
+    const favPerOdds = directionPointsFromDecimal(2) / 2;
+    const surprisePerOdds = directionPointsFromDecimal(20) / 20;
+    expect(favPerOdds).toBeGreaterThan(surprisePerOdds);
+  });
+  it("הפתעה ענקית מרוסנת (≤ ~70, לא 260)", () => {
+    expect(directionPointsFromDecimal(100)).toBeLessThanOrEqual(70);
   });
 });
 
@@ -83,7 +88,7 @@ describe("ניקוד ניחוש משחק — מדורג", () => {
     expect(r.exactCorrect).toBe(false);
     expect(r.exactBonus).toBe(0);
     expect(r.total).toBe(r.directionPoints);
-    expect(r.directionPoints).toBe(20); // יחס הוגן 1/0.5=2.0 × 10
+    expect(r.directionPoints).toBe(directionPointsFromDecimal(1 / p)); // יחס הוגן מההסתברות
   });
 
   it("תוצאה מדויקת → ניקוד הכיוון + הבונוס שניתן", () => {
