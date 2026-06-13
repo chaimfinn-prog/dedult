@@ -3,7 +3,6 @@ import {
   directionOf,
   directionPointsFromDecimal,
   pointsForProbability,
-  potentialDirectionPoints,
   potentialGeneralPoints,
   scoreGeneralPick,
   scoreMatchPick,
