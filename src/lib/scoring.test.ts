@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   directionOf,
+  directionPointsFromDecimal,
   pointsForProbability,
   potentialDirectionPoints,
   potentialGeneralPoints,
@@ -50,20 +51,19 @@ describe("כיוון תוצאה (1X2)", () => {
   });
 });
 
-describe("ניקוד כיוון — הוגן ומרוסן", () => {
+describe("ניקוד כיוון — יחס עשרוני כמו אתר הימורים", () => {
+  it("נקודות = היחס העשרוני × 10 (יחס 2.53 → 25 נק')", () => {
+    expect(directionPointsFromDecimal(2.53)).toBe(25);
+    expect(directionPointsFromDecimal(6.17)).toBe(62);
+    expect(directionPointsFromDecimal(1.5)).toBe(15);
+  });
   it("מונוטוני: ככל שהסיכוי נמוך יותר — יותר נקודות", () => {
     expect(potentialDirectionPoints(0.15)).toBeGreaterThan(potentialDirectionPoints(0.5));
     expect(potentialDirectionPoints(0.5)).toBeGreaterThan(potentialDirectionPoints(0.8));
   });
-  it("פייבוריט בטוח מקבל מעט (≤3), שקול בינוני (4-7)", () => {
-    expect(potentialDirectionPoints(0.85)).toBeLessThanOrEqual(3);
-    const even = potentialDirectionPoints(0.33);
-    expect(even).toBeGreaterThanOrEqual(4);
-    expect(even).toBeLessThanOrEqual(7);
-  });
-  it("הקצה מרוסן — הפתעה ענקית לא מתפוצצת (≤25)", () => {
-    expect(potentialDirectionPoints(0.02)).toBeLessThanOrEqual(25);
-    expect(potentialDirectionPoints(0.001)).toBeLessThanOrEqual(25);
+  it("הקצה נחתך בתקרה הוגנת (יחס ≤ 26 → ≤ 260 נק')", () => {
+    expect(directionPointsFromDecimal(100)).toBeLessThanOrEqual(260);
+    expect(potentialDirectionPoints(0.001)).toBeLessThanOrEqual(260);
   });
 });
 
@@ -83,7 +83,7 @@ describe("ניקוד ניחוש משחק — מדורג", () => {
     expect(r.exactCorrect).toBe(false);
     expect(r.exactBonus).toBe(0);
     expect(r.total).toBe(r.directionPoints);
-    expect(r.directionPoints).toBe(4); // round(2.6 × (1/0.5)^0.72)
+    expect(r.directionPoints).toBe(20); // יחס הוגן 1/0.5=2.0 × 10
   });
 
   it("תוצאה מדויקת → ניקוד הכיוון + הבונוס שניתן", () => {

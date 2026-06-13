@@ -7,9 +7,8 @@
 
 import {
   CATEGORY_WEIGHTS,
-  DIRECTION_MAX,
-  DIRECTION_POWER,
-  DIRECTION_WEIGHT,
+  DECIMAL_ODDS_CAP,
+  ODDS_POINTS_FACTOR,
   MAX_POINTS_PER_PICK,
   STAGE_WEIGHTS,
 } from "../config";
@@ -66,17 +65,23 @@ export function scoreStagePick(
 }
 
 /**
- * נקודות הכיוון (1X2) בניחוש משחק — מכויל ומרוסן:
- *   round( DIRECTION_WEIGHT × (1/p)^DIRECTION_POWER )  [רצפה 2, תקרה DIRECTION_MAX].
- * החזקה מונעת התפוצצות בקצה (הפתעה גדולה לא נותנת ניקוד מוגזם),
- * ושומרת על ניקוד הוגן ועקבי לכל אורך הטורניר.
+ * נקודות הכיוון (1X2) מתוך היחס העשרוני הגולמי מאתר ההימורים.
+ * דוגמה: יחס 1.50 → 15 נק', יחס 6.17 → 62 נק'. נחתך בתקרה הוגנת.
+ */
+export function directionPointsFromDecimal(decimal: number): number {
+  const capped = Math.min(Math.max(decimal, 1.01), DECIMAL_ODDS_CAP);
+  return Math.max(2, Math.round(capped * ODDS_POINTS_FACTOR));
+}
+
+/**
+ * נקודות הכיוון מתוך הסתברות (fallback כשאין יחס עשרוני שמור):
+ * ממיר הסתברות ליחס עשרוני הוגן (1/p) ואז לנקודות.
  */
 export function potentialDirectionPoints(prob: number): number {
   if (prob <= 0 || prob > 1) {
     throw new Error(`הסתברות לא חוקית: ${prob}`);
   }
-  const raw = Math.round(DIRECTION_WEIGHT * Math.pow(1 / prob, DIRECTION_POWER));
-  return Math.max(2, Math.min(DIRECTION_MAX, raw));
+  return directionPointsFromDecimal(1 / prob);
 }
 
 export interface MatchPickResult {

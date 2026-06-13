@@ -36,6 +36,7 @@ export interface OddsRow {
   option_id: string;
   label: string;
   prob: number;
+  decimal?: number | null;
   source: string;
   updated_at: string;
 }
@@ -108,6 +109,7 @@ export function useOdds() {
           label: isTeamMarket ? TEAM_BY_CODE[r.option_id]?.nameHe ?? r.label : r.label,
           code: isTeamMarket ? r.option_id : undefined,
           prob: r.prob,
+          decimal: r.decimal ?? undefined,
         }))
         .sort((a, b) => b.prob - a.prob);
     }

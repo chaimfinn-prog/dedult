@@ -4,7 +4,7 @@ import { isSupabaseConfigured, supabase } from "../lib/supabase";
 import { useOdds } from "../lib/data";
 import Loading from "../components/Loading";
 import Flag from "../components/Flag";
-import { potentialDirectionPoints } from "../lib/scoring";
+import { directionPointsFromDecimal } from "../lib/scoring";
 import { exactBonusFor } from "../lib/matchOdds";
 import { MATCH_LOCK_MINUTES_BEFORE } from "../config";
 import { TEAM_BY_CODE } from "../data/teams";
@@ -201,6 +201,16 @@ function MatchCard({
     return (d: Direction) => src.find((o) => o.id === d)?.prob ?? 1 / 3;
   }, [marketOptions]);
 
+  // היחס העשרוני הגולמי מאתר ההימורים (אם נשמר); אחרת נגזר מההסתברות
+  const decimalOf = useMemo(() => {
+    const src = marketOptions.length ? marketOptions : EQUAL;
+    return (d: Direction) => {
+      const o = src.find((x) => x.id === d);
+      if (o?.decimal && o.decimal > 1) return o.decimal;
+      return 1 / (o?.prob ?? 1 / 3);
+    };
+  }, [marketOptions]);
+
   const [h, setH] = useState(pick?.pred_home ?? 0);
   const [a, setA] = useState(pick?.pred_away ?? 0);
   const [saving, setSaving] = useState(false);
@@ -208,7 +218,7 @@ function MatchCard({
 
   // הכיוון נגזר אוטומטית מהתוצאה שהוזנה — המשתמש מזין רק תוצאה
   const dir: Direction = h > a ? "home" : h < a ? "away" : "draw";
-  const dirPts = potentialDirectionPoints(probOf(dir));
+  const dirPts = directionPointsFromDecimal(decimalOf(dir));
   // בונוס התוצאה המדויקת הנוכחית (לפי נדירות התוצאה — מודל הפואסון)
   const exactBonus = useMemo(
     () => exactBonusFor(probOf("home"), probOf("draw"), probOf("away"), h, a),
@@ -284,6 +294,7 @@ function MatchCard({
           home={home?.nameHe ?? match.home_team}
           away={away?.nameHe ?? match.away_team}
           probOf={probOf}
+          decimalOf={decimalOf}
           activeDir={dir}
           hasOdds={marketOptions.length > 0}
         />
@@ -530,12 +541,14 @@ function OddsRow({
   home,
   away,
   probOf,
+  decimalOf,
   activeDir,
   hasOdds,
 }: {
   home: string;
   away: string;
   probOf: (d: Direction) => number;
+  decimalOf: (d: Direction) => number;
   activeDir: Direction;
   hasOdds: boolean;
 }) {
@@ -554,8 +567,8 @@ function OddsRow({
   return (
     <div className="grid grid-cols-3 gap-1.5">
       {cells.map((c) => {
-        const p = probOf(c.dir);
-        const pts = potentialDirectionPoints(p);
+        const dec = decimalOf(c.dir); // היחס העשרוני הגולמי מאתר ההימורים
+        const pts = directionPointsFromDecimal(dec);
         const active = c.dir === activeDir;
         return (
           <div
@@ -570,9 +583,10 @@ function OddsRow({
             <div className="truncate text-[11px] font-bold text-grass-700">
               {c.label}
             </div>
-            <div className="text-base font-black text-grass-900">{pts}</div>
+            {/* היחס העשרוני הגולמי — בדיוק כמו אתר הימורים */}
+            <div className="text-lg font-black text-grass-900">{dec.toFixed(2)}</div>
             <div className="text-[10px] font-semibold text-grass-400">
-              נק' · {(p * 100).toFixed(0)}%
+              {pts} נק' · {(probOf(c.dir) * 100).toFixed(0)}%
             </div>
           </div>
         );

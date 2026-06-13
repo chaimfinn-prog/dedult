@@ -44,6 +44,7 @@ Deno.serve(async (req) => {
     option_id: string;
     label: string;
     prob: number;
+    decimal?: number;
     source: string;
   }[] = [];
 
@@ -110,7 +111,8 @@ Deno.serve(async (req) => {
           if (n === homeN) dir = "home";
           else if (n === awayN) dir = "away";
           else if (n === "draw" || n === "tie") dir = "draw";
-          return { dir, label: o.name, prob: probs[i] };
+          // decimal = היחס העשרוני הגולמי מאתר ההימורים (כולל מרווח הבית)
+          return { dir, label: o.name, prob: probs[i], decimal: o.price };
         });
 
         // בדיקת שפיות: חייבים בדיוק home + away + draw שונים. אם לא — מדלגים
@@ -126,6 +128,7 @@ Deno.serve(async (req) => {
             option_id: mm.dir,
             label: mm.dir === "draw" ? "Draw" : mm.label,
             prob: mm.prob,
+            decimal: mm.decimal, // היחס העשרוני הגולמי
             source: "api",
           });
         }

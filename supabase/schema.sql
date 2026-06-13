@@ -60,6 +60,7 @@ create table if not exists public.odds (
   option_id   text not null,           -- קוד נבחרת / שם שחקן / כיוון / שלב
   label       text not null,
   prob        double precision not null check (prob > 0 and prob <= 1), -- מנורמל
+  decimal     double precision,                -- היחס העשרוני הגולמי מהאתר (2.53)
   source      text not null default 'manual',  -- 'api' | 'manual'
   updated_at  timestamptz not null default now(),
   unique (market, option_id)
