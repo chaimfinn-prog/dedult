@@ -3,15 +3,19 @@ import type { ProjectRecord, ProjectDocument, ProjectStatus } from './types';
 
 const COLLECTION = 'pinui_binui_projects';
 
+let memoryStore: ProjectRecord[] = [];
+
+function useMemory(): boolean {
+  return !getDb();
+}
+
 export async function createProject(
   data: Omit<ProjectRecord, 'id' | 'createdAt' | 'updatedAt' | 'documents' | 'notes' | 'extractedInfo'>,
 ): Promise<ProjectRecord> {
-  const db = getDb();
-  if (!db) throw new Error('Firebase not configured');
-
   const now = new Date().toISOString();
-  const project: Omit<ProjectRecord, 'id'> = {
+  const project: ProjectRecord = {
     ...data,
+    id: `proj_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
     createdAt: now,
     updatedAt: now,
     documents: [],
@@ -19,14 +23,26 @@ export async function createProject(
     notes: [],
   };
 
-  const ref = await db.collection(COLLECTION).add(project);
-  return { ...project, id: ref.id };
+  if (useMemory()) {
+    memoryStore.push(project);
+    return project;
+  }
+
+  const db = getDb()!;
+  const ref = await db.collection(COLLECTION).add({
+    ...project,
+    id: undefined,
+  });
+  project.id = ref.id;
+  return project;
 }
 
 export async function getProject(id: string): Promise<ProjectRecord | null> {
-  const db = getDb();
-  if (!db) return null;
+  if (useMemory()) {
+    return memoryStore.find(p => p.id === id) ?? null;
+  }
 
+  const db = getDb()!;
   const doc = await db.collection(COLLECTION).doc(id).get();
   if (!doc.exists) return null;
   return { id: doc.id, ...doc.data() } as ProjectRecord;
@@ -35,9 +51,13 @@ export async function getProject(id: string): Promise<ProjectRecord | null> {
 export async function listProjects(
   status?: ProjectStatus,
 ): Promise<ProjectRecord[]> {
-  const db = getDb();
-  if (!db) return [];
+  if (useMemory()) {
+    let result = [...memoryStore];
+    if (status) result = result.filter(p => p.status === status);
+    return result.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+  }
 
+  const db = getDb()!;
   let query = db.collection(COLLECTION).orderBy('updatedAt', 'desc');
   if (status) {
     query = query.where('status', '==', status);
@@ -51,9 +71,14 @@ export async function updateProject(
   id: string,
   updates: Partial<Omit<ProjectRecord, 'id' | 'createdAt'>>,
 ): Promise<void> {
-  const db = getDb();
-  if (!db) throw new Error('Firebase not configured');
+  if (useMemory()) {
+    const idx = memoryStore.findIndex(p => p.id === id);
+    if (idx === -1) throw new Error('Project not found');
+    memoryStore[idx] = { ...memoryStore[idx], ...updates, updatedAt: new Date().toISOString() };
+    return;
+  }
 
+  const db = getDb()!;
   await db.collection(COLLECTION).doc(id).update({
     ...updates,
     updatedAt: new Date().toISOString(),
@@ -64,9 +89,6 @@ export async function addDocumentToProject(
   projectId: string,
   document: ProjectDocument,
 ): Promise<void> {
-  const db = getDb();
-  if (!db) throw new Error('Firebase not configured');
-
   const project = await getProject(projectId);
   if (!project) throw new Error('Project not found');
 
@@ -82,9 +104,6 @@ export async function updateDocumentInProject(
   documentId: string,
   updates: Partial<ProjectDocument>,
 ): Promise<void> {
-  const db = getDb();
-  if (!db) throw new Error('Firebase not configured');
-
   const project = await getProject(projectId);
   if (!project) throw new Error('Project not found');
 
@@ -98,9 +117,6 @@ export async function addNote(
   projectId: string,
   note: string,
 ): Promise<void> {
-  const db = getDb();
-  if (!db) throw new Error('Firebase not configured');
-
   const project = await getProject(projectId);
   if (!project) throw new Error('Project not found');
 
