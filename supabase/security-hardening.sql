@@ -49,7 +49,8 @@ create or replace function public.enforce_general_lock() returns trigger
 language plpgsql security definer set search_path = public as $$
 begin
   new.updated_at := now();                 -- חותמת שרת, מתעלם מהלקוח
-  if public.is_admin() then return new; end if;
+  -- backend/SQL-Editor (בלי JWT) ואדמין פטורים מהנעילה (תיקונים)
+  if auth.jwt() is null or public.is_admin() then return new; end if;
   if now() >= public.tournament_kickoff() then
     raise exception 'הניחושים הכלליים ננעלו (הטורניר התחיל)';
   end if;
@@ -79,7 +80,8 @@ begin
 
   new.updated_at := now();                 -- חותמת שרת, מתעלם מהלקוח
 
-  if public.is_admin() then return new; end if;
+  -- backend/SQL-Editor (בלי JWT) ואדמין פטורים מהנעילה (תיקונים)
+  if auth.jwt() is null or public.is_admin() then return new; end if;
 
   select kickoff into ko from public.matches where id = new.match_id;
   if ko is null then
@@ -157,6 +159,22 @@ drop trigger if exists trg_match_pick_audit on public.match_picks;
 create trigger trg_match_pick_audit
   after insert or update or delete on public.match_picks
   for each row execute function public.log_match_pick_change();
+
+-- ============================================================
+--  7. תיקון חד-פעמי לרשומות קיימות — מיישר direction לפי התוצאה.
+--     סוגר את ניצול הניקוד גם באתר שכבר פרוס (שמחשב לפי direction השמור),
+--     בלי צורך בפריסה מחדש. לא משנה את התוצאה שהמשתמש ניחש — רק את שדה
+--     הכיוון כך שיתאים לה.
+-- ============================================================
+update public.match_picks
+set direction = case
+  when pred_home > pred_away then 'home'
+  when pred_home < pred_away then 'away'
+  else 'draw' end
+where direction <> case
+  when pred_home > pred_away then 'home'
+  when pred_home < pred_away then 'away'
+  else 'draw' end;
 
 -- ============================================================
 --  בדיקה מהירה אחרי הרצה:
