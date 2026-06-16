@@ -68,7 +68,7 @@ export default function Bracket() {
     await supabase.from("general_picks").upsert({
       user_id: user.id,
       bracket: pick,
-      updated_at: new Date().toISOString(),
+      // updated_at נקבע בשרת (טריגר) — לא נשלח מהלקוח כדי שלא ניתן יהיה לזייף
     });
     setSaving(false);
     setSavedAt(Date.now());

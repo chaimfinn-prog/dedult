@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { isSupabaseConfigured, supabase } from "../lib/supabase";
-import { buildNormalizedMarket } from "../lib/odds";
+import { buildNormalizedMarket, normalizeProbabilities, probFromDecimal } from "../lib/odds";
 import { useOdds } from "../lib/data";
 import Loading from "../components/Loading";
 import { TEAMS, TEAM_BY_CODE } from "../data/teams";
@@ -20,6 +20,7 @@ import {
 
 interface Match {
   id: number;
+  ext_id?: string | null;
   stage: string;
   home_team: string;
   away_team: string;
@@ -50,6 +51,7 @@ export default function Admin() {
       <ExportPicks />
       <OddsRefresh lastUpdated={lastUpdated} />
       <MatchesAdmin />
+      <MatchOddsEditor />
       <ResultsAdmin />
       <ManualMarketEditor />
     </div>
@@ -230,7 +232,7 @@ function OddsRefresh({ lastUpdated }: { lastUpdated: string | null }) {
         עדכון יחסים אחרון:{" "}
         {lastUpdated ? new Date(lastUpdated).toLocaleString("he-IL") : "טרם נמשכו יחסים"}
         <br />
-        התוצאות מתעדכנות אוטומטית כל ~10 דקות (cron). הכפתורים כאן לרענון ידני מיידי.
+        התוצאות מתעדכנות אוטומטית בשעות הערב (cron). הכפתורים כאן לרענון ידני מיידי.
       </p>
       <div className="grid grid-cols-2 gap-2">
         <button
@@ -283,13 +285,31 @@ function MatchesAdmin() {
     load();
   }
 
-  async function saveResult(m: Match, hs: number, as: number, finished: boolean) {
-    const { error } = await supabase
+  async function saveResult(
+    m: Match,
+    hs: number,
+    as: number,
+    finished: boolean,
+  ): Promise<{ ok: boolean; error?: string }> {
+    const { data, error } = await supabase
       .from("matches")
       .update({ home_score: hs, away_score: as, finished, live: !finished })
-      .eq("id", m.id);
-    setMsg(error ? "שגיאת שמירה: " + error.message : `✓ נשמרה תוצאה ${hs}-${as}`);
-    load();
+      .eq("id", m.id)
+      .select("id");
+    if (error) {
+      setMsg("שגיאת שמירה: " + error.message);
+      return { ok: false, error: error.message };
+    }
+    // RLS חוסם בשקט (0 שורות) אם is_admin() לא מחזיר true — הרץ security-hardening.sql
+    if (!data || data.length === 0) {
+      const hint =
+        "השמירה נחסמה (אין הרשאת אדמין). הרץ את supabase/security-hardening.sql כדי לתקן את is_admin().";
+      setMsg("⚠️ " + hint);
+      return { ok: false, error: hint };
+    }
+    setMsg(`✓ נשמרה תוצאה ${hs}-${as}`);
+    await load();
+    return { ok: true };
   }
 
   if (loading) return <Card title="⚽ משחקים"><Loading /></Card>;
@@ -326,20 +346,51 @@ function ResultRow({
   onSave,
 }: {
   match: Match;
-  onSave: (m: Match, hs: number, as: number, finished: boolean) => void;
+  onSave: (
+    m: Match,
+    hs: number,
+    as: number,
+    finished: boolean,
+  ) => Promise<{ ok: boolean; error?: string }>;
 }) {
   const [hs, setHs] = useState(match.home_score ?? 0);
   const [as, setAs] = useState(match.away_score ?? 0);
+  const [status, setStatus] = useState<"idle" | "saving" | "saved" | "err">("idle");
+
+  async function handle(finished: boolean) {
+    setStatus("saving");
+    const r = await onSave(match, hs, as, finished);
+    setStatus(r.ok ? "saved" : "err");
+    if (r.ok) setTimeout(() => setStatus("idle"), 2000);
+  }
+
   return (
     <div className="flex items-center gap-2 rounded-2xl border border-black/10 p-2 text-sm">
       <span className="flex-1 font-bold text-grass-900">
         {TEAM_BY_CODE[match.home_team]?.nameHe} – {TEAM_BY_CODE[match.away_team]?.nameHe}
+        {match.finished && (
+          <span className="ms-2 text-xs font-semibold text-grass-400">
+            (שמור: {match.home_score}-{match.away_score})
+          </span>
+        )}
       </span>
       <input type="number" min={0} value={hs} onChange={(e) => setHs(+e.target.value)} className="h-9 w-12 rounded-lg border border-black/10 text-center" />
       <span>:</span>
       <input type="number" min={0} value={as} onChange={(e) => setAs(+e.target.value)} className="h-9 w-12 rounded-lg border border-black/10 text-center" />
-      <button onClick={() => onSave(match, hs, as, true)} className="btn-ghost text-xs">
-        {match.finished ? "עדכן" : "סיים"}
+      <button
+        onClick={() => handle(true)}
+        disabled={status === "saving"}
+        className="btn-ghost text-xs disabled:opacity-50"
+      >
+        {status === "saving"
+          ? "שומר…"
+          : status === "saved"
+            ? "✓"
+            : status === "err"
+              ? "שגיאה"
+              : match.finished
+                ? "עדכן"
+                : "סיים"}
       </button>
     </div>
   );
@@ -431,6 +482,100 @@ const LABELS: Record<string, string> = {
   bestDefenseTeam: "הגנה הכי טובה",
 };
 
+// עורך יחסי 1X2 ידני לכל משחק — מתקן יחסים שהתבלבלו מה-API.
+// נשמר עם source='manual-fix' כך ש-fetch-odds לעולם לא ידרוס אותם שוב.
+function MatchOddsEditor() {
+  const [matches, setMatches] = useState<Match[]>([]);
+  const [matchId, setMatchId] = useState<number | null>(null);
+  const [homeDec, setHomeDec] = useState("");
+  const [drawDec, setDrawDec] = useState("");
+  const [awayDec, setAwayDec] = useState("");
+  const [msg, setMsg] = useState<string | null>(null);
+
+  async function load() {
+    const { data } = await supabase
+      .from("matches")
+      .select("id, ext_id, stage, home_team, away_team, kickoff, home_score, away_score, finished")
+      .order("kickoff");
+    const list = (data ?? []) as Match[];
+    setMatches(list);
+    if (matchId == null && list.length) setMatchId(list[0].id);
+  }
+  useEffect(() => {
+    if (isSupabaseConfigured) load();
+  }, []);
+
+  const selected = matches.find((m) => m.id === matchId) ?? null;
+
+  async function save() {
+    if (!selected) return;
+    const h = Number(homeDec), d = Number(drawDec), a = Number(awayDec);
+    if (![h, d, a].every((x) => Number.isFinite(x) && x > 1)) {
+      setMsg("הזן יחס עשרוני תקין (>1) לשלושת הכיוונים, למשל 1.32 / 5.0 / 9.0");
+      return;
+    }
+    // נרמול ההסתברויות ל-100% (הסרת מרווח הבית), שמירת היחס הגולמי
+    const probs = normalizeProbabilities([probFromDecimal(h), probFromDecimal(d), probFromDecimal(a)]);
+    const market = `match:${selected.ext_id ?? selected.id}`;
+    const rows = [
+      { option_id: "home", label: TEAM_BY_CODE[selected.home_team]?.nameHe ?? selected.home_team, prob: probs[0], decimal: h },
+      { option_id: "draw", label: "Draw", prob: probs[1], decimal: d },
+      { option_id: "away", label: TEAM_BY_CODE[selected.away_team]?.nameHe ?? selected.away_team, prob: probs[2], decimal: a },
+    ].map((r) => ({ market, source: "manual-fix", ...r }));
+
+    const { data, error } = await supabase
+      .from("odds")
+      .upsert(rows, { onConflict: "market,option_id" })
+      .select("market");
+    if (error) {
+      setMsg("שגיאה: " + error.message);
+      return;
+    }
+    if (!data || data.length === 0) {
+      setMsg("⚠️ נחסם (אין הרשאת אדמין). הרץ את supabase/security-hardening.sql.");
+      return;
+    }
+    setMsg(`✓ נשמרו יחסי 1X2 ל-${selected.home_team}–${selected.away_team} (מוגן מדריסה אוטומטית)`);
+  }
+
+  return (
+    <Card title="🎯 תיקון יחסי 1X2 למשחק (ידני)">
+      <p className="mb-2 text-xs text-grass-500">
+        אם היחסים של משחק התבלבלו (למשל התיקו קיבל את היחס של הפייבוריט), הזן כאן
+        את היחסים הנכונים מאתר ההימורים. הם יינעלו (source=manual-fix) כך
+        שהעדכון האוטומטי לא ידרוס אותם.
+      </p>
+      <select
+        value={matchId ?? ""}
+        onChange={(e) => setMatchId(Number(e.target.value))}
+        className="input mb-2"
+      >
+        {matches.map((m) => (
+          <option key={m.id} value={m.id}>
+            {TEAM_BY_CODE[m.home_team]?.nameHe ?? m.home_team} – {TEAM_BY_CODE[m.away_team]?.nameHe ?? m.away_team}
+          </option>
+        ))}
+      </select>
+      <div className="grid grid-cols-3 gap-2">
+        <label className="text-center text-xs font-bold text-grass-600">
+          {selected ? TEAM_BY_CODE[selected.home_team]?.nameHe ?? selected.home_team : "בית"}
+          <input value={homeDec} onChange={(e) => setHomeDec(e.target.value)} inputMode="decimal" placeholder="1.32" className="input mt-1 text-center" />
+        </label>
+        <label className="text-center text-xs font-bold text-grass-600">
+          תיקו
+          <input value={drawDec} onChange={(e) => setDrawDec(e.target.value)} inputMode="decimal" placeholder="5.00" className="input mt-1 text-center" />
+        </label>
+        <label className="text-center text-xs font-bold text-grass-600">
+          {selected ? TEAM_BY_CODE[selected.away_team]?.nameHe ?? selected.away_team : "חוץ"}
+          <input value={awayDec} onChange={(e) => setAwayDec(e.target.value)} inputMode="decimal" placeholder="9.00" className="input mt-1 text-center" />
+        </label>
+      </div>
+      <button onClick={save} className="btn-primary mt-3 w-full">שמור יחסים (מוגן)</button>
+      {msg && <p className="mt-2 text-sm font-semibold text-grass-700">{msg}</p>}
+    </Card>
+  );
+}
+
 // עורך יחסים ידני לשווקים שה-API לא מכסה — מזין כמה אופציות, מנרמל ל-100% ושומר.
 function ManualMarketEditor() {
   const [market, setMarket] = useState("topScorer");
@@ -462,7 +607,6 @@ function ManualMarketEditor() {
         label: o.label,
         prob: o.prob,
         source: "manual",
-        updated_at: new Date().toISOString(),
       })),
     );
     setMsg(`✓ נשמרו ${normalized.length} אופציות (מנורמל ל-100%)`);

@@ -95,7 +95,7 @@ export default function GeneralPicks() {
       golden_ball: picks.golden_ball || null,
       most_goals_team: picks.most_goals_team || null,
       best_defense_team: picks.best_defense_team || null,
-      updated_at: new Date().toISOString(),
+      // updated_at נקבע בשרת (טריגר) — לא נשלח מהלקוח כדי שלא ניתן יהיה לזייף
     });
     setSaving(false);
     setSavedAt(Date.now());

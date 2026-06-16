@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { isSupabaseConfigured, supabase } from "../lib/supabase";
 import { useOdds } from "../lib/data";
@@ -8,6 +8,12 @@ import { directionPointsFromDecimal } from "../lib/scoring";
 import { exactBonusFor } from "../lib/matchOdds";
 import { MATCH_LOCK_MINUTES_BEFORE } from "../config";
 import { TEAM_BY_CODE } from "../data/teams";
+import type { RevealedGeneral } from "../lib/social";
+import {
+  buildMatchShareText,
+  relevantGeneralForMatch,
+  type RelevantPickLine,
+} from "../lib/matchSocial";
 import {
   DIRECTION_LABELS_HE,
   type Direction,
@@ -53,9 +59,13 @@ export default function LiveMatches() {
   const [matches, setMatches] = useState<Match[]>([]);
   const [picks, setPicks] = useState<Record<number, Pick>>({});
   const [revealed, setRevealed] = useState<RevealRow[]>([]);
+  const [general, setGeneral] = useState<RevealedGeneral[]>([]);
   const [profiles, setProfiles] = useState<Record<string, ProfileLite>>({});
   const [loading, setLoading] = useState(true);
   const [lastSync, setLastSync] = useState<Date | null>(null);
+  const [showArchive, setShowArchive] = useState(false);
+  const todayRef = useRef<HTMLDivElement | null>(null);
+  const scrolledRef = useRef(false);
 
   useEffect(() => {
     let alive = true;
@@ -64,13 +74,15 @@ export default function LiveMatches() {
         setLoading(false);
         return;
       }
-      const [{ data: m }, reveal, { data: profs }] = await Promise.all([
+      const [{ data: m }, reveal, gen, { data: profs }] = await Promise.all([
         supabase.from("matches").select("*").order("kickoff"),
         supabase.rpc("reveal_match_picks"), // חשוף רק אחרי שריקת הפתיחה
+        supabase.rpc("reveal_general_picks"), // לקישור ניחושים כלליים למשחק
         supabase.from("profiles").select("id, full_name, avatar_url"),
       ]);
       if (!alive) return;
       setMatches((m ?? []) as Match[]);
+      setGeneral((gen.data ?? []) as RevealedGeneral[]);
 
       const rows = (reveal.data ?? []) as RevealRow[];
       setRevealed(rows);
@@ -111,6 +123,24 @@ export default function LiveMatches() {
     return out;
   }, [revealed]);
 
+  const nameOf = (id: string) => profiles[id]?.name ?? "אנונימי";
+
+  // משחקים פעילים/עתידיים מול ארכיון (משחקים שהסתיימו)
+  const upcoming = useMemo(() => matches.filter((m) => !m.finished), [matches]);
+  const archive = useMemo(
+    () => matches.filter((m) => m.finished).reverse(), // האחרון שהסתיים למעלה
+    [matches],
+  );
+  // "משחק היום" — הראשון ששודר חי, אחרת הקרוב הבא; אליו נגלול אוטומטית
+  const todayId = (upcoming.find((m) => m.live) ?? upcoming[0])?.id ?? null;
+
+  // גלילה אוטומטית למשחק של היום בכניסה (פעם אחת)
+  useEffect(() => {
+    if (loading || scrolledRef.current || !todayRef.current) return;
+    todayRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+    scrolledRef.current = true;
+  }, [loading, todayId]);
+
   if (loading || oddsLoading) return <Loading />;
 
   if (matches.length === 0) {
@@ -127,6 +157,21 @@ export default function LiveMatches() {
   }
 
   const anyLive = matches.some((m) => m.live);
+
+  const renderCard = (m: Match) => (
+    <MatchCard
+      key={m.id}
+      match={m}
+      pick={picks[m.id]}
+      marketOptions={market(`match:${m.ext_id ?? m.id}`)}
+      revealed={revealedByMatch[m.id] ?? []}
+      general={general}
+      nameOf={nameOf}
+      profiles={profiles}
+      meId={user?.id}
+      onSave={(pick) => setPicks((prev) => ({ ...prev, [m.id]: pick }))}
+    />
+  );
 
   return (
     <div className="space-y-3 animate-fade-up">
@@ -151,18 +196,37 @@ export default function LiveMatches() {
           )}
         </span>
       </div>
-      {matches.map((m) => (
-        <MatchCard
-          key={m.id}
-          match={m}
-          pick={picks[m.id]}
-          marketOptions={market(`match:${m.ext_id ?? m.id}`)}
-          revealed={revealedByMatch[m.id] ?? []}
-          profiles={profiles}
-          meId={user?.id}
-          onSave={(pick) => setPicks((prev) => ({ ...prev, [m.id]: pick }))}
-        />
-      ))}
+
+      {upcoming.length === 0 && (
+        <p className="card p-5 text-center text-sm text-grass-500">
+          אין כרגע משחקים קרובים — כל המשחקים בארכיון למטה. 👇
+        </p>
+      )}
+
+      {upcoming.map((m) =>
+        m.id === todayId ? (
+          <div key={m.id} ref={todayRef} className="scroll-mt-4">
+            {renderCard(m)}
+          </div>
+        ) : (
+          renderCard(m)
+        ),
+      )}
+
+      {archive.length > 0 && (
+        <div className="pt-2">
+          <button
+            onClick={() => setShowArchive((s) => !s)}
+            className="flex w-full items-center justify-between rounded-2xl bg-grass-50 px-4 py-3 text-sm font-extrabold text-grass-700"
+          >
+            <span>📁 ארכיון משחקים ({archive.length})</span>
+            <span>{showArchive ? "הסתר ▲" : "הצג ▼"}</span>
+          </button>
+          {showArchive && (
+            <div className="mt-3 space-y-3">{archive.map((m) => renderCard(m))}</div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -172,6 +236,8 @@ function MatchCard({
   pick,
   marketOptions,
   revealed,
+  general,
+  nameOf,
   profiles,
   meId,
   onSave,
@@ -180,6 +246,8 @@ function MatchCard({
   pick?: Pick;
   marketOptions: MarketOption[];
   revealed: RevealRow[];
+  general: RevealedGeneral[];
+  nameOf: (id: string) => string;
   profiles: Record<string, ProfileLite>;
   meId?: string;
   onSave: (p: Pick) => void;
@@ -231,10 +299,10 @@ function MatchCard({
     await supabase.from("match_picks").upsert({
       user_id: user.id,
       match_id: match.id,
-      direction: dir,
+      direction: dir, // השרת גוזר מחדש מהתוצאה — נשלח רק לנוחות
       pred_home: h,
       pred_away: a,
-      updated_at: new Date().toISOString(),
+      // updated_at נקבע בשרת (טריגר) — לא נשלח מהלקוח
     });
     setSaving(false);
     setSaved(true);
@@ -358,6 +426,8 @@ function MatchCard({
       <RevealSection
         started={started}
         revealed={revealed}
+        general={general}
+        nameOf={nameOf}
         profiles={profiles}
         meId={meId}
         actual={
@@ -367,6 +437,9 @@ function MatchCard({
         }
         homeName={home?.nameHe ?? match.home_team}
         awayName={away?.nameHe ?? match.away_team}
+        homeCode={match.home_team}
+        awayCode={match.away_team}
+        kickoffLabel={kickoffStr}
       />
     </div>
   );
@@ -376,23 +449,41 @@ function MatchCard({
 function RevealSection({
   started,
   revealed,
+  general,
+  nameOf,
   profiles,
   meId,
   actual,
   homeName,
   awayName,
+  homeCode,
+  awayCode,
+  kickoffLabel,
 }: {
   started: boolean;
   revealed: RevealRow[];
+  general: RevealedGeneral[];
+  nameOf: (id: string) => string;
   profiles: Record<string, ProfileLite>;
   meId?: string;
   actual: { h: number; a: number } | null;
   homeName: string;
   awayName: string;
+  homeCode: string;
+  awayCode: string;
+  kickoffLabel: string;
 }) {
   const [open, setOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
   // ניחושים של אחרים (לא שלי) — מגיעים מה-RPC רק אם המשחק התחיל
   const others = revealed.filter((r) => r.user_id !== meId);
+  // ניחושים כלליים שקשורים לשתי הקבוצות (אלוף / מלך שערים מהקבוצות וכו')
+  const relevant: RelevantPickLine[] = relevantGeneralForMatch(
+    general,
+    nameOf,
+    homeCode,
+    awayCode,
+  );
 
   if (!started) {
     return (
@@ -401,7 +492,7 @@ function RevealSection({
       </div>
     );
   }
-  if (others.length === 0) return null;
+  if (others.length === 0 && relevant.length === 0) return null;
 
   // סטטיסטיקה: פילוח כיוונים + התוצאה הנפוצה ביותר
   const dirCount = { home: 0, draw: 0, away: 0 };
@@ -421,6 +512,32 @@ function RevealSection({
     ? actual.h > actual.a ? "home" : actual.h < actual.a ? "away" : "draw"
     : null;
 
+  const shareText = buildMatchShareText({
+    homeName,
+    awayName,
+    kickoffLabel,
+    picks: revealed,
+    nameOf,
+    relevant,
+    actual,
+  });
+  function shareWhatsapp() {
+    window.open(
+      "https://wa.me/?text=" + encodeURIComponent(shareText),
+      "_blank",
+      "noopener,noreferrer",
+    );
+  }
+  async function copyText() {
+    try {
+      await navigator.clipboard.writeText(shareText);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      /* התעלמות — דפדפנים מסוימים חוסמים clipboard */
+    }
+  }
+
   return (
     <div className="border-t border-black/5">
       <button
@@ -432,21 +549,38 @@ function RevealSection({
       </button>
       {open && (
         <div>
-          {/* סטטיסטיקת כיוונים */}
-          <div className="grid grid-cols-3 gap-1 bg-grass-50/40 px-4 py-2 text-center text-[11px] font-bold">
-            <div className="rounded-lg bg-white py-1 text-grass-700">
-              {homeName}<br />
-              <span className="text-base">{Math.round((dirCount.home / totalDir) * 100)}%</span>
-            </div>
-            <div className="rounded-lg bg-white py-1 text-grass-700">
-              תיקו<br />
-              <span className="text-base">{Math.round((dirCount.draw / totalDir) * 100)}%</span>
-            </div>
-            <div className="rounded-lg bg-white py-1 text-grass-700">
-              {awayName}<br />
-              <span className="text-base">{Math.round((dirCount.away / totalDir) * 100)}%</span>
-            </div>
+          {/* שיתוף סיכום המשחק */}
+          <div className="flex gap-2 px-4 pb-1 pt-2">
+            <button
+              onClick={shareWhatsapp}
+              className="flex-1 rounded-xl bg-[#25D366] py-2 text-xs font-extrabold text-white"
+            >
+              שתף לוואטסאפ 💬
+            </button>
+            <button
+              onClick={copyText}
+              className="rounded-xl bg-grass-100 px-3 py-2 text-xs font-bold text-grass-700"
+            >
+              {copied ? "✓ הועתק" : "העתק 📋"}
+            </button>
           </div>
+          {/* סטטיסטיקת כיוונים */}
+          {revealed.length > 0 && (
+            <div className="grid grid-cols-3 gap-1 bg-grass-50/40 px-4 py-2 text-center text-[11px] font-bold">
+              <div className="rounded-lg bg-white py-1 text-grass-700">
+                {homeName}<br />
+                <span className="text-base">{Math.round((dirCount.home / totalDir) * 100)}%</span>
+              </div>
+              <div className="rounded-lg bg-white py-1 text-grass-700">
+                תיקו<br />
+                <span className="text-base">{Math.round((dirCount.draw / totalDir) * 100)}%</span>
+              </div>
+              <div className="rounded-lg bg-white py-1 text-grass-700">
+                {awayName}<br />
+                <span className="text-base">{Math.round((dirCount.away / totalDir) * 100)}%</span>
+              </div>
+            </div>
+          )}
           {topScore && (
             <p className="px-4 py-1 text-center text-[11px] text-grass-500">
               התוצאה הכי מנוחשת:{" "}
@@ -478,6 +612,28 @@ function RevealSection({
               );
             })}
           </ul>
+
+          {/* ניחושים כלליים שקשורים למשחק הזה (אלוף / מלך שערים מהקבוצות וכו') */}
+          {relevant.length > 0 && (
+            <div className="border-t border-black/5 bg-grass-50/30 px-4 py-2">
+              <div className="mb-1 text-[11px] font-extrabold text-grass-600">
+                🔮 ניחושים כלליים שקשורים למשחק
+              </div>
+              <ul className="space-y-1">
+                {relevant.map((r, i) => (
+                  <li
+                    key={i}
+                    className="flex items-center justify-between gap-2 text-[12px]"
+                  >
+                    <span className="truncate text-grass-700">
+                      {r.emoji} <b className="text-grass-900">{r.who}</b> · {r.category}
+                    </span>
+                    <span className="shrink-0 font-bold text-grass-800">{r.what}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
       )}
     </div>

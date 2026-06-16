@@ -12,11 +12,11 @@ import { MAX_POINTS_PER_PICK } from "../config";
 const BONUS = 10; // ערך בונוס לדוגמה לטסטים
 
 describe("נוסחת הניקוד הבסיסית round(weight × 1/p)", () => {
-  it("ספרד אלוף ~17.4% → round(20/0.174)=115 נק' (משקל 20)", () => {
-    expect(potentialGeneralPoints("champion", 0.174)).toBe(115);
+  it("ספרד אלוף ~17.4% → round(30/0.174)=172 נק' (משקל 30)", () => {
+    expect(potentialGeneralPoints("champion", 0.174)).toBe(172);
   });
-  it("ארגנטינה אלוף 10% → 200 נק' (משקל 20)", () => {
-    expect(potentialGeneralPoints("champion", 0.1)).toBe(200);
+  it("ארגנטינה אלוף 10% → 300 נק' (משקל 30)", () => {
+    expect(potentialGeneralPoints("champion", 0.1)).toBe(300);
   });
   it("אאוטסיידר אלוף 0.5% → מוגבל לתקרה (400)", () => {
     // round(20/0.005)=4000, אך התקרה חותכת ל-400
@@ -37,7 +37,7 @@ describe("נוסחת הניקוד הבסיסית round(weight × 1/p)", () => {
 
 describe("ניחוש כללי — נכון/שגוי", () => {
   it("נכון מחזיר את הנקודות, שגוי מחזיר 0", () => {
-    expect(scoreGeneralPick("champion", 0.1, true)).toBe(200);
+    expect(scoreGeneralPick("champion", 0.1, true)).toBe(300);
     expect(scoreGeneralPick("champion", 0.1, false)).toBe(0);
   });
 });

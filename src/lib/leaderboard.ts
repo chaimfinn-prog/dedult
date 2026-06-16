@@ -5,6 +5,7 @@
 
 import { CHAMPION_DOUBLE_BONUS } from "../config";
 import {
+  directionOf,
   potentialGeneralPoints,
   potentialStagePoints,
   scoreMatchPick,
@@ -191,7 +192,10 @@ export function computeLeaderboard(input: ScoreInput): LeaderRow[] {
       if (!m || !m.finished || m.home_score == null || m.away_score == null) continue;
       // היחסים נשמרים לפי ext_id (מזהה The Odds API); נפילה ל-id פנימי
       const mkt = `match:${m.ext_id ?? mp.match_id}`;
-      const prob = probOf(mkt, mp.direction);
+      // אבטחה: הכיוון נגזר מהתוצאה שהוזנה, לא משדה direction השמור (שניתן
+      // לזיוף ב-API ישיר כדי לנפח נקודות). כך הניקוד תמיד עקבי עם הניחוש.
+      const pickDir = directionOf(mp.pred_home, mp.pred_away);
+      const prob = probOf(mkt, pickDir);
       // בונוס תוצאה מדויקת לפי נדירות התוצאה בפועל (מודל פואסון מהיחסים)
       const exactBonus = exactBonusFor(
         probOf(mkt, "home"),

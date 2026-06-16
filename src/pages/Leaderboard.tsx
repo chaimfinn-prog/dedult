@@ -168,6 +168,8 @@ export default function Leaderboard() {
         )}
       </div>
 
+      {board.length > 0 && <Highlights board={board} delta={rankDelta} />}
+
       {board.length === 0 && (
         <p className="card p-6 text-center text-sm text-grass-500">
           עדיין אין משתתפים. ברגע שחברים יתחברו הם יופיעו כאן.
@@ -238,6 +240,62 @@ export default function Leaderboard() {
           </div>
         );
       })}
+    </div>
+  );
+}
+
+// פסי "מעניין" — תובנות מהירות על הדירוג (מנהיג, בינגו, מומנטום, מרדף צמוד)
+function Highlights({
+  board,
+  delta,
+}: {
+  board: LeaderRow[];
+  delta: Record<string, number>;
+}) {
+  const items: { emoji: string; text: string }[] = [];
+
+  const leader = board[0];
+  if (leader && leader.total > 0) {
+    items.push({ emoji: "👑", text: `${leader.name} מוביל עם ${leader.total.toLocaleString("he-IL")} נק'` });
+  }
+
+  // מרדף צמוד — פער קטן בין מקום 1 ל-2
+  if (board.length >= 2 && board[0].total > 0) {
+    const gap = board[0].total - board[1].total;
+    if (gap <= 15) {
+      items.push({ emoji: "⚔️", text: `מרדף צמוד! ${board[1].name} במרחק ${gap} נק' מהפסגה` });
+    }
+  }
+
+  // הכי הרבה בינגו
+  const topBingo = [...board].sort((a, b) => b.bingo - a.bingo)[0];
+  if (topBingo && topBingo.bingo > 0) {
+    items.push({ emoji: "🎯", text: `${topBingo.name} עם הכי הרבה בינגו (${topBingo.bingo})` });
+  }
+
+  // מומנטום — מי טיפס הכי הרבה מקומות מאז הרענון הקודם
+  let bestClimb: { name: string; up: number } | null = null;
+  for (const r of board) {
+    const up = delta[r.userId] ?? 0;
+    if (up > 0 && (!bestClimb || up > bestClimb.up)) bestClimb = { name: r.name, up };
+  }
+  if (bestClimb) {
+    items.push({ emoji: "🔥", text: `${bestClimb.name} בתנופה — עלה ${bestClimb.up} מקומות` });
+  }
+
+  if (items.length === 0) return null;
+
+  return (
+    <div className="card p-3">
+      <div className="mb-1.5 px-1 text-xs font-extrabold text-grass-500">✨ מעניין</div>
+      <div className="space-y-1.5">
+        {items.map((it, i) => (
+          <div key={i} className="flex items-center gap-2 text-sm font-semibold text-grass-800">
+            <span className="text-base">{it.emoji}</span>
+            <span>{it.text}</span>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
