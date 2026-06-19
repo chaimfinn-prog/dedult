@@ -14,6 +14,7 @@ import {
   relevantGeneralForMatch,
   type RelevantPickLine,
 } from "../lib/matchSocial";
+import MatchShareCard, { type ShareCardData } from "../components/MatchShareCard";
 import {
   DIRECTION_LABELS_HE,
   type Direction,
@@ -134,12 +135,12 @@ export default function LiveMatches() {
   // "משחק היום" — הראשון ששודר חי, אחרת הקרוב הבא; אליו נגלול אוטומטית
   const todayId = (upcoming.find((m) => m.live) ?? upcoming[0])?.id ?? null;
 
-  // גלילה אוטומטית למשחק של היום בכניסה (פעם אחת)
+  // גלילה אוטומטית למשחק הבא בכניסה — פעם אחת בלבד (לא נגלול שוב כשמשחק עולה לשידור)
   useEffect(() => {
-    if (loading || scrolledRef.current || !todayRef.current) return;
-    todayRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+    if (loading || scrolledRef.current) return;
     scrolledRef.current = true;
-  }, [loading, todayId]);
+    todayRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [loading]);
 
   if (loading || oddsLoading) return <Loading />;
 
@@ -475,6 +476,8 @@ function RevealSection({
 }) {
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const cardRef = useRef<HTMLDivElement | null>(null);
   // ניחושים של אחרים (לא שלי) — מגיעים מה-RPC רק אם המשחק התחיל
   const others = revealed.filter((r) => r.user_id !== meId);
   // ניחושים כלליים שקשורים לשתי הקבוצות (אלוף / מלך שערים מהקבוצות וכו')
@@ -538,30 +541,96 @@ function RevealSection({
     }
   }
 
+  // נתוני כרטיס התמונה
+  const cardData: ShareCardData = {
+    homeName,
+    awayName,
+    homeFlag: TEAM_BY_CODE[homeCode]?.flag ?? "🏳️",
+    awayFlag: TEAM_BY_CODE[awayCode]?.flag ?? "🏳️",
+    kickoffLabel,
+    actual,
+    dir: dirCount,
+    total: revealed.length,
+    topScore: topScore ? { score: topScore[0], count: topScore[1] } : null,
+    picks: revealed.map((r) => ({
+      name: nameOf(r.user_id),
+      score: `${r.pred_home}-${r.pred_away}`,
+      bingo: !!(actual && r.pred_home === actual.h && r.pred_away === actual.a),
+      dirHit: !!(actual && dirOf(r) === actualDir),
+    })),
+    relevant: relevant.map((r) => ({
+      emoji: r.emoji,
+      who: r.who,
+      category: r.category,
+      what: r.what,
+    })),
+  };
+
+  async function exportImage() {
+    if (!cardRef.current) return;
+    setExporting(true);
+    try {
+      const { toPng } = await import("html-to-image");
+      const dataUrl = await toPng(cardRef.current, {
+        pixelRatio: 2,
+        cacheBust: true,
+        backgroundColor: "#ffffff",
+      });
+      const blob = await (await fetch(dataUrl)).blob();
+      const file = new File([blob], `match-${homeCode}-${awayCode}.png`, {
+        type: "image/png",
+      });
+      const navAny = navigator as any;
+      if (navAny.canShare && navAny.canShare({ files: [file] })) {
+        await navAny.share({ files: [file], title: `${homeName} נגד ${awayName}` });
+      } else {
+        const a = document.createElement("a");
+        a.href = dataUrl;
+        a.download = file.name;
+        a.click();
+      }
+    } catch {
+      /* אם הלכידה נכשלה — מתעלמים בשקט */
+    } finally {
+      setExporting(false);
+    }
+  }
+
   return (
     <div className="border-t border-black/5">
       <button
         onClick={() => setOpen((o) => !o)}
         className="flex w-full items-center justify-between bg-grass-50/40 px-4 py-2 text-xs font-bold text-grass-700"
       >
-        <span>👥 מה {others.length} החברים ניחשו + סטטיסטיקה</span>
+        <span>👥 ניחושי החברים + סטטיסטיקה ({revealed.length})</span>
         <span>{open ? "▲" : "▼"}</span>
       </button>
       {open && (
         <div>
+          {/* כרטיס התמונה (מחוץ למסך) — נלכד ל-PNG */}
+          <div style={{ position: "fixed", left: -10000, top: 0, pointerEvents: "none" }} aria-hidden>
+            <MatchShareCard ref={cardRef} data={cardData} />
+          </div>
           {/* שיתוף סיכום המשחק */}
           <div className="flex gap-2 px-4 pb-1 pt-2">
             <button
               onClick={shareWhatsapp}
               className="flex-1 rounded-xl bg-[#25D366] py-2 text-xs font-extrabold text-white"
             >
-              שתף לוואטסאפ 💬
+              וואטסאפ 💬
+            </button>
+            <button
+              onClick={exportImage}
+              disabled={exporting}
+              className="rounded-xl bg-grass-700 px-3 py-2 text-xs font-bold text-white disabled:opacity-50"
+            >
+              {exporting ? "מכין…" : "תמונה 🖼️"}
             </button>
             <button
               onClick={copyText}
               className="rounded-xl bg-grass-100 px-3 py-2 text-xs font-bold text-grass-700"
             >
-              {copied ? "✓ הועתק" : "העתק 📋"}
+              {copied ? "✓" : "📋"}
             </button>
           </div>
           {/* סטטיסטיקת כיוונים */}

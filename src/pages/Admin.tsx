@@ -6,6 +6,8 @@ import { useOdds } from "../lib/data";
 import Loading from "../components/Loading";
 import { TEAMS, TEAM_BY_CODE } from "../data/teams";
 import { STAGE_LABELS_HE, STAGE_ORDER } from "../lib/types";
+import { championFrom } from "../lib/bracketState";
+import { analyzeAudit, type AuditInsight } from "../lib/audit";
 import {
   fetchRevealedGeneral,
   fetchRevealedMatchPicks,
@@ -48,6 +50,8 @@ export default function Admin() {
     <div className="space-y-6 animate-fade-up pb-4">
       <h1 className="px-1 text-xl font-extrabold text-grass-900">⚙️ ניהול</h1>
       <PlayersAdmin />
+      <MissingPicksAdmin />
+      <AuditAdmin />
       <ExportPicks />
       <OddsRefresh lastUpdated={lastUpdated} />
       <MatchesAdmin />
@@ -128,6 +132,143 @@ function PlayersAdmin() {
           <p className="text-sm text-grass-500">אין משתתפים עדיין.</p>
         )}
       </div>
+    </Card>
+  );
+}
+
+// מי לא מילא ניחושים — כללי ו/או משחקים
+interface MissingRow { id: string; name: string; general: boolean; matchCount: number }
+function MissingPicksAdmin() {
+  const [rows, setRows] = useState<MissingRow[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  async function load() {
+    const [{ data: profs }, gen, mp] = await Promise.all([
+      supabase.from("profiles").select("id, full_name, active").order("full_name"),
+      supabase.rpc("reveal_general_picks"),
+      supabase.rpc("reveal_match_picks"),
+    ]);
+    const genByUser = new Map<string, any>();
+    (gen.data ?? []).forEach((g: any) => genByUser.set(g.user_id, g));
+    const mpCount = new Map<string, number>();
+    (mp.data ?? []).forEach((m: any) => mpCount.set(m.user_id, (mpCount.get(m.user_id) ?? 0) + 1));
+    const hasGeneral = (g: any) =>
+      !!g &&
+      !!(
+        (g.bracket && championFrom(g.bracket)) ||
+        g.top_scorer || g.second_scorer || g.top_assists ||
+        g.golden_ball || g.golden_glove || g.most_goals_team || g.best_defense_team
+      );
+    const list: MissingRow[] = (profs ?? [])
+      .filter((p: any) => p.active !== false)
+      .map((p: any) => ({
+        id: p.id,
+        name: p.full_name ?? "אנונימי",
+        general: hasGeneral(genByUser.get(p.id)),
+        matchCount: mpCount.get(p.id) ?? 0,
+      }));
+    setRows(list);
+    setLoading(false);
+  }
+  useEffect(() => {
+    if (isSupabaseConfigured) load();
+    else setLoading(false);
+  }, []);
+
+  if (loading) return <Card title="📋 מי לא מילא"><Loading /></Card>;
+
+  const missingGeneral = rows.filter((r) => !r.general).length;
+  const noMatches = rows.filter((r) => r.matchCount === 0).length;
+
+  return (
+    <Card title="📋 מי לא מילא ניחושים">
+      <p className="mb-3 text-sm text-grass-600">
+        חסר ניחוש כללי: <b className="text-red-600">{missingGeneral}</b> · בלי אף ניחוש משחק:{" "}
+        <b className="text-red-600">{noMatches}</b>
+      </p>
+      <div className="space-y-1.5">
+        {rows.map((r) => (
+          <div key={r.id} className="flex items-center gap-2 rounded-2xl border border-black/10 p-2 text-sm">
+            <span className="flex-1 font-bold text-grass-900">{r.name}</span>
+            <span className={r.general ? "chip bg-grass-100 text-grass-700" : "chip bg-red-100 text-red-600"}>
+              {r.general ? "כללי ✓" : "כללי ✗"}
+            </span>
+            <span className={r.matchCount > 0 ? "chip bg-grass-100 text-grass-700" : "chip bg-red-100 text-red-600"}>
+              {r.matchCount} משחקים
+            </span>
+          </div>
+        ))}
+        {rows.length === 0 && <p className="text-sm text-grass-500">אין משתתפים.</p>}
+      </div>
+    </Card>
+  );
+}
+
+// שינויי ניחושים מעניינים — מתוך לוג הביקורת (match_picks_audit)
+function AuditAdmin() {
+  const [insights, setInsights] = useState<AuditInsight[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState<string | null>(null);
+
+  async function load() {
+    const [audit, { data: matches }, { data: profs }] = await Promise.all([
+      supabase.from("match_picks_audit").select("*").order("changed_at", { ascending: false }).limit(300),
+      supabase.from("matches").select("id, home_team, away_team, kickoff, home_score, away_score, finished"),
+      supabase.from("profiles").select("id, full_name"),
+    ]);
+    if (audit.error) {
+      setErr("טבלת הביקורת עדיין לא קיימת — הרץ את security-hardening.sql.");
+      setLoading(false);
+      return;
+    }
+    const nameMap = new Map<string, string>();
+    (profs ?? []).forEach((p: any) => nameMap.set(p.id, p.full_name ?? "אנונימי"));
+    setInsights(
+      analyzeAudit(
+        (audit.data ?? []) as any,
+        (matches ?? []) as any,
+        (id) => nameMap.get(id) ?? "אנונימי",
+        (c) => TEAM_BY_CODE[c]?.nameHe ?? c,
+      ),
+    );
+    setLoading(false);
+  }
+  useEffect(() => {
+    if (isSupabaseConfigured) load();
+    else setLoading(false);
+  }, []);
+
+  if (loading) return <Card title="🕵️ שינויים מעניינים"><Loading /></Card>;
+
+  return (
+    <Card title="🕵️ שינויי ניחושים מעניינים">
+      <p className="mb-2 text-xs text-grass-500">
+        מי ביטל ניחוש מנצח, מי החליף ברגע האחרון ופגע, ושינויים סמוך לנעילה.
+      </p>
+      {err ? (
+        <p className="text-sm text-amber-600">{err}</p>
+      ) : insights.length === 0 ? (
+        <p className="text-sm text-grass-500">
+          עדיין אין שינויים מתועדים. הלוג מתחיל לתעד מרגע הרצת security-hardening.sql.
+        </p>
+      ) : (
+        <ul className="space-y-1.5">
+          {insights.slice(0, 40).map((it, i) => (
+            <li
+              key={i}
+              className={`rounded-2xl border p-2 text-sm ${
+                it.kind === "dropped_winner"
+                  ? "border-red-200 bg-red-50/40"
+                  : it.kind === "switched_to_winner"
+                    ? "border-grass-200 bg-grass-50/40"
+                    : "border-black/10"
+              }`}
+            >
+              {it.note}
+            </li>
+          ))}
+        </ul>
+      )}
     </Card>
   );
 }

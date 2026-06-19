@@ -12,6 +12,8 @@ import {
   type RevealedMatchPick,
 } from "../lib/social";
 import { generalStats, type CountItem } from "../lib/stats";
+import { buildRankSeries, type SnapshotRow } from "../lib/rankRace";
+import RankRaceChart from "../components/RankRaceChart";
 
 interface ProfileLite {
   id: string;
@@ -23,8 +25,9 @@ export default function Stats() {
   const [gen, setGen] = useState<RevealedGeneral[]>([]);
   const [mp, setMp] = useState<RevealedMatchPick[]>([]);
   const [profiles, setProfiles] = useState<ProfileLite[]>([]);
+  const [snapshots, setSnapshots] = useState<SnapshotRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<"stats" | "players">("stats");
+  const [tab, setTab] = useState<"stats" | "players" | "race">("stats");
   const [openId, setOpenId] = useState<string | null>(null);
 
   const tournamentStarted = Date.now() >= new Date(TOURNAMENT_KICKOFF_ISO).getTime();
@@ -32,16 +35,20 @@ export default function Stats() {
   useEffect(() => {
     let alive = true;
     (async () => {
-      const [g, m, profs] = await Promise.all([
+      const [g, m, profs, snaps] = await Promise.all([
         fetchRevealedGeneral(),
         fetchRevealedMatchPicks(),
         isSupabaseConfigured
           ? supabase.from("profiles").select("id, full_name, avatar_url, active")
           : Promise.resolve({ data: [] as any }),
+        isSupabaseConfigured
+          ? supabase.from("score_snapshots").select("user_id, bucket, total, rank")
+          : Promise.resolve({ data: [] as any }),
       ]);
       if (!alive) return;
       setGen(g);
       setMp(m);
+      setSnapshots(((snaps as any).data ?? []) as SnapshotRow[]);
       setProfiles(
         ((profs as any).data ?? [])
           .filter((p: any) => p.active !== false)
@@ -85,6 +92,12 @@ export default function Stats() {
         >
           👥 מי ניחש מה
         </button>
+        <button
+          onClick={() => setTab("race")}
+          className={`flex-1 rounded-xl py-2.5 text-sm font-bold transition ${tab === "race" ? "bg-grass-600 text-white shadow-lift" : "text-grass-600"}`}
+        >
+          📈 מירוץ
+        </button>
       </div>
 
       {!isSupabaseConfigured ? (
@@ -113,6 +126,11 @@ export default function Stats() {
             <b className="text-grass-800">{matchVotes}</b> ניחושי משחקים נחשפו עד כה.
           </div>
         </div>
+      ) : tab === "race" ? (
+        <RankRaceChart
+          data={buildRankSeries(snapshots)}
+          nameOf={(id) => profiles.find((p) => p.id === id)?.name ?? "אנונימי"}
+        />
       ) : (
         <div className="space-y-2">
           {profiles.map((p) => {

@@ -107,6 +107,34 @@ export default function Leaderboard() {
 
       setBoard(newBoard);
       setLoading(false);
+
+      // תיעוד מצב הדירוג של המשתמש הנוכחי לגרף "מירוץ המקומות" (דלי שעה).
+      // כל אחד כותב רק את השורה שלו; מצטבר להיסטוריה משותפת לאורך הטורניר.
+      if (user) {
+        const myIdx = newBoard.findIndex((r) => r.userId === user.id);
+        if (myIdx >= 0) {
+          // דלי שעה ב-UTC — עקבי בין כל המשתמשים בלי תלות באזור הזמן של המכשיר
+          const d = new Date();
+          const bucket = new Date(
+            Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), d.getUTCHours()),
+          ).toISOString();
+          supabase
+            .from("score_snapshots")
+            .upsert(
+              {
+                user_id: user.id,
+                bucket,
+                total: newBoard[myIdx].total,
+                rank: myIdx + 1,
+              },
+              { onConflict: "user_id,bucket" },
+            )
+            .then(
+              () => {},
+              () => {}, // אם הטבלה עדיין לא קיימת — מתעלמים בשקט
+            );
+        }
+      }
     }
     refresh();
     // רענון אוטומטי כל 60 שניות כדי שהדירוג יתעדכן לייב
@@ -116,7 +144,7 @@ export default function Leaderboard() {
       alive = false;
       clearInterval(t);
     };
-  }, [oddsRows]);
+  }, [oddsRows, user?.id]);
 
   if (loading || oddsLoading) return <Loading />;
 
