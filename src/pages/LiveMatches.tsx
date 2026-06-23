@@ -284,6 +284,18 @@ function MatchCard({
   const [a, setA] = useState(pick?.pred_away ?? 0);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [saveErr, setSaveErr] = useState<string | null>(null);
+  // סנכרון השדות עם הניחוש השמור כשהוא נטען (מתקן "הניחוש נעלם אחרי רענון"):
+  // ה-useState מאתחל פעם אחת בלבד, אז אם הניחוש מגיע מהשרת אחרי הרכבת הרכיב,
+  // משלימים אותו לשדות. רף ה-ref מבטיח שלא נדרוס עריכה פעילה של המשתמש.
+  const syncedRef = useRef(false);
+  useEffect(() => {
+    if (!syncedRef.current && pick) {
+      setH(pick.pred_home);
+      setA(pick.pred_away);
+      syncedRef.current = true;
+    }
+  }, [pick]);
 
   // הכיוון נגזר אוטומטית מהתוצאה שהוזנה — המשתמש מזין רק תוצאה
   const dir: Direction = h > a ? "home" : h < a ? "away" : "draw";
@@ -297,7 +309,8 @@ function MatchCard({
   async function save() {
     if (!user || locked) return;
     setSaving(true);
-    await supabase.from("match_picks").upsert({
+    setSaveErr(null);
+    const { error } = await supabase.from("match_picks").upsert({
       user_id: user.id,
       match_id: match.id,
       direction: dir, // השרת גוזר מחדש מהתוצאה — נשלח רק לנוחות
@@ -306,6 +319,12 @@ function MatchCard({
       // updated_at נקבע בשרת (טריגר) — לא נשלח מהלקוח
     });
     setSaving(false);
+    if (error) {
+      // לא מציגים "נשמר" כשנכשל — מראים שגיאה אמיתית
+      setSaveErr(error.message || "השמירה נכשלה");
+      return;
+    }
+    syncedRef.current = true; // הערך שהוקלד הוא עכשיו השמור
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
     onSave({ direction: dir, pred_home: h, pred_away: a });
@@ -406,6 +425,11 @@ function MatchCard({
           <button onClick={save} disabled={saving} className="btn-primary w-full">
             {saving ? "שומר…" : saved ? "✓ נשמר!" : "שמירת ניחוש"}
           </button>
+          {saveErr && (
+            <p className="mt-2 rounded-xl bg-red-50 px-3 py-2 text-center text-xs font-bold text-red-600">
+              ❌ השמירה נכשלה: {saveErr}
+            </p>
+          )}
           <p className="mt-2 text-center text-[11px] font-semibold text-grass-400">
             ⏱️ ניתן לנחש עד {MATCH_LOCK_MINUTES_BEFORE} דקות לפני שריקת הפתיחה
           </p>
