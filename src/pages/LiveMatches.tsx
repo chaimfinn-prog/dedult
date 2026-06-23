@@ -8,7 +8,7 @@ import { directionPointsFromDecimal } from "../lib/scoring";
 import { exactBonusFor } from "../lib/matchOdds";
 import { MATCH_LOCK_MINUTES_BEFORE } from "../config";
 import { TEAM_BY_CODE } from "../data/teams";
-import type { RevealedGeneral } from "../lib/social";
+import { fetchRevealedMatchPicks, type RevealedGeneral } from "../lib/social";
 import {
   buildMatchShareText,
   relevantGeneralForMatch,
@@ -77,7 +77,7 @@ export default function LiveMatches() {
       }
       const [{ data: m }, reveal, gen, { data: profs }] = await Promise.all([
         supabase.from("matches").select("*").order("kickoff"),
-        supabase.rpc("reveal_match_picks"), // חשוף רק אחרי שריקת הפתיחה
+        fetchRevealedMatchPicks(), // מחולק לעמודים — בלי תקרת 1000
         supabase.rpc("reveal_general_picks"), // לקישור ניחושים כלליים למשחק
         supabase.from("profiles").select("id, full_name, avatar_url"),
       ]);
@@ -85,7 +85,7 @@ export default function LiveMatches() {
       setMatches((m ?? []) as Match[]);
       setGeneral((gen.data ?? []) as RevealedGeneral[]);
 
-      const rows = (reveal.data ?? []) as RevealRow[];
+      const rows = reveal as unknown as RevealRow[];
       setRevealed(rows);
 
       // הניחושים שלי (תמיד מגיעים ב-reveal)

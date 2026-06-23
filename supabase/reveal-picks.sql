@@ -43,7 +43,8 @@ language sql stable security definer set search_path = public as $$
   join public.matches m on m.id = mp.match_id
   where mp.user_id = auth.uid()
      or public.is_admin()
-     or now() >= m.kickoff;
+     or now() >= m.kickoff
+  order by mp.user_id, mp.match_id;  -- סדר יציב לשליפה מחולקת לעמודים (>1000)
 $$;
 
 grant execute on function public.reveal_general_picks() to authenticated;

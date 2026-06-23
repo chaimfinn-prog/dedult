@@ -30,10 +30,19 @@ export async function fetchRevealedGeneral(): Promise<RevealedGeneral[]> {
   return (data ?? []) as RevealedGeneral[];
 }
 
-/** ניחושי משחק חשופים (משלך תמיד; של אחרים רק אחרי שריקת הפתיחה של המשחק) */
+/** ניחושי משחק חשופים — בשליפה מחולקת לעמודים כדי לעקוף את תקרת ה-1000
+ *  של Supabase (אחרת ניחושים מעבר ל-1000 נחתכים ולא נספרים בדירוג). */
 export async function fetchRevealedMatchPicks(): Promise<RevealedMatchPick[]> {
   if (!isSupabaseConfigured) return [];
-  const { data, error } = await supabase.rpc("reveal_match_picks");
-  if (error) return [];
-  return (data ?? []) as RevealedMatchPick[];
+  const pageSize = 1000;
+  const all: RevealedMatchPick[] = [];
+  for (let from = 0; ; from += pageSize) {
+    const { data, error } = await supabase
+      .rpc("reveal_match_picks")
+      .range(from, from + pageSize - 1);
+    if (error || !data || data.length === 0) break;
+    all.push(...(data as RevealedMatchPick[]));
+    if (data.length < pageSize) break;
+  }
+  return all;
 }

@@ -16,6 +16,7 @@ import {
   type LeaderRow,
 } from "../lib/leaderboard";
 import { computePrizes } from "../lib/prizes";
+import { fetchRevealedMatchPicks } from "../lib/social";
 import { ENTRY_FEE_ILS } from "../config";
 import type { MarketOption } from "../lib/types";
 
@@ -44,7 +45,7 @@ export default function Leaderboard() {
         supabase
           .from("matches")
           .select("id, ext_id, stage, home_team, away_team, home_score, away_score, finished"),
-        supabase.rpc("reveal_match_picks"),
+        fetchRevealedMatchPicks(), // מחולק לעמודים — בלי תקרת 1000
         supabase.from("results").select("*"),
       ]);
       if (!alive) return;
@@ -89,7 +90,7 @@ export default function Leaderboard() {
         profiles: activeProfiles as any,
         generalPicks: (gp.data ?? []) as any,
         matches: (matches.data ?? []) as any,
-        matchPicks: (mp.data ?? []) as any,
+        matchPicks: mp as any,
         results: resultsMap,
         probOf: makeProbOf(markets),
       });
