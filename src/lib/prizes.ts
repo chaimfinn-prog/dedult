@@ -16,9 +16,8 @@ const CATEGORIES: PrizeCategory[] = [
   "overall",
   "second",
   "third",
-  "groupStage",
-  "knockout",
   "generalPicks",
+  "matchPicks",
 ];
 
 /** הערך שלפיו מדרגים כל קטגוריה (מי המנצח בה) */
@@ -28,12 +27,11 @@ function categoryScore(row: LeaderRow, cat: PrizeCategory): number {
     case "second":
     case "third":
       return row.total;
-    case "groupStage":
-      return row.subtotals.groupStage;
-    case "knockout":
-      return row.subtotals.knockout;
     case "generalPicks":
       return row.subtotals.generalPicks;
+    case "matchPicks":
+      // כל הימורי המשחקים יחד (שלב הבתים + נוקאאוט)
+      return row.subtotals.groupStage + row.subtotals.knockout;
   }
 }
 

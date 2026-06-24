@@ -97,26 +97,23 @@ export type PrizeCategory =
   | "overall" // מנצח כללי (סך כל הנקודות)
   | "second" // מקום שני בכללי
   | "third" // מקום שלישי בכללי
-  | "groupStage" // הכי הרבה נק' ממשחקי שלב הבתים
-  | "knockout" // הכי הרבה נק' ממשחקי הנוקאאוט
-  | "generalPicks"; // הכי הרבה נק' מהניחושים הכלליים
+  | "generalPicks" // הכי הרבה נק' מהניחושים הכלליים
+  | "matchPicks"; // הכי הרבה נק' מהימורי המשחקים (בתים + נוקאאוט)
 
 export const PRIZE_SHARES: Record<PrizeCategory, number> = {
-  overall: 0.4, // 40%
-  second: 0.2, // 20%
+  overall: 0.45, // 45%
+  second: 0.25, // 25%
   third: 0.1, // 10%
-  groupStage: 0.1, // 10%
-  knockout: 0.1, // 10%
   generalPicks: 0.1, // 10%
+  matchPicks: 0.1, // 10%
 };
 
 export const PRIZE_LABELS: Record<PrizeCategory, string> = {
   overall: "🥇 מנצח כללי",
   second: "🥈 מקום שני",
   third: "🥉 מקום שלישי",
-  groupStage: "⚽ אלוף שלב הבתים",
-  knockout: "🏟️ אלוף הנוקאאוט",
-  generalPicks: "🎯 אלוף הניחושים הכלליים",
+  generalPicks: "🎯 אלוף ההימורים הכלליים",
+  matchPicks: "⚽ אלוף הימורי המשחקים",
 };
 
 /** כל כמה זמן מותר לרענן יחסים אוטומטית (שעות) */
