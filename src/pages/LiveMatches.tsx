@@ -631,8 +631,11 @@ function RevealSection({
       </button>
       {open && (
         <div>
-          {/* כרטיס התמונה (מחוץ למסך) — נלכד ל-PNG */}
-          <div style={{ position: "fixed", left: -10000, top: 0, pointerEvents: "none" }} aria-hidden>
+          {/* כרטיס התמונה — מוכל ב-0×0 עם overflow:hidden כדי שלא ייצור גלילה אופקית */}
+          <div
+            aria-hidden
+            style={{ position: "fixed", width: 0, height: 0, overflow: "hidden", top: 0, insetInlineStart: 0 }}
+          >
             <MatchShareCard ref={cardRef} data={cardData} />
           </div>
           {/* שיתוף סיכום המשחק */}

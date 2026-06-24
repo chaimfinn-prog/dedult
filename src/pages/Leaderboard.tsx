@@ -44,7 +44,7 @@ export default function Leaderboard() {
         supabase.rpc("reveal_general_picks"), // חשוף רק אחרי הנעילה (RPC מאובטח)
         supabase
           .from("matches")
-          .select("id, ext_id, stage, home_team, away_team, home_score, away_score, finished"),
+          .select("id, ext_id, stage, home_team, away_team, kickoff, home_score, away_score, finished"),
         fetchRevealedMatchPicks(), // מחולק לעמודים — בלי תקרת 1000
         supabase.from("results").select("*"),
       ]);
@@ -230,9 +230,9 @@ export default function Leaderboard() {
                   {row.bingo > 0 && (
                     <span className="text-accent-600">🎯 {row.bingo} בינגו</span>
                   )}
-                  {row.directionHits > 0 && (
-                    <span>✓ {row.directionHits} כיוונים</span>
-                  )}
+                  <span className="text-grass-600">
+                    שלב הבתים: {row.subtotals.groupStage.toLocaleString("he-IL")} נק'
+                  </span>
                   <span className="text-grass-400">{open ? "הסתר" : "פירוט"}</span>
                 </div>
               </div>

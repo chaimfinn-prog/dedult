@@ -51,6 +51,7 @@ export interface MatchRow {
   stage?: string | null; // 'groups' = שלב בתים; אחרת נוקאאוט
   home_team?: string | null;
   away_team?: string | null;
+  kickoff?: string | null; // למיון כרונולוגי של הפירוט
   home_score: number | null;
   away_score: number | null;
   finished: boolean;
@@ -185,7 +186,8 @@ export function computeLeaderboard(input: ScoreInput): LeaderRow[] {
     let knockoutTotal = 0;
     let bingo = 0; // תוצאות מדויקות
     let directionHits = 0; // כיוונים נכונים
-    const matchDetails: Breakdown[] = []; // פירוט שקוף לכל משחק
+    // פירוט המשחקים — אוספים הכל, ובסוף מציגים רק בינגו לפי סדר כרונולוגי
+    const matchDetails: (Breakdown & { kickoff?: string | null; bingo: boolean })[] = [];
     const teamName = (c?: string | null) => (c ? TEAM_BY_CODE[c]?.nameHe ?? c : "?");
     for (const mp of matchPicks.filter((x) => x.user_id === p.id)) {
       const m = matchById.get(mp.match_id);
@@ -215,20 +217,21 @@ export function computeLeaderboard(input: ScoreInput): LeaderRow[] {
       if ((m.stage ?? "groups") === "groups") groupStageTotal += res.total;
       else knockoutTotal += res.total;
 
-      // פירוט שקוף לכל משחק שהסתיים שבו ניחש המשתמש
-      if (res.total > 0) {
+      // פירוט: אוספים רק בינגו (תוצאה מדויקת) להצגה כרונולוגית בהמשך
+      if (res.exactCorrect) {
         const label = `${teamName(m.home_team)} ${m.home_score}-${m.away_score} ${teamName(m.away_team)}`;
-        const detail = res.exactCorrect
-          ? `🎯 בינגו! ניחשת ${mp.pred_home}-${mp.pred_away} (כיוון ${res.directionPoints} + בונוס ${res.exactBonus})`
-          : res.directionCorrect
-            ? `✓ כיוון נכון · ניחשת ${mp.pred_home}-${mp.pred_away}`
-            : `ניחשת ${mp.pred_home}-${mp.pred_away}`;
-        matchDetails.push({ label, points: res.total, detail });
+        const detail = `🎯 בינגו! ניחשת ${mp.pred_home}-${mp.pred_away} (כיוון ${res.directionPoints} + בונוס ${res.exactBonus})`;
+        matchDetails.push({ label, points: res.total, detail, kickoff: m.kickoff, bingo: true });
       }
     }
     if (groupStageTotal > 0) breakdown.push({ label: "משחקי שלב הבתים (סה\"כ)", points: groupStageTotal });
     if (knockoutTotal > 0) breakdown.push({ label: "משחקי נוקאאוט (סה\"כ)", points: knockoutTotal });
-    breakdown.push(...matchDetails);
+    // רק בינגו, ממוין כרונולוגית לפי שריקת הפתיחה
+    const bingoLines = matchDetails
+      .slice()
+      .sort((x, y) => (x.kickoff ?? "").localeCompare(y.kickoff ?? ""))
+      .map(({ label, points, detail }) => ({ label, points, detail }));
+    breakdown.push(...bingoLines);
     total += groupStageTotal + knockoutTotal;
 
     return {
