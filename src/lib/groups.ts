@@ -1,0 +1,98 @@
+// ============================================================
+//  groups.ts — דירוג בתים אוטומטי מתוצאות המשחקים + ניקוד מיקומים מדויקים.
+//  ניקוד: מקום 1 = 10, מקום 2 = 5, מקום 3 = 5 (מקסימום 20 לבית).
+//  פונקציות טהורות (נבדקות).
+// ============================================================
+
+import { TEAMS } from "../data/teams";
+
+/** קוד נבחרת → אות הבית (A..L) */
+export const TEAM_GROUP: Record<string, string> = Object.fromEntries(
+  TEAMS.map((t) => [t.code, t.group]),
+);
+
+export interface GroupMatch {
+  home_team?: string | null;
+  away_team?: string | null;
+  home_score: number | null;
+  away_score: number | null;
+  finished: boolean;
+}
+
+interface Standing {
+  code: string;
+  pts: number;
+  gd: number; // הפרש שערים
+  gf: number; // שערי זכות
+}
+
+/**
+ * מחזיר דירוג מסודר (אינדקס 0 = מקום ראשון) לכל בית שכל משחקיו הסתיימו.
+ * שובר שוויון: נקודות → הפרש שערים → שערי זכות → קוד (ליציבות).
+ * בתים שלא הושלמו לא מוחזרים (אי אפשר לדעת מיקום סופי).
+ */
+export function computeGroupStandings(matches: GroupMatch[]): Record<string, string[]> {
+  const byGroup: Record<
+    string,
+    { teams: Set<string>; played: number; table: Record<string, Standing> }
+  > = {};
+  const ensure = (g: string) =>
+    (byGroup[g] ??= { teams: new Set(), played: 0, table: {} });
+  const team = (g: string, code: string) => {
+    const grp = ensure(g);
+    grp.teams.add(code);
+    return (grp.table[code] ??= { code, pts: 0, gd: 0, gf: 0 });
+  };
+
+  for (const m of matches) {
+    if (!m.finished || m.home_score == null || m.away_score == null) continue;
+    const h = m.home_team, a = m.away_team;
+    if (!h || !a) continue;
+    const g = TEAM_GROUP[h];
+    if (!g || g !== TEAM_GROUP[a]) continue; // רק משחקים בתוך אותו בית
+    const th = team(g, h), ta = team(g, a);
+    ensure(g).played++;
+    th.gf += m.home_score; ta.gf += m.away_score;
+    th.gd += m.home_score - m.away_score; ta.gd += m.away_score - m.home_score;
+    if (m.home_score > m.away_score) th.pts += 3;
+    else if (m.home_score < m.away_score) ta.pts += 3;
+    else { th.pts += 1; ta.pts += 1; }
+  }
+
+  const out: Record<string, string[]> = {};
+  for (const [g, info] of Object.entries(byGroup)) {
+    const n = info.teams.size;
+    const expected = (n * (n - 1)) / 2; // ליגת בתים: כל אחד נגד כל אחד
+    if (n < 4 || info.played < expected) continue; // הבית לא הושלם
+    out[g] = Object.values(info.table)
+      .sort((x, y) => y.pts - x.pts || y.gd - x.gd || y.gf - x.gf || x.code.localeCompare(y.code))
+      .map((s) => s.code);
+  }
+  return out;
+}
+
+/** נקודות לפי מיקום (אינדקס 0 = ראשון) */
+export const GROUP_POS_POINTS = [10, 5, 5, 0];
+
+export interface GroupPickResult {
+  points: number;
+  hits: boolean[]; // לכל מיקום: האם נוחש נכון
+}
+
+/** ניקוד ניחוש בית: 10 על מקום 1 נכון, 5 על מקום 2, 5 על מקום 3. */
+export function scoreGroupPick(
+  predicted: string[] | undefined,
+  actual: string[],
+): GroupPickResult {
+  const hits = [false, false, false, false];
+  let points = 0;
+  if (predicted) {
+    for (let i = 0; i < 4; i++) {
+      if (predicted[i] && actual[i] && predicted[i] === actual[i]) {
+        hits[i] = true;
+        points += GROUP_POS_POINTS[i];
+      }
+    }
+  }
+  return { points, hits };
+}

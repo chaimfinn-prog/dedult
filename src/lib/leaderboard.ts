@@ -12,10 +12,12 @@ import {
 } from "./scoring";
 import {
   championFrom,
+  normalizeBracket,
   runnerUpFrom,
   stagesFromBracket,
   type BracketPick,
 } from "./bracketState";
+import { computeGroupStandings, scoreGroupPick } from "./groups";
 import { exactBonusFor } from "./matchOdds";
 import { TEAM_BY_CODE } from "../data/teams";
 import type {
@@ -125,6 +127,16 @@ export function computeLeaderboard(input: ScoreInput): LeaderRow[] {
   const gpByUser = new Map(generalPicks.map((g) => [g.user_id, g]));
   const matchById = new Map(matches.map((m) => [m.id, m]));
 
+  // דירוג בתים סופי (זהה לכל המשתמשים) — אוטומטי מתוצאות המשחקים,
+  // עם אפשרות עקיפה ידנית של האדמין דרך results['group:X']='SUI,CAN,BIH,QAT'.
+  const autoStandings = computeGroupStandings(matches);
+  const groupStandings: Record<string, string[]> = { ...autoStandings };
+  for (const [key, val] of Object.entries(results)) {
+    if (key.startsWith("group:") && val) {
+      groupStandings[key.slice(6)] = val.split(",").map((c) => c.trim());
+    }
+  }
+
   const rows: LeaderRow[] = profiles.map((p) => {
     const breakdown: Breakdown[] = [];
     let total = 0;
@@ -162,19 +174,40 @@ export function computeLeaderboard(input: ScoreInput): LeaderRow[] {
         breakdown.push({ label: "🎯 בונוס אלוף+סגנית", points: CHAMPION_DOUBLE_BONUS });
       }
 
-      // ניחושי שלב לכל נבחרת — נגזרים מהלוח (או מהשדה הישן)
+      // ניחושי מיקומים מדויקים בבתים (10/5/5, מקס' 20 לבית) — נגזר מהלוח,
+      // ומחושב אוטומטית מתוצאות הבית. מתווסף לקטגוריית "ניחושים כלליים".
+      const bracket = gp.bracket ? normalizeBracket(gp.bracket) : null;
+      if (bracket) {
+        for (const [g, actual] of Object.entries(groupStandings)) {
+          const r = scoreGroupPick(bracket.groupRankings[g], actual);
+          if (r.points > 0) {
+            total += r.points;
+            const marks = ["①", "②", "③"]
+              .filter((_, i) => r.hits[i])
+              .join(" ");
+            breakdown.push({
+              label: `🏟️ בית ${g} — מיקומים`,
+              points: r.points,
+              detail: `מקומות שצדקת: ${marks}`,
+            });
+          }
+        }
+      }
+
+      // ניחושי שלב נוקאאוט (1/8 ומעלה) — הבתים מנוקדים לפי מיקום למעלה.
       const stages: Record<string, string> = gp.bracket
         ? stagesFromBracket(gp.bracket)
         : (gp.stages ?? {});
       let stageTotal = 0;
       for (const [code, stage] of Object.entries(stages)) {
+        if (stage === "groups" || stage === "r32") continue; // בתים מנוקדים לפי מיקום
         const truth = results[`stage:${code}`];
         if (truth && truth === stage) {
           const prob = DEFAULT_STAGE_PROB[stage as Stage] / SP_SUM;
           stageTotal += potentialStagePoints(stage as Stage, prob);
         }
       }
-      if (stageTotal > 0) breakdown.push({ label: "ניחושי שלב", points: stageTotal });
+      if (stageTotal > 0) breakdown.push({ label: "ניחושי שלב נוקאאוט", points: stageTotal });
       total += stageTotal;
     }
 
