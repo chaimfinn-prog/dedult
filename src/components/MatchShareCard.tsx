@@ -33,12 +33,13 @@ const MatchShareCard = forwardRef<HTMLDivElement, { data: ShareCardData }>(
         {/* כותרת */}
         <div className="bg-gradient-to-l from-grass-700 to-grass-500 px-6 py-5 text-white">
           <div className="mb-2 text-sm font-bold opacity-90">🏆 ניחושי המונדיאל 2026</div>
-          <div className="flex items-center justify-center gap-4 text-center">
+          {/* dir=ltr: הבית תמיד משמאל (כמו לוח תוצאות) — מונע היפוך בית/חוץ ב-RTL */}
+          <div dir="ltr" className="flex items-center justify-center gap-4 text-center">
             <div className="flex-1">
               <div className="text-4xl">{data.homeFlag}</div>
               <div className="mt-1 text-lg font-extrabold">{data.homeName}</div>
             </div>
-            <div className="text-3xl font-black">
+            <div className="text-3xl font-black" style={{ unicodeBidi: "isolate" }}>
               {data.actual ? `${data.actual.h} - ${data.actual.a}` : "vs"}
             </div>
             <div className="flex-1">
@@ -52,8 +53,8 @@ const MatchShareCard = forwardRef<HTMLDivElement, { data: ShareCardData }>(
           </div>
         </div>
 
-        {/* פילוח כיוונים */}
-        <div className="grid grid-cols-3 gap-2 px-6 py-4">
+        {/* פילוח כיוונים — dir=ltr כך שהבית (משמאל) תואם לכותרת */}
+        <div dir="ltr" className="grid grid-cols-3 gap-2 px-6 py-4">
           {[
             { label: data.homeName, v: data.dir.home },
             { label: "תיקו", v: data.dir.draw },
@@ -70,7 +71,9 @@ const MatchShareCard = forwardRef<HTMLDivElement, { data: ShareCardData }>(
         {data.topScore && (
           <div className="px-6 pb-2 text-center text-sm text-grass-600">
             התוצאה הכי מנוחשת:{" "}
-            <b className="text-grass-900">{data.topScore.score.replace("-", " - ")}</b>{" "}
+            <b dir="ltr" className="text-grass-900" style={{ unicodeBidi: "isolate", display: "inline-block" }}>
+              {data.topScore.score.replace("-", " - ")}
+            </b>{" "}
             ({data.topScore.count})
           </div>
         )}
@@ -85,7 +88,9 @@ const MatchShareCard = forwardRef<HTMLDivElement, { data: ShareCardData }>(
                   {p.bingo ? "🎯 " : p.dirHit ? "✓ " : ""}
                   {p.name}
                 </span>
-                <span className="font-bold text-grass-600">{p.score}</span>
+                <span dir="ltr" className="font-bold text-grass-600" style={{ unicodeBidi: "isolate" }}>
+                  {p.score}
+                </span>
               </div>
             ))}
           </div>
