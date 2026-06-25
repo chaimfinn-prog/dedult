@@ -4,7 +4,7 @@ import { isSupabaseConfigured, supabase } from "../lib/supabase";
 import { buildNormalizedMarket, normalizeProbabilities, probFromDecimal } from "../lib/odds";
 import { useOdds } from "../lib/data";
 import Loading from "../components/Loading";
-import { TEAMS, TEAM_BY_CODE } from "../data/teams";
+import { TEAMS, TEAM_BY_CODE, GROUPS, GROUP_LETTERS } from "../data/teams";
 import { STAGE_LABELS_HE, STAGE_ORDER } from "../lib/types";
 import { championFrom } from "../lib/bracketState";
 import { analyzeAudit, type AuditInsight } from "../lib/audit";
@@ -56,6 +56,7 @@ export default function Admin() {
       <OddsRefresh lastUpdated={lastUpdated} />
       <MatchesAdmin />
       <MatchOddsEditor />
+      <GroupStandingsAdmin />
       <ResultsAdmin />
       <ManualMarketEditor />
     </div>
@@ -534,6 +535,76 @@ function ResultRow({
                 : "סיים"}
       </button>
     </div>
+  );
+}
+
+// דירוג בתים ידני — קובע מקום 1–4 לכל בית (5 נק' לכל מיקום מדויק).
+// נשמר ב-results['group:X'] ועוקף את החישוב האוטומטי בדירוג.
+function GroupStandingsAdmin() {
+  const [results, setResults] = useState<Record<string, string>>({});
+  const [group, setGroup] = useState(GROUP_LETTERS[0]);
+  const [order, setOrder] = useState<string[]>([]);
+  const [msg, setMsg] = useState<string | null>(null);
+
+  async function load() {
+    const { data } = await supabase.from("results").select("*");
+    const map: Record<string, string> = {};
+    (data ?? []).forEach((r: any) => (map[r.key] = r.value));
+    setResults(map);
+  }
+  useEffect(() => {
+    if (isSupabaseConfigured) load();
+  }, []);
+  useEffect(() => {
+    const saved = results[`group:${group}`];
+    setOrder(saved ? saved.split(",").map((s) => s.trim()) : GROUPS[group].map((t) => t.code));
+  }, [group, results]);
+
+  const teams = GROUPS[group];
+  function setPos(i: number, code: string) {
+    setOrder((prev) => {
+      const n = [...prev];
+      n[i] = code;
+      return n;
+    });
+  }
+  async function save() {
+    if (order.length !== 4 || new Set(order).size !== 4) {
+      setMsg("בחר 4 קבוצות שונות (מקום 1–4)");
+      return;
+    }
+    const { data, error } = await supabase
+      .from("results")
+      .upsert({ key: `group:${group}`, value: order.join(",") })
+      .select("key");
+    if (error) { setMsg("שגיאה: " + error.message); return; }
+    if (!data || data.length === 0) { setMsg("⚠️ נחסם (אין הרשאת אדמין). הרץ security-hardening.sql."); return; }
+    setMsg(`✓ נשמר דירוג בית ${group}`);
+    load();
+  }
+
+  return (
+    <Card title="🏟️ דירוג בתים — מיקומים (5 נק' לכל מיקום)">
+      <p className="mb-2 text-xs text-grass-500">
+        קבע מקום 1–4 לכל בית. זה קובע את ניקוד המיקומים בדירוג ועוקף את החישוב
+        האוטומטי. את העולות בנוקאאוט מסמנים למטה ב"שלב סופי של נבחרת".
+      </p>
+      <select value={group} onChange={(e) => setGroup(e.target.value)} className="input mb-2">
+        {GROUP_LETTERS.map((g) => <option key={g} value={g}>בית {g}</option>)}
+      </select>
+      <div className="space-y-1.5">
+        {[0, 1, 2, 3].map((i) => (
+          <div key={i} className="flex items-center gap-2">
+            <span className="w-16 text-sm font-bold text-grass-700">מקום {i + 1}</span>
+            <select value={order[i] ?? ""} onChange={(e) => setPos(i, e.target.value)} className="input flex-1">
+              {teams.map((t) => <option key={t.code} value={t.code}>{t.flag} {t.nameHe}</option>)}
+            </select>
+          </div>
+        ))}
+      </div>
+      <button onClick={save} className="btn-primary mt-3 w-full">שמור דירוג בית {group}</button>
+      {msg && <p className="mt-2 text-sm font-semibold text-grass-700">{msg}</p>}
+    </Card>
   );
 }
 

@@ -227,11 +227,11 @@ export default function Leaderboard() {
                   {row.name} {isMe && <span className="text-xs text-grass-500">(אני)</span>}
                 </div>
                 <div className="flex items-center gap-2 text-[11px] font-bold text-grass-500">
-                  {row.bingo > 0 && (
-                    <span className="text-accent-600">🎯 {row.bingo} בינגו</span>
-                  )}
-                  <span className="text-grass-600">
-                    שלב הבתים: {row.subtotals.groupStage.toLocaleString("he-IL")} נק'
+                  <span className="text-grass-700">
+                    ⚽ משחקים: {(row.subtotals.groupStage + row.subtotals.knockout).toLocaleString("he-IL")}
+                  </span>
+                  <span className="text-grass-700">
+                    🗺️ שלבים: {row.subtotals.generalPicks.toLocaleString("he-IL")}
                   </span>
                   <span className="text-grass-400">{open ? "הסתר" : "פירוט"}</span>
                 </div>

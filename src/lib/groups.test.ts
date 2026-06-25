@@ -33,16 +33,16 @@ describe("דירוג בתים אוטומטי", () => {
   });
 });
 
-describe("ניקוד מיקומים מדויקים בבית", () => {
+describe("ניקוד מיקומים מדויקים בבית (5 לכל מיקום)", () => {
   const actual = ["SUI", "CAN", "BIH", "QAT"];
-  it("ניחוש מושלם = 20 (10+5+5)", () => {
-    expect(scoreGroupPick(["SUI", "CAN", "BIH", "QAT"], actual).points).toBe(20);
+  it("ניחוש מושלם = 15 (5+5+5)", () => {
+    expect(scoreGroupPick(["SUI", "CAN", "BIH", "QAT"], actual).points).toBe(15);
   });
-  it("רק מקום ראשון נכון = 10", () => {
-    expect(scoreGroupPick(["SUI", "QAT", "CAN", "BIH"], actual).points).toBe(10);
+  it("רק מקום ראשון נכון = 5", () => {
+    expect(scoreGroupPick(["SUI", "QAT", "CAN", "BIH"], actual).points).toBe(5);
   });
   it("מקום 2 ו-3 נכונים, ראשון שגוי = 10", () => {
-    expect(scoreGroupPick(["CAN", "CAN", "BIH", "SUI"], actual).points).toBe(5 + 5);
+    expect(scoreGroupPick(["CAN", "CAN", "BIH", "SUI"], actual).points).toBe(10);
   });
   it("הכל שגוי = 0", () => {
     expect(scoreGroupPick(["QAT", "BIH", "CAN", "SUI"], actual).points).toBe(0);

@@ -71,8 +71,8 @@ export function computeGroupStandings(matches: GroupMatch[]): Record<string, str
   return out;
 }
 
-/** נקודות לפי מיקום (אינדקס 0 = ראשון) */
-export const GROUP_POS_POINTS = [10, 5, 5, 0];
+/** נקודות לפי מיקום מדויק (אינדקס 0 = ראשון). 5 נק' לכל עולה במיקום המדויק. */
+export const GROUP_POS_POINTS = [5, 5, 5, 0];
 
 export interface GroupPickResult {
   points: number;
