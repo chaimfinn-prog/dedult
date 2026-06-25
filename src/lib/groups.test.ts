@@ -33,19 +33,23 @@ describe("דירוג בתים אוטומטי", () => {
   });
 });
 
-describe("ניקוד מיקומים מדויקים בבית (5 לכל מיקום)", () => {
-  const actual = ["SUI", "CAN", "BIH", "QAT"];
-  it("ניחוש מושלם = 15 (5+5+5)", () => {
-    expect(scoreGroupPick(["SUI", "CAN", "BIH", "QAT"], actual).points).toBe(15);
+describe("ניקוד מיקומי בית (רק 2 עולות: 5 מדויק / 2 עלתה)", () => {
+  const actual = ["SUI", "CAN", "BIH", "QAT"]; // עולות: SUI(1), CAN(2)
+  it("שתי העולות במקום המדויק = 10 (5+5)", () => {
+    const r = scoreGroupPick(["SUI", "CAN", "BIH", "QAT"], actual);
+    expect(r.points).toBe(10);
+    expect(r.exactHits).toBe(2);
   });
-  it("רק מקום ראשון נכון = 5", () => {
-    expect(scoreGroupPick(["SUI", "QAT", "CAN", "BIH"], actual).points).toBe(5);
+  it("שתי העולות נכונות אך מוחלפות (1↔2) = 4 (2+2)", () => {
+    const r = scoreGroupPick(["CAN", "SUI", "BIH", "QAT"], actual);
+    expect(r.points).toBe(4);
+    expect(r.qualifiedHits).toBe(2);
   });
-  it("מקום 2 ו-3 נכונים, ראשון שגוי = 10", () => {
-    expect(scoreGroupPick(["CAN", "CAN", "BIH", "SUI"], actual).points).toBe(10);
+  it("מקום 1 מדויק, שני שגוי לגמרי = 5", () => {
+    expect(scoreGroupPick(["SUI", "BIH", "QAT", "CAN"], actual).points).toBe(5);
   });
-  it("הכל שגוי = 0", () => {
-    expect(scoreGroupPick(["QAT", "BIH", "CAN", "SUI"], actual).points).toBe(0);
+  it("מקום 3 ו-4 נכונים אך לא העולות = 0", () => {
+    expect(scoreGroupPick(["QAT", "BIH", "BIH", "QAT"], actual).points).toBe(0);
   });
   it("בלי ניחוש = 0", () => {
     expect(scoreGroupPick(undefined, actual).points).toBe(0);

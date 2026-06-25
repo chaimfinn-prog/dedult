@@ -28,7 +28,8 @@ function categoryScore(row: LeaderRow, cat: PrizeCategory): number {
     case "third":
       return row.total;
     case "generalPicks":
-      return row.subtotals.generalPicks;
+      // רק הניחושים הכלליים (שווקים + אלוף/סגנית) — בלי נקודות הלוח־עץ
+      return row.subtotals.generalMarkets;
     case "matchPicks":
       // כל הימורי המשחקים יחד (שלב הבתים + נוקאאוט)
       return row.subtotals.groupStage + row.subtotals.knockout;
@@ -48,8 +49,15 @@ export interface PrizeResult {
  * מחשב את חלוקת הפרסים.
  * @param board  טבלת המובילים (ממוינת או לא)
  * @param pot    גודל הקופה בש"ח
+ * @param opts.final  האם הטורניר הסתיים. כל עוד לא — כל קטגוריה מציגה את האחוז
+ *   הקבוע שלה ואת המוביל הנוכחי (גם אם אותו אדם מוביל בכמה). רק בסיום מפעילים
+ *   את כלל "לא זוכים פעמיים" (הקטנה מתבטלת והאחוז מתחלק מחדש).
  */
-export function computePrizes(board: LeaderRow[], pot: number): PrizeResult[] {
+export function computePrizes(
+  board: LeaderRow[],
+  pot: number,
+  opts: { final?: boolean } = {},
+): PrizeResult[] {
   if (board.length === 0) {
     return CATEGORIES.map((c) => ({
       category: c,
@@ -83,12 +91,15 @@ export function computePrizes(board: LeaderRow[], pot: number): PrizeResult[] {
   const shares: Record<PrizeCategory, number> = { ...PRIZE_SHARES };
   const finalWinner: Record<PrizeCategory, LeaderRow | null> = { ...winners };
 
-  // קבץ קטגוריות לפי מזהה הזוכה
+  // כלל "לא זוכים פעמיים" מופעל רק בסיום הטורניר. עד אז כל קטגוריה
+  // מציגה את האחוז הקבוע ואת המוביל הנוכחי (גם אם אותו אדם מוביל בכמה).
   const byWinner = new Map<string, PrizeCategory[]>();
-  for (const c of CATEGORIES) {
-    const w = winners[c];
-    if (!w) continue;
-    (byWinner.get(w.userId) ?? byWinner.set(w.userId, []).get(w.userId)!).push(c);
+  if (opts.final) {
+    for (const c of CATEGORIES) {
+      const w = winners[c];
+      if (!w) continue;
+      (byWinner.get(w.userId) ?? byWinner.set(w.userId, []).get(w.userId)!).push(c);
+    }
   }
 
   let redistributePool = 0;

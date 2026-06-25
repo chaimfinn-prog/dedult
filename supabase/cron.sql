@@ -33,7 +33,7 @@ end $$;
 -- ---- תוצאות: ימים א'–ה' בערב (20:00–23:59 IL = 17:00–20:59 UTC), כל 20 דק' ----
 select cron.schedule(
   'fetch-scores-sun-thu',
-  '*/20 17-20 * * 0-4',
+  '*/30 17-22 * * 0-4',   -- כל 30 דק' 17:00–22:59 UTC (=20:00–01:59 IL) — שעות המשחקים
   $$
   select net.http_post(
     url     := 'https://<PROJECT_REF>.supabase.co/functions/v1/fetch-scores',
@@ -46,7 +46,7 @@ select cron.schedule(
 -- ---- יום ו' (לפני כניסת שבת): רק עד 15:59 UTC (=18:59 IL), כל 20 דק' ----
 select cron.schedule(
   'fetch-scores-friday',
-  '*/20 10-15 * * 5',
+  '*/30 11-15 * * 5',
   $$
   select net.http_post(
     url     := 'https://<PROJECT_REF>.supabase.co/functions/v1/fetch-scores',
@@ -72,7 +72,7 @@ select cron.schedule(
 -- ---- מוצ"ש בלילה: משחקי שבת בערב (21:00–23:59 IL = 18:00–20:59 UTC), כל 20 דק' ----
 select cron.schedule(
   'fetch-scores-motzash-night',
-  '*/20 18-20 * * 6',
+  '*/30 18-22 * * 6',
   $$
   select net.http_post(
     url     := 'https://<PROJECT_REF>.supabase.co/functions/v1/fetch-scores',
@@ -85,7 +85,7 @@ select cron.schedule(
 -- ---- סריקת בוקר (07:00 IL = 04:00 UTC) ימים א'–ו' (לא שבת) — תופס משחקי לילה ----
 select cron.schedule(
   'fetch-scores-morning',
-  '0 4 * * 0-5',
+  '0 6 * * 0-5',          -- 06:00 UTC (=09:00 IL) — סורק משחקי לילה שהסתיימו
   $$
   select net.http_post(
     url     := 'https://<PROJECT_REF>.supabase.co/functions/v1/fetch-scores',
@@ -108,8 +108,9 @@ select cron.schedule(
   $$
 );
 
--- אומדן קריאות/שבוע: א'-ה' ערב 12×5=60 · ו' יום 18 · מוצ"ש 1+9=10 · בוקר 6 · יחסים 6
---   ≈ 100/שבוע ≈ 400/חודש — בנוח מתחת ל-500. אפשר לצמצם עוד ע"י */30.
+-- אומדן קריאות fetch-scores/שבוע: א'-ה' ערב 12×5=60 · ו' 10 · מוצ"ש 1+10=11 · בוקר 6
+--   ≈ 87/שבוע ≈ 350/חודש. עלות /scores אינה ודאית (1–2 קרדיט לקריאה) → 350–700 קרדיט.
+--   מסך הניהול מציג "נותרו X קריאות" אחרי כל רענון — עקוב, ואם נשרף מהר שנה */30 ל-*/60.
 
 -- לצפייה בתזמונים:   select jobname, schedule from cron.job order by jobname;
 -- לביטול:           select cron.unschedule('<jobname>');

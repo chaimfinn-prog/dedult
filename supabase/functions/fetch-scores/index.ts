@@ -35,6 +35,9 @@ Deno.serve(async (req) => {
       `${BASE}/sports/${SPORT_KEY}/scores/?daysFrom=3&apiKey=${ODDS_API_KEY}`,
     );
     if (!res.ok) throw new Error(`scores API ${res.status}`);
+    // מכסת הקריאות שנותרה/נוצלה — The Odds API מחזיר בכותרות התשובה
+    const remaining = res.headers.get("x-requests-remaining");
+    const used = res.headers.get("x-requests-used");
     const games = await res.json();
 
     let updated = 0;
@@ -60,9 +63,15 @@ Deno.serve(async (req) => {
       if (!error) updated++;
     }
 
-    return new Response(JSON.stringify({ ok: true, updated }), {
-      headers: { ...cors, "Content-Type": "application/json" },
-    });
+    return new Response(
+      JSON.stringify({
+        ok: true,
+        updated,
+        remaining: remaining ? Number(remaining) : null,
+        used: used ? Number(used) : null,
+      }),
+      { headers: { ...cors, "Content-Type": "application/json" } },
+    );
   } catch (e) {
     return new Response(JSON.stringify({ ok: false, error: String(e) }), {
       status: 500,

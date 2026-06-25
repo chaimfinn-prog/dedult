@@ -359,7 +359,8 @@ function OddsRefresh({ lastUpdated }: { lastUpdated: string | null }) {
       setMsg(
         kind === "odds"
           ? `✓ עודכנו ${data?.upserted ?? 0} יחסים`
-          : `✓ עודכנו ${data?.updated ?? 0} תוצאות משחקים`,
+          : `✓ עודכנו ${data?.updated ?? 0} תוצאות` +
+            (data?.remaining != null ? ` · נותרו ${data.remaining} קריאות API החודש` : ""),
       );
     } catch (e: any) {
       setMsg("שגיאה: " + (e?.message || String(e)));

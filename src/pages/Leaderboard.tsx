@@ -25,6 +25,7 @@ export default function Leaderboard() {
   const { loading: oddsLoading, rows: oddsRows } = useOdds();
   const [board, setBoard] = useState<LeaderRow[]>([]);
   const [activeCount, setActiveCount] = useState(0);
+  const [isFinal, setIsFinal] = useState(false); // האם הטורניר הסתיים (הגמר שוחק)
   const [loading, setLoading] = useState(true);
   const [openId, setOpenId] = useState<string | null>(null);
   const [showPrizes, setShowPrizes] = useState(false);
@@ -72,6 +73,7 @@ export default function Leaderboard() {
       const finalMatch = (matches.data ?? []).find(
         (m: any) => m.stage === "final" && m.finished && m.home_score != null,
       );
+      setIsFinal(!!finalMatch);
       if (finalMatch) {
         const homeWon = finalMatch.home_score > finalMatch.away_score;
         const champ = homeWon ? finalMatch.home_team : finalMatch.away_team;
@@ -150,7 +152,7 @@ export default function Leaderboard() {
   if (loading || oddsLoading) return <Loading />;
 
   const pot = activeCount * ENTRY_FEE_ILS;
-  const prizes = computePrizes(board, pot);
+  const prizes = computePrizes(board, pot, { final: isFinal });
 
   return (
     <div className="space-y-3 animate-fade-up">
@@ -226,12 +228,15 @@ export default function Leaderboard() {
                 <div className="truncate font-extrabold text-grass-900">
                   {row.name} {isMe && <span className="text-xs text-grass-500">(אני)</span>}
                 </div>
-                <div className="flex items-center gap-2 text-[11px] font-bold text-grass-500">
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] font-bold text-grass-500">
                   <span className="text-grass-700">
                     ⚽ משחקים: {(row.subtotals.groupStage + row.subtotals.knockout).toLocaleString("he-IL")}
                   </span>
                   <span className="text-grass-700">
-                    🗺️ שלבים: {row.subtotals.generalPicks.toLocaleString("he-IL")}
+                    🗺️ שלבים: {row.subtotals.bracketStages.toLocaleString("he-IL")}
+                  </span>
+                  <span className="text-grass-700">
+                    🎯 כללי: {row.subtotals.generalMarkets.toLocaleString("he-IL")}
                   </span>
                   <span className="text-grass-400">{open ? "הסתר" : "פירוט"}</span>
                 </div>

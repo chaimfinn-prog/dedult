@@ -71,28 +71,42 @@ export function computeGroupStandings(matches: GroupMatch[]): Record<string, str
   return out;
 }
 
-/** נקודות לפי מיקום מדויק (אינדקס 0 = ראשון). 5 נק' לכל עולה במיקום המדויק. */
-export const GROUP_POS_POINTS = [5, 5, 5, 0];
+/** ניקוד מיקומי בית: רק 2 העולות. מקום מדויק = 5, עלתה אך במקום השני = 2. */
+export const GROUP_EXACT_POINTS = 5;
+export const GROUP_QUALIFIED_POINTS = 2;
 
 export interface GroupPickResult {
   points: number;
-  hits: boolean[]; // לכל מיקום: האם נוחש נכון
+  exactHits: number; // נוחש המקום המדויק (1/2)
+  qualifiedHits: number; // הקבוצה עלתה אך ניחשת אותה במקום העולה השני
 }
 
-/** ניקוד ניחוש בית: 10 על מקום 1 נכון, 5 על מקום 2, 5 על מקום 3. */
+/**
+ * ניקוד ניחוש בית — רק 2 הקבוצות העולות (מקומות 1–2):
+ *   • מקום מדויק (הקבוצה הנכונה במקום הנכון) = 5
+ *   • הקבוצה עלתה (בטופ 2 בפועל וגם בטופ 2 שלך) אך במקום השני = 2
+ *   • מקומות 3–4 לא מזכים בנקודות.
+ */
 export function scoreGroupPick(
   predicted: string[] | undefined,
   actual: string[],
 ): GroupPickResult {
-  const hits = [false, false, false, false];
   let points = 0;
+  let exactHits = 0;
+  let qualifiedHits = 0;
   if (predicted) {
-    for (let i = 0; i < 4; i++) {
-      if (predicted[i] && actual[i] && predicted[i] === actual[i]) {
-        hits[i] = true;
-        points += GROUP_POS_POINTS[i];
+    const predTop2 = [predicted[0], predicted[1]];
+    for (let i = 0; i < 2; i++) {
+      const team = actual[i];
+      if (!team) continue;
+      if (predicted[i] === team) {
+        points += GROUP_EXACT_POINTS;
+        exactHits++;
+      } else if (predTop2.includes(team)) {
+        points += GROUP_QUALIFIED_POINTS;
+        qualifiedHits++;
       }
     }
   }
-  return { points, hits };
+  return { points, exactHits, qualifiedHits };
 }

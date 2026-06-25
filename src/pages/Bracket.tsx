@@ -12,6 +12,14 @@ import {
   resolveSlot,
   type BracketPick,
 } from "../lib/bracketState";
+import { computeGroupStandings } from "../lib/groups";
+import { STAGE_ORDER, type Stage } from "../lib/types";
+
+/** האם הקבוצה הגיעה בפועל לפחות לשלב הנדרש (מ-results['stage:CODE']). */
+function reachedAtLeast(actual: Stage | undefined, needed: Stage): boolean | null {
+  if (!actual) return null; // עוד לא ידוע
+  return STAGE_ORDER.indexOf(actual) >= STAGE_ORDER.indexOf(needed);
+}
 
 // טקסט עזר למשבצת ריקה (כשעוד לא ידועה הנבחרת)
 function slotPlaceholder(slot: SlotRef): string {
@@ -26,6 +34,8 @@ function slotPlaceholder(slot: SlotRef): string {
 export default function Bracket() {
   const { user } = useAuth();
   const [pick, setPick] = useState<BracketPick>(emptyBracketPick());
+  const [results, setResults] = useState<Record<string, string>>({});
+  const [matches, setMatches] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState<number | null>(null);
@@ -40,12 +50,16 @@ export default function Bracket() {
         setLoading(false);
         return;
       }
-      const { data } = await supabase
-        .from("general_picks")
-        .select("bracket")
-        .eq("user_id", user.id)
-        .maybeSingle();
+      const [{ data }, res, mt] = await Promise.all([
+        supabase.from("general_picks").select("bracket").eq("user_id", user.id).maybeSingle(),
+        supabase.from("results").select("*"),
+        supabase.from("matches").select("home_team, away_team, home_score, away_score, finished"),
+      ]);
       if (!alive) return;
+      const rmap: Record<string, string> = {};
+      (res.data ?? []).forEach((r: any) => (rmap[r.key] = r.value));
+      setResults(rmap);
+      setMatches(mt.data ?? []);
       if (data?.bracket && data.bracket.groupRankings) {
         // מיזוג בטוח עם ברירת המחדל (אם נוספו בתים)
         const base = emptyBracketPick();
@@ -77,9 +91,28 @@ export default function Bracket() {
 
   if (loading) return <Loading />;
 
+  // דירוג בתים בפועל (אוטומטי + עקיפת אדמין) ושלב בפועל לכל קבוצה — לסימוני ✓/✗
+  const autoStandings = computeGroupStandings(matches);
+  const groupStandings: Record<string, string[]> = { ...autoStandings };
+  for (const [k, v] of Object.entries(results)) {
+    if (k.startsWith("group:") && v) groupStandings[k.slice(6)] = v.split(",").map((s) => s.trim());
+  }
+  const stageOf = (code: string) => results[`stage:${code}`] as Stage | undefined;
+  const hasResults =
+    Object.keys(groupStandings).length > 0 ||
+    Object.keys(results).some((k) => k.startsWith("stage:"));
+
   return (
     <div className="space-y-5 animate-fade-up pb-4">
       <Hero locked={locked} />
+
+      {hasResults && (
+        <div className="flex flex-wrap justify-center gap-3 rounded-2xl bg-grass-50 px-3 py-2 text-[11px] font-bold">
+          <span className="text-grass-600">✓ ניחוש מדויק</span>
+          <span className="text-amber-600">↑ עלתה (מקום אחר)</span>
+          <span className="text-red-500">✗ פספוס</span>
+        </div>
+      )}
 
       {/* טאבים: בתים / נוקאאוט */}
       <div className="flex gap-1 rounded-2xl bg-grass-50 p-1">
@@ -92,9 +125,9 @@ export default function Bracket() {
       </div>
 
       {tab === "groups" ? (
-        <GroupsStage pick={pick} setPick={setPick} locked={locked} />
+        <GroupsStage pick={pick} setPick={setPick} locked={locked} standings={groupStandings} />
       ) : (
-        <KnockoutStage pick={pick} setPick={setPick} locked={locked} />
+        <KnockoutStage pick={pick} setPick={setPick} locked={locked} stageOf={stageOf} />
       )}
 
       {!locked && (
@@ -146,11 +179,22 @@ function GroupsStage({
   pick,
   setPick,
   locked,
+  standings,
 }: {
   pick: BracketPick;
   setPick: (p: BracketPick) => void;
   locked: boolean;
+  standings: Record<string, string[]>;
 }) {
+  // סימון ✓/↑/✗ למיקום שניחשת מול הדירוג בפועל (אם הבית הוכרע)
+  function mark(g: string, idx: number, code: string) {
+    const actual = standings[g];
+    if (!actual) return null;
+    if (actual[idx] === code) return { sym: "✓", cls: "text-grass-600" };
+    if (idx < 2 && actual.slice(0, 2).includes(code))
+      return { sym: "↑", cls: "text-amber-600" };
+    return { sym: "✗", cls: "text-red-500" };
+  }
   function move(group: string, idx: number, dir: -1 | 1) {
     const arr = [...pick.groupRankings[group]];
     const j = idx + dir;
@@ -183,6 +227,10 @@ function GroupsStage({
                   <span className="flex-1 truncate text-sm font-bold text-grass-900">
                     {t?.nameHe ?? code}
                   </span>
+                  {(() => {
+                    const m = mark(g, idx, code);
+                    return m ? <span className={`text-sm font-black ${m.cls}`}>{m.sym}</span> : null;
+                  })()}
                   {!locked && (
                     <div className="flex flex-col">
                       <button
@@ -210,22 +258,25 @@ function GroupsStage({
 }
 
 // ============ שלב 2: נוקאאוט ============
+// grant = השלב שהמנצח במשחק זה מגיע אליו (לבדיקת ✓/✗ מול results['stage:'])
 const KO_ROUNDS = [
-  { key: "r32", title: "שמינית-של-32", matches: R32 },
-  { key: "r16", title: "שמינית גמר", matches: R16 },
-  { key: "qf", title: "רבע גמר", matches: QF },
-  { key: "sf", title: "חצי גמר", matches: SF },
-  { key: "final", title: "הגמר", matches: [FINAL] },
+  { key: "r32", title: "שמינית-של-32", matches: R32, grant: "r16" as Stage },
+  { key: "r16", title: "שמינית גמר", matches: R16, grant: "qf" as Stage },
+  { key: "qf", title: "רבע גמר", matches: QF, grant: "sf" as Stage },
+  { key: "sf", title: "חצי גמר", matches: SF, grant: "final" as Stage },
+  { key: "final", title: "הגמר", matches: [FINAL], grant: "winner" as Stage },
 ];
 
 function KnockoutStage({
   pick,
   setPick,
   locked,
+  stageOf,
 }: {
   pick: BracketPick;
   setPick: (p: BracketPick) => void;
   locked: boolean;
+  stageOf: (code: string) => Stage | undefined;
 }) {
   const champion = pick.winners[FINAL.match];
 
@@ -262,6 +313,8 @@ function KnockoutStage({
                 pick={pick}
                 locked={locked}
                 onPickWinner={chooseWinner}
+                grant={round.grant}
+                stageOf={stageOf}
               />
             ))}
           </div>
@@ -276,14 +329,20 @@ function KnockoutMatch({
   pick,
   locked,
   onPickWinner,
+  grant,
+  stageOf,
 }: {
   match: BracketMatch;
   pick: BracketPick;
   locked: boolean;
   onPickWinner: (match: number, code: string | null) => void;
+  grant: Stage;
+  stageOf: (code: string) => Stage | undefined;
 }) {
   const { home, away } = matchTeams(match, pick);
   const winner = pick.winners[match.match];
+  // האם הקבוצה שניחשת כמנצחת אכן עלתה לשלב הבא בפועל
+  const winnerOk = winner ? reachedAtLeast(stageOf(winner), grant) : null;
 
   return (
     <div className="card p-2.5">
@@ -298,6 +357,7 @@ function KnockoutMatch({
           code={home}
           placeholder={slotPlaceholder(match.home)}
           selected={winner != null && winner === home}
+          result={winner === home ? winnerOk : null}
           disabled={locked || !home}
           onClick={() => onPickWinner(match.match, home)}
         />
@@ -305,6 +365,7 @@ function KnockoutMatch({
           code={away}
           placeholder={slotPlaceholder(match.away)}
           selected={winner != null && winner === away}
+          result={winner === away ? winnerOk : null}
           disabled={locked || !away}
           onClick={() => onPickWinner(match.match, away)}
         />
@@ -317,25 +378,30 @@ function SideBtn({
   code,
   placeholder,
   selected,
+  result,
   disabled,
   onClick,
 }: {
   code: string | null;
   placeholder: string;
   selected: boolean;
+  result: boolean | null; // האם הניחוש התברר כנכון (null = לא ידוע עדיין)
   disabled: boolean;
   onClick: () => void;
 }) {
   const t = code ? TEAM_BY_CODE[code] : null;
+  const border =
+    selected && result === true ? "border-grass-500 bg-grass-50 ring-2 ring-grass-400"
+    : selected && result === false ? "border-red-300 bg-red-50 ring-2 ring-red-200"
+    : selected ? "border-grass-500 bg-grass-50 ring-2 ring-grass-300"
+    : "border-black/10 hover:bg-grass-50/50";
   return (
     <button
       onClick={onClick}
       disabled={disabled}
       className={[
         "flex items-center gap-2 rounded-xl border p-2 text-right transition disabled:cursor-not-allowed",
-        selected
-          ? "border-grass-500 bg-grass-50 ring-2 ring-grass-300"
-          : "border-black/10 hover:bg-grass-50/50",
+        border,
         !code ? "opacity-50" : "",
       ].join(" ")}
     >
@@ -343,7 +409,9 @@ function SideBtn({
       <span className="min-w-0 flex-1 truncate text-sm font-bold text-grass-900">
         {t?.nameHe ?? placeholder}
       </span>
-      {selected && <span className="text-grass-600">✓</span>}
+      {selected && result === true && <span className="font-black text-grass-600">✓</span>}
+      {selected && result === false && <span className="font-black text-red-500">✗</span>}
+      {selected && result === null && <span className="text-grass-600">•</span>}
     </button>
   );
 }

@@ -90,7 +90,8 @@ export interface LeaderRow {
   breakdown: Breakdown[];
   /** סכומי-משנה לפי קטגוריית פרס */
   subtotals: {
-    generalPicks: number; // כל הניחושים הכלליים (כולל שלבים ובונוס)
+    generalMarkets: number; // ניחושים כלליים: שווקים + אלוף/סגנית + בונוס
+    bracketStages: number; // לוח־עץ: מיקומי בתים + התקדמות נוקאאוט
     groupStage: number; // נקודות ממשחקי שלב הבתים
     knockout: number; // נקודות ממשחקי הנוקאאוט
   };
@@ -134,63 +135,62 @@ export function computeLeaderboard(input: ScoreInput): LeaderRow[] {
   const rows: LeaderRow[] = profiles.map((p) => {
     const breakdown: Breakdown[] = [];
     let total = 0;
+    let marketsTotal = 0; // ניחושים כלליים: שווקים + אלוף/סגנית + בונוס
+    let stagesTotal = 0; // לוח־עץ: מיקומי בתים + התקדמות נוקאאוט
     const teamName = (c?: string | null) => (c ? TEAM_BY_CODE[c]?.nameHe ?? c : "?");
 
     const gp = gpByUser.get(p.id);
     if (gp) {
-      // שווקי שחקנים (מלך שערים / סגן / בישולים)
+      // ===== ניחושים כלליים (שווקים + אלוף/סגנית) — קטגוריית "אלוף כללי" =====
       for (const { field, cat, market, label } of GENERAL_FIELDS) {
         const pick = gp[field] as string | null;
         if (pick && results[market] && results[market] === pick) {
           const pts = potentialGeneralPoints(cat, probOf(market, pick));
-          total += pts;
+          marketsTotal += pts;
           breakdown.push({ label, points: pts });
         }
       }
 
-      // אלוף + סגנית — נגזרים מלוח העץ של המשתמש
       const champ = gp.bracket ? championFrom(gp.bracket) : gp.champion;
       const runner = gp.bracket ? runnerUpFrom(gp.bracket) : gp.runner_up;
       const champCorrect = !!champ && results["champion"] === champ;
       const runnerCorrect = !!runner && results["runnerUp"] === runner;
       if (champCorrect) {
         const pts = potentialGeneralPoints("champion", probOf("champion", champ!));
-        total += pts;
+        marketsTotal += pts;
         breakdown.push({ label: "אלוף", points: pts });
       }
       if (runnerCorrect) {
         const pts = potentialGeneralPoints("runnerUp", probOf("runnerUp", runner!));
-        total += pts;
+        marketsTotal += pts;
         breakdown.push({ label: "סגנית", points: pts });
       }
-      // בונוס ענק: מי שצדק גם באלוף וגם בסגנית
       if (champCorrect && runnerCorrect) {
-        total += CHAMPION_DOUBLE_BONUS;
+        marketsTotal += CHAMPION_DOUBLE_BONUS;
         breakdown.push({ label: "🎯 בונוס אלוף+סגנית", points: CHAMPION_DOUBLE_BONUS });
       }
 
-      // ניחושי מיקומים מדויקים בבתים (10/5/5, מקס' 20 לבית) — נגזר מהלוח,
-      // ומחושב אוטומטית מתוצאות הבית. מתווסף לקטגוריית "ניחושים כלליים".
+      // ===== שלבים (לוח־עץ) — נספר בכללי בלבד, לא בקטגוריית "אלוף כללי" =====
+      // מיקומי בתים: 5 על מקום מדויק, 2 על קבוצה שעלתה במקום השני (מקומות 1–2).
       const bracket = gp.bracket ? normalizeBracket(gp.bracket) : null;
       if (bracket) {
         for (const [g, actual] of Object.entries(groupStandings)) {
           const r = scoreGroupPick(bracket.groupRankings[g], actual);
           if (r.points > 0) {
-            total += r.points;
-            const marks = ["①", "②", "③"]
-              .filter((_, i) => r.hits[i])
-              .join(" ");
+            stagesTotal += r.points;
+            const parts: string[] = [];
+            if (r.exactHits) parts.push(`${r.exactHits}× מדויק`);
+            if (r.qualifiedHits) parts.push(`${r.qualifiedHits}× עלתה`);
             breakdown.push({
               label: `🏟️ בית ${g} — מיקומים`,
               points: r.points,
-              detail: `מקומות שצדקת: ${marks}`,
+              detail: parts.join(" · "),
             });
           }
         }
       }
 
-      // התקדמות בנוקאאוט — 10 נק' לכל שלב (1/8, רבע, חצי, גמר) שקבוצה הגיעה
-      // אליו וניחשת זאת. השלב הסופי בפועל מגיע מ-results['stage:CODE'].
+      // התקדמות בנוקאאוט — 10 נק' לכל שלב (רבע/חצי/גמר) שקבוצה הגיעה אליו וניחשת.
       const stages: Record<string, string> = gp.bracket
         ? stagesFromBracket(gp.bracket)
         : (gp.stages ?? {});
@@ -198,27 +198,22 @@ export function computeLeaderboard(input: ScoreInput): LeaderRow[] {
       const koTeams: string[] = [];
       for (const [code, predicted] of Object.entries(stages)) {
         const actual = results[`stage:${code}`];
-        const r = scoreKnockoutAdvancement(
-          predicted as Stage,
-          actual as Stage | undefined,
-        );
+        const r = scoreKnockoutAdvancement(predicted as Stage, actual as Stage | undefined);
         if (r.points > 0) {
           koAdvTotal += r.points;
           koTeams.push(`${teamName(code)} (${r.points})`);
         }
       }
       if (koAdvTotal > 0) {
+        stagesTotal += koAdvTotal;
         breakdown.push({
           label: "🏟️ התקדמות בנוקאאוט",
           points: koAdvTotal,
           detail: koTeams.join(" · "),
         });
-        total += koAdvTotal;
       }
     }
-
-    // עד כאן הכל "ניחושים כלליים" — נשמור כסכום-משנה לקטגוריית הפרס
-    const generalPicksTotal = total;
+    total += marketsTotal + stagesTotal;
 
     // ניחושי משחקים — מפוצלים לשלב בתים מול נוקאאוט
     let groupStageTotal = 0;
@@ -279,7 +274,8 @@ export function computeLeaderboard(input: ScoreInput): LeaderRow[] {
       total,
       breakdown,
       subtotals: {
-        generalPicks: generalPicksTotal,
+        generalMarkets: marketsTotal,
+        bracketStages: stagesTotal,
         groupStage: groupStageTotal,
         knockout: knockoutTotal,
       },
