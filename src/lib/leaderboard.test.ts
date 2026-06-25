@@ -49,7 +49,9 @@ describe("חישוב טבלת מובילים", () => {
     const u1 = board.find((r) => r.userId === "u1")!;
     const u2 = board.find((r) => r.userId === "u2")!;
     expect(u1.breakdown.find((b) => b.label === "אלוף")?.points).toBe(300);
-    expect(u1.breakdown.some((b) => b.label.includes("ניחושי שלב"))).toBe(true);
+    // BRA: ניחשת qf, הגיעה qf → 20 (1/8 + רבע)
+    const ko = u1.breakdown.find((b) => b.label.includes("נוקאאוט"));
+    expect(ko?.points).toBe(20);
     expect(u1.breakdown.some((b) => b.label.includes("משחקי"))).toBe(true);
     expect(u2.total).toBe(0);
   });

@@ -11,9 +11,8 @@ import {
   ODDS_POINTS_POWER,
   ODDS_POINTS_WEIGHT,
   MAX_POINTS_PER_PICK,
-  STAGE_WEIGHTS,
 } from "../config";
-import type { Direction, GeneralCategory, Stage } from "./types";
+import type { Direction, GeneralCategory } from "./types";
 
 /** מחיל תקרת נקודות אופציונלית (אם הוגדרה ב-config) */
 function applyCap(points: number): number {
@@ -52,18 +51,6 @@ export function scoreGeneralPick(
   return correct ? potentialGeneralPoints(category, prob) : 0;
 }
 
-/** נקודות פוטנציאליות לניחוש "לאיזה שלב הגיעה הנבחרת". */
-export function potentialStagePoints(stage: Stage, prob: number): number {
-  return pointsForProbability(STAGE_WEIGHTS[stage], prob);
-}
-
-export function scoreStagePick(
-  stage: Stage,
-  prob: number,
-  correct: boolean,
-): number {
-  return correct ? potentialStagePoints(stage, prob) : 0;
-}
 
 /**
  * נקודות הכיוון (1X2) מהיחס העשרוני, עם דעיכה (חזקה) שמרסנת הפתעות:

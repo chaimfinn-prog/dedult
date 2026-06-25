@@ -7,7 +7,6 @@ import { CHAMPION_DOUBLE_BONUS } from "../config";
 import {
   directionOf,
   potentialGeneralPoints,
-  potentialStagePoints,
   scoreMatchPick,
 } from "./scoring";
 import {
@@ -18,6 +17,7 @@ import {
   type BracketPick,
 } from "./bracketState";
 import { computeGroupStandings, scoreGroupPick } from "./groups";
+import { scoreKnockoutAdvancement } from "./knockout";
 import { exactBonusFor } from "./matchOdds";
 import { TEAM_BY_CODE } from "../data/teams";
 import type {
@@ -116,12 +116,6 @@ const GENERAL_FIELDS: {
   { field: "best_defense_team", cat: "bestDefenseTeam", market: "bestDefenseTeam", label: "הגנה הכי טובה" },
 ];
 
-// הסתברות שלב ברירת מחדל (תואם ל-GeneralPicks)
-const DEFAULT_STAGE_PROB: Record<Stage, number> = {
-  groups: 0.42, r32: 0.26, r16: 0.15, qf: 0.09, sf: 0.045, final: 0.022, winner: 0.013,
-};
-const SP_SUM = Object.values(DEFAULT_STAGE_PROB).reduce((a, b) => a + b, 0);
-
 export function computeLeaderboard(input: ScoreInput): LeaderRow[] {
   const { profiles, generalPicks, matches, matchPicks, results, probOf } = input;
   const gpByUser = new Map(generalPicks.map((g) => [g.user_id, g]));
@@ -140,6 +134,7 @@ export function computeLeaderboard(input: ScoreInput): LeaderRow[] {
   const rows: LeaderRow[] = profiles.map((p) => {
     const breakdown: Breakdown[] = [];
     let total = 0;
+    const teamName = (c?: string | null) => (c ? TEAM_BY_CODE[c]?.nameHe ?? c : "?");
 
     const gp = gpByUser.get(p.id);
     if (gp) {
@@ -194,21 +189,32 @@ export function computeLeaderboard(input: ScoreInput): LeaderRow[] {
         }
       }
 
-      // ניחושי שלב נוקאאוט (1/8 ומעלה) — הבתים מנוקדים לפי מיקום למעלה.
+      // התקדמות בנוקאאוט — 10 נק' לכל שלב (1/8, רבע, חצי, גמר) שקבוצה הגיעה
+      // אליו וניחשת זאת. השלב הסופי בפועל מגיע מ-results['stage:CODE'].
       const stages: Record<string, string> = gp.bracket
         ? stagesFromBracket(gp.bracket)
         : (gp.stages ?? {});
-      let stageTotal = 0;
-      for (const [code, stage] of Object.entries(stages)) {
-        if (stage === "groups" || stage === "r32") continue; // בתים מנוקדים לפי מיקום
-        const truth = results[`stage:${code}`];
-        if (truth && truth === stage) {
-          const prob = DEFAULT_STAGE_PROB[stage as Stage] / SP_SUM;
-          stageTotal += potentialStagePoints(stage as Stage, prob);
+      let koAdvTotal = 0;
+      const koTeams: string[] = [];
+      for (const [code, predicted] of Object.entries(stages)) {
+        const actual = results[`stage:${code}`];
+        const r = scoreKnockoutAdvancement(
+          predicted as Stage,
+          actual as Stage | undefined,
+        );
+        if (r.points > 0) {
+          koAdvTotal += r.points;
+          koTeams.push(`${teamName(code)} (${r.points})`);
         }
       }
-      if (stageTotal > 0) breakdown.push({ label: "ניחושי שלב נוקאאוט", points: stageTotal });
-      total += stageTotal;
+      if (koAdvTotal > 0) {
+        breakdown.push({
+          label: "🏟️ התקדמות בנוקאאוט",
+          points: koAdvTotal,
+          detail: koTeams.join(" · "),
+        });
+        total += koAdvTotal;
+      }
     }
 
     // עד כאן הכל "ניחושים כלליים" — נשמור כסכום-משנה לקטגוריית הפרס
@@ -221,7 +227,6 @@ export function computeLeaderboard(input: ScoreInput): LeaderRow[] {
     let directionHits = 0; // כיוונים נכונים
     // פירוט המשחקים — אוספים הכל, ובסוף מציגים רק בינגו לפי סדר כרונולוגי
     const matchDetails: (Breakdown & { kickoff?: string | null; bingo: boolean })[] = [];
-    const teamName = (c?: string | null) => (c ? TEAM_BY_CODE[c]?.nameHe ?? c : "?");
     for (const mp of matchPicks.filter((x) => x.user_id === p.id)) {
       const m = matchById.get(mp.match_id);
       if (!m || !m.finished || m.home_score == null || m.away_score == null) continue;

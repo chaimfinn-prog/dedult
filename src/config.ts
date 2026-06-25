@@ -3,7 +3,7 @@
 //  כל המשקלים והקבועים נמצאים כאן, נוח לעריכה במקום אחד.
 // ============================================================
 
-import type { GeneralCategory, Stage } from "./lib/types";
+import type { GeneralCategory } from "./lib/types";
 
 /**
  * משקלי הקטגוריות בניחושים הכלליים (שלב 1).
@@ -33,19 +33,6 @@ export const CATEGORY_WEIGHTS: Record<GeneralCategory, number> = {
  */
 export const CHAMPION_DOUBLE_BONUS = 250;
 
-/**
- * ניחוש "מי עולה / לאיזה שלב הגיעה כל נבחרת".
- * מעט נקודות, גדל ככל שהשלב מתקדם (1–2 בסיס, וגדל מעבר לכך לשלבים הגבוהים).
- */
-export const STAGE_WEIGHTS: Record<Stage, number> = {
-  groups: 0.5,
-  r32: 0.5,
-  r16: 0.75,
-  qf: 0.75,
-  sf: 1,
-  final: 1,
-  winner: 1,
-};
 
 /**
  * ניקוד הכיוון (1X2) מהיחס העשרוני, עם דעיכה (חזקה) כדי לרסן הפתעות:
