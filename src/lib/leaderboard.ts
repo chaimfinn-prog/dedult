@@ -3,7 +3,7 @@
 //  מקבל את כל הנתונים ומחזיר דירוג עם פירוט מקור הנקודות.
 // ============================================================
 
-import { CHAMPION_DOUBLE_BONUS } from "../config";
+import { CHAMPION_DOUBLE_BONUS, KNOCKOUT_MATCH_MULTIPLIER } from "../config";
 import {
   directionOf,
   potentialGeneralPoints,
@@ -247,14 +247,16 @@ export function computeLeaderboard(input: ScoreInput): LeaderRow[] {
       );
       if (res.exactCorrect) bingo++;
       if (res.directionCorrect) directionHits++;
-      if ((m.stage ?? "groups") === "groups") groupStageTotal += res.total;
-      else knockoutTotal += res.total;
+      const isKnockout = (m.stage ?? "groups") !== "groups";
+      const matchPoints = isKnockout ? Math.round(res.total * KNOCKOUT_MATCH_MULTIPLIER) : res.total;
+      if (isKnockout) knockoutTotal += matchPoints;
+      else groupStageTotal += matchPoints;
 
       // פירוט: אוספים רק בינגו (תוצאה מדויקת) להצגה כרונולוגית בהמשך
       if (res.exactCorrect) {
         const label = `${teamName(m.home_team)} ${m.home_score}-${m.away_score} ${teamName(m.away_team)}`;
-        const detail = `🎯 בינגו! ניחשת ${mp.pred_home}-${mp.pred_away} (כיוון ${res.directionPoints} + בונוס ${res.exactBonus})`;
-        matchDetails.push({ label, points: res.total, detail, kickoff: m.kickoff, bingo: true });
+        const detail = `🎯 בינגו! ניחשת ${mp.pred_home}-${mp.pred_away} (כיוון ${res.directionPoints} + בונוס ${res.exactBonus}${isKnockout ? " ×1.25" : ""})`;
+        matchDetails.push({ label, points: matchPoints, detail, kickoff: m.kickoff, bingo: true });
       }
     }
     if (groupStageTotal > 0) breakdown.push({ label: "משחקי שלב הבתים (סה\"כ)", points: groupStageTotal });

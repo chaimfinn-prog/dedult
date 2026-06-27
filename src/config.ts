@@ -103,6 +103,11 @@ export const PRIZE_LABELS: Record<PrizeCategory, string> = {
   matchPicks: "⚽ אלוף הימורי המשחקים",
 };
 
+/**
+ * מכפיל ניקוד למשחקי נוקאאוט — כיוון + בינגו מוכפלים ×1.25 בשלבים מעבר לבתים.
+ */
+export const KNOCKOUT_MATCH_MULTIPLIER = 1.25;
+
 /** כל כמה זמן מותר לרענן יחסים אוטומטית (שעות) */
 export const ODDS_STALE_HOURS = 12;
 
