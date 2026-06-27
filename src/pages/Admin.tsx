@@ -404,6 +404,7 @@ function MatchesAdmin() {
   const [home, setHome] = useState("ARG");
   const [away, setAway] = useState("FRA");
   const [kickoff, setKickoff] = useState("");
+  const [stage, setStage] = useState("r32");
   const [msg, setMsg] = useState<string | null>(null);
 
   async function load() {
@@ -422,6 +423,7 @@ function MatchesAdmin() {
       home_team: home,
       away_team: away,
       kickoff: new Date(kickoff).toISOString(),
+      stage,
     });
     setMsg(error ? "שגיאת הוספה: " + error.message : "✓ המשחק נוסף");
     setKickoff("");
@@ -459,12 +461,17 @@ function MatchesAdmin() {
 
   return (
     <Card title="⚽ משחקים ותוצאות">
-      <div className="mb-4 grid grid-cols-1 gap-2 rounded-2xl bg-grass-50 p-3 sm:grid-cols-4">
+      <div className="mb-4 grid grid-cols-1 gap-2 rounded-2xl bg-grass-50 p-3 sm:grid-cols-5">
         <select value={home} onChange={(e) => setHome(e.target.value)} className="input">
           {TEAMS.map((t) => <option key={t.code} value={t.code}>{t.flag} {t.nameHe}</option>)}
         </select>
         <select value={away} onChange={(e) => setAway(e.target.value)} className="input">
           {TEAMS.map((t) => <option key={t.code} value={t.code}>{t.flag} {t.nameHe}</option>)}
+        </select>
+        <select value={stage} onChange={(e) => setStage(e.target.value)} className="input">
+          {STAGE_ORDER.filter((s) => s !== "winner").map((s) => (
+            <option key={s} value={s}>{STAGE_LABELS_HE[s]}</option>
+          ))}
         </select>
         <input type="datetime-local" value={kickoff} onChange={(e) => setKickoff(e.target.value)} className="input" />
         <button onClick={addMatch} className="btn-primary">הוסף משחק</button>
@@ -507,6 +514,10 @@ function ResultRow({
     if (r.ok) setTimeout(() => setStatus("idle"), 2000);
   }
 
+  async function updateStage(newStage: string) {
+    await supabase.from("matches").update({ stage: newStage }).eq("id", match.id);
+  }
+
   return (
     <div className="flex items-center gap-2 rounded-2xl border border-black/10 p-2 text-sm">
       <span className="flex-1 font-bold text-grass-900">
@@ -517,6 +528,15 @@ function ResultRow({
           </span>
         )}
       </span>
+      <select
+        defaultValue={match.stage}
+        onChange={(e) => updateStage(e.target.value)}
+        className="h-9 rounded-lg border border-black/10 px-1 text-xs"
+      >
+        {STAGE_ORDER.filter((s) => s !== "winner").map((s) => (
+          <option key={s} value={s}>{STAGE_LABELS_HE[s]}</option>
+        ))}
+      </select>
       <input type="number" min={0} value={hs} onChange={(e) => setHs(+e.target.value)} className="h-9 w-12 rounded-lg border border-black/10 text-center" />
       <span>:</span>
       <input type="number" min={0} value={as} onChange={(e) => setAs(+e.target.value)} className="h-9 w-12 rounded-lg border border-black/10 text-center" />

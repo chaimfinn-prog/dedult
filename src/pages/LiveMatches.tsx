@@ -17,6 +17,7 @@ import {
 import MatchShareCard, { type ShareCardData } from "../components/MatchShareCard";
 import {
   DIRECTION_LABELS_HE,
+  STAGE_LABELS_HE,
   type Direction,
   type MarketOption,
 } from "../lib/types";
@@ -342,15 +343,20 @@ function MatchCard({
     <div className="card overflow-hidden">
       <div className="flex items-center justify-between bg-grass-50/60 px-4 py-2 text-xs font-bold text-grass-600">
         <span>{kickoffStr}</span>
-        {match.live ? (
-          <span className="chip animate-pulse bg-red-500/15 text-red-600">🔴 חי עכשיו</span>
-        ) : match.finished ? (
-          <span className="chip bg-black/5 text-grass-700">הסתיים</span>
-        ) : locked ? (
-          <span className="chip bg-black/5 text-grass-700">🔒 ננעל</span>
-        ) : (
-          <span className="chip bg-grass-100 text-grass-700">פתוח לניחוש</span>
-        )}
+        <span className="flex items-center gap-1.5">
+          {match.stage !== "groups" && (
+            <span className="chip bg-amber-100 text-amber-700">{STAGE_LABELS_HE[match.stage as keyof typeof STAGE_LABELS_HE] ?? match.stage}</span>
+          )}
+          {match.live ? (
+            <span className="chip animate-pulse bg-red-500/15 text-red-600">🔴 חי עכשיו</span>
+          ) : match.finished ? (
+            <span className="chip bg-black/5 text-grass-700">הסתיים</span>
+          ) : locked ? (
+            <span className="chip bg-black/5 text-grass-700">🔒 ננעל</span>
+          ) : (
+            <span className="chip bg-grass-100 text-grass-700">פתוח לניחוש</span>
+          )}
+        </span>
       </div>
 
       {/* קבוצות + תוצאה: כל ניקוד מתחת לדגל של אותה קבוצה (בלי בלבול RTL) */}

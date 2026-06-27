@@ -20,6 +20,17 @@ const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const SPORT_KEY = "soccer_fifa_world_cup";
 const BASE = "https://api.the-odds-api.com/v4";
 
+/** זיהוי שלב הטורניר לפי תאריך הבעיטה — לוח מונדיאל 2026 */
+function stageForDate(kickoff: string): string {
+  const day = kickoff.slice(0, 10);
+  if (day <= "2026-06-26") return "groups";
+  if (day <= "2026-07-03") return "r32";
+  if (day <= "2026-07-07") return "r16";
+  if (day <= "2026-07-11") return "qf";
+  if (day <= "2026-07-15") return "sf";
+  return "final";
+}
+
 /** המרת יחס עשרוני להסתברות */
 const probFromDecimal = (d: number) => 1 / d;
 
@@ -93,6 +104,7 @@ Deno.serve(async (req) => {
           home_team: codeFor(game.home_team),
           away_team: codeFor(game.away_team),
           kickoff: game.commence_time,
+          stage: stageForDate(game.commence_time),
         });
 
         const m = game?.bookmakers?.[0]?.markets?.[0];
