@@ -57,6 +57,7 @@ export default function Admin() {
       <MatchesAdmin />
       <MatchOddsEditor />
       <GroupStandingsAdmin />
+      <KnockoutStagesAdmin />
       <ResultsAdmin />
       <ManualMarketEditor />
     </div>
@@ -625,6 +626,154 @@ function GroupStandingsAdmin() {
       </div>
       <button onClick={save} className="btn-primary mt-3 w-full">שמור דירוג בית {group}</button>
       {msg && <p className="mt-2 text-sm font-semibold text-grass-700">{msg}</p>}
+    </Card>
+  );
+}
+
+function KnockoutStagesAdmin() {
+  const [matches, setMatches] = useState<Match[]>([]);
+  const [stageResults, setStageResults] = useState<Record<string, string>>({});
+  const [msg, setMsg] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  async function load() {
+    const [{ data: mData }, { data: rData }] = await Promise.all([
+      supabase.from("matches").select("id, home_team, away_team, stage, finished, home_score, away_score"),
+      supabase.from("results").select("key, value"),
+    ]);
+    setMatches((mData ?? []) as Match[]);
+    const map: Record<string, string> = {};
+    (rData ?? []).forEach((r: any) => {
+      if (r.key.startsWith("stage:")) map[r.key.slice(6)] = r.value;
+    });
+    setStageResults(map);
+    setLoading(false);
+  }
+  useEffect(() => {
+    if (isSupabaseConfigured) load();
+    else setLoading(false);
+  }, []);
+
+  const koTeams = new Set<string>();
+  matches
+    .filter((m) => m.stage && m.stage !== "groups")
+    .forEach((m) => {
+      if (m.home_team) koTeams.add(m.home_team);
+      if (m.away_team) koTeams.add(m.away_team);
+    });
+
+  const koStages: { value: string; label: string }[] = [
+    { value: "", label: "—" },
+    { value: "groups", label: "הודחה בבתים" },
+    { value: "r32", label: "הודחה ב-R32" },
+    { value: "r16", label: "שמינית גמר (R16)" },
+    { value: "qf", label: "רבע גמר" },
+    { value: "sf", label: "חצי גמר" },
+    { value: "final", label: "גמר" },
+    { value: "winner", label: "אלופה" },
+  ];
+
+  async function updateStage(code: string, stage: string) {
+    if (!stage) return;
+    const { data, error } = await supabase
+      .from("results")
+      .upsert({ key: `stage:${code}`, value: stage })
+      .select("key");
+    if (error) {
+      setMsg("שגיאה: " + error.message);
+      return;
+    }
+    if (!data || data.length === 0) {
+      setMsg("⚠️ נחסם — הרץ security-hardening.sql.");
+      return;
+    }
+    setStageResults((prev) => ({ ...prev, [code]: stage }));
+    setMsg(`✓ ${TEAM_BY_CODE[code]?.nameHe ?? code} → ${STAGE_LABELS_HE[stage as keyof typeof STAGE_LABELS_HE] ?? stage}`);
+  }
+
+  async function autoDetect() {
+    const stageMap: Record<string, number> = {};
+    const stageIdx = (s: string) => STAGE_ORDER.indexOf(s as any);
+    for (const m of matches) {
+      if (!m.stage || m.stage === "groups" || !m.finished) continue;
+      const nextStage = STAGE_ORDER[stageIdx(m.stage) + 1];
+      if (!nextStage) continue;
+      const winner =
+        m.home_score != null && m.away_score != null
+          ? m.home_score > m.away_score
+            ? m.home_team
+            : m.home_score < m.away_score
+              ? m.away_team
+              : null
+          : null;
+      if (winner) {
+        const cur = stageMap[winner] ?? 0;
+        const next = stageIdx(nextStage);
+        if (next > cur) stageMap[winner] = next;
+      }
+    }
+    let count = 0;
+    for (const [code, idx] of Object.entries(stageMap)) {
+      const stage = STAGE_ORDER[idx];
+      if (stageResults[code] !== stage) {
+        await updateStage(code, stage);
+        count++;
+      }
+    }
+    setMsg(count > 0 ? `✓ עודכנו ${count} קבוצות אוטומטית` : "הכול כבר מעודכן");
+  }
+
+  if (loading) return <Card title="🏆 שלבי נוקאאוט"><Loading /></Card>;
+
+  const sorted = [...koTeams].sort((a, b) => {
+    const ai = STAGE_ORDER.indexOf((stageResults[a] ?? "groups") as any);
+    const bi = STAGE_ORDER.indexOf((stageResults[b] ?? "groups") as any);
+    return bi - ai || a.localeCompare(b);
+  });
+
+  return (
+    <Card title="🏆 שלבי נוקאאוט — לאיזה שלב הגיעה כל קבוצה">
+      <p className="mb-2 text-xs text-grass-500">
+        קובע את נקודות ההתקדמות בנוקאאוט (10 נק' לכל שלב מ-R16+). בחר שלב לכל
+        קבוצה, או לחץ "זהה אוטומטית" לעדכן לפי תוצאות שנשמרו.
+      </p>
+      <button onClick={autoDetect} className="btn-ghost mb-3 w-full ring-1 ring-grass-200">
+        🔍 זהה אוטומטית מתוצאות המשחקים
+      </button>
+      {msg && <p className="mb-2 text-sm font-semibold text-grass-700">{msg}</p>}
+      {sorted.length === 0 ? (
+        <p className="text-sm text-grass-500">אין עדיין משחקי נוקאאוט.</p>
+      ) : (
+        <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
+          {sorted.map((code) => {
+            const team = TEAM_BY_CODE[code];
+            const cur = stageResults[code] ?? "";
+            return (
+              <div
+                key={code}
+                className={`flex items-center gap-2 rounded-2xl border p-2 text-sm ${
+                  cur ? "border-grass-200 bg-grass-50/40" : "border-black/10"
+                }`}
+              >
+                <span className="flex-1 font-bold text-grass-900">
+                  {team?.flag} {team?.nameHe ?? code}
+                </span>
+                <select
+                  value={cur}
+                  onChange={(e) => updateStage(code, e.target.value)}
+                  className="h-8 rounded-lg border border-black/10 px-1 text-xs"
+                >
+                  {koStages.map((s) => (
+                    <option key={s.value} value={s.value}>
+                      {s.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </Card>
   );
 }
