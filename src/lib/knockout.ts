@@ -9,9 +9,9 @@
 import { STAGE_ORDER, type Stage } from "./types";
 
 export const KNOCKOUT_STAGE_POINTS = 10;
-/** השלבים שמזכים בנקודות — רק מי שעלה משמינית הגמר (רבע גמר ומעלה).
+/** השלבים שמזכים בנקודות — מ-R16 (ניצחון ב-R32) ומעלה.
  *  'winner' לא נכלל (זה בונוס האלוף). */
-export const KNOCKOUT_STAGES: Stage[] = ["qf", "sf", "final"];
+export const KNOCKOUT_STAGES: Stage[] = ["r16", "qf", "sf", "final"];
 
 export interface KnockoutResult {
   points: number;
