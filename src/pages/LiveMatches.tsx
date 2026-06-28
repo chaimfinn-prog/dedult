@@ -327,7 +327,7 @@ function MatchCard({
     }
     syncedRef.current = true; // הערך שהוקלד הוא עכשיו השמור
     setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+    setTimeout(() => setSaved(false), 3000);
     onSave({ direction: dir, pred_home: h, pred_away: a });
   }
 
@@ -428,9 +428,16 @@ function MatchCard({
 
       {!locked ? (
         <div className="p-4">
-          <button onClick={save} disabled={saving} className="btn-primary w-full">
+          <button
+            onClick={save}
+            disabled={saving}
+            className={saved ? "w-full rounded-2xl bg-green-500 px-4 py-3 font-bold text-white" : "btn-primary w-full"}
+          >
             {saving ? "שומר…" : saved ? "✓ נשמר!" : "שמירת ניחוש"}
           </button>
+          {saved && (
+            <p className="mt-1 text-center text-xs font-bold text-green-600">✓ הניחוש שלך נשמר בהצלחה</p>
+          )}
           {saveErr && (
             <p className="mt-2 rounded-xl bg-red-50 px-3 py-2 text-center text-xs font-bold text-red-600">
               ❌ השמירה נכשלה: {saveErr}

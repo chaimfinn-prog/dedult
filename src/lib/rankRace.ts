@@ -5,7 +5,7 @@
 
 export interface SnapshotRow {
   user_id: string;
-  bucket: string; // ISO של תחילת השעה
+  bucket: string; // ISO של תחילת השעה; מצטבר לדלי יומי (YYYY-MM-DD) ב-buildRankSeries
   total: number;
   rank: number;
 }
@@ -30,11 +30,23 @@ export interface RankRaceData {
 
 /** בונה סדרות מירוץ מקומות מתוך שורות התצלומים. */
 export function buildRankSeries(rows: SnapshotRow[]): RankRaceData {
-  const buckets = [...new Set(rows.map((r) => r.bucket))].sort();
+  // שלב 1: צמצם לדלי יומי — לכל (user_id, יום) שמור את התצלום עם השעה המאוחרת ביותר
+  const dailyBest = new Map<string, SnapshotRow>();
+  for (const r of rows) {
+    const day = r.bucket.slice(0, 10); // YYYY-MM-DD
+    const key = `${r.user_id}|${day}`;
+    const existing = dailyBest.get(key);
+    if (!existing || r.bucket > existing.bucket) {
+      dailyBest.set(key, { ...r, bucket: day });
+    }
+  }
+  const aggregated = [...dailyBest.values()];
+
+  const buckets = [...new Set(aggregated.map((r) => r.bucket))].sort();
   const idx = new Map(buckets.map((b, i) => [b, i]));
   const byUser = new Map<string, RankSeries>();
 
-  for (const r of rows) {
+  for (const r of aggregated) {
     let s = byUser.get(r.user_id);
     if (!s) {
       s = { userId: r.user_id, points: [], lastRank: r.rank, lastTotal: r.total };

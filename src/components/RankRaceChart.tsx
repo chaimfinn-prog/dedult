@@ -79,8 +79,9 @@ export default function RankRaceChart({
   const tickCount = Math.min(6, buckets.length);
   const ticks = Array.from({ length: tickCount }, (_, k) => {
     const i = Math.round((k / (tickCount - 1)) * last);
-    const d = new Date(buckets[i]);
-    return { i, label: `${d.getDate()}/${d.getMonth() + 1}` };
+    // buckets הם מחרוזות YYYY-MM-DD; חלץ ישירות כדי להימנע מהזזת אזור-זמן
+    const [, mm, dd] = buckets[i].split("-");
+    return { i, label: `${parseInt(dd)}/${parseInt(mm)}` };
   });
 
   return (

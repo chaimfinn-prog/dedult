@@ -507,10 +507,18 @@ function ResultRow({
   const [hs, setHs] = useState(match.home_score ?? 0);
   const [as, setAs] = useState(match.away_score ?? 0);
   const [status, setStatus] = useState<"idle" | "saving" | "saved" | "err">("idle");
+  const [advancer, setAdvancer] = useState("");
 
   async function handle(finished: boolean) {
     setStatus("saving");
     const r = await onSave(match, hs, as, finished);
+    if (r.ok && advancer && match.stage !== "groups") {
+      const stageIdx = STAGE_ORDER.indexOf(match.stage as any);
+      const nextStage = STAGE_ORDER[stageIdx + 1];
+      if (nextStage) {
+        await supabase.from("results").upsert({ key: `stage:${advancer}`, value: nextStage });
+      }
+    }
     setStatus(r.ok ? "saved" : "err");
     if (r.ok) setTimeout(() => setStatus("idle"), 2000);
   }
@@ -541,6 +549,17 @@ function ResultRow({
       <input type="number" min={0} value={hs} onChange={(e) => setHs(+e.target.value)} className="h-9 w-12 rounded-lg border border-black/10 text-center" />
       <span>:</span>
       <input type="number" min={0} value={as} onChange={(e) => setAs(+e.target.value)} className="h-9 w-12 rounded-lg border border-black/10 text-center" />
+      {match.stage !== "groups" && (
+        <select
+          value={advancer}
+          onChange={(e) => setAdvancer(e.target.value)}
+          className="h-9 rounded-lg border border-black/10 px-1 text-xs"
+        >
+          <option value="">— מי עלתה?</option>
+          <option value={match.home_team}>{TEAM_BY_CODE[match.home_team]?.nameHe ?? match.home_team}</option>
+          <option value={match.away_team}>{TEAM_BY_CODE[match.away_team]?.nameHe ?? match.away_team}</option>
+        </select>
+      )}
       <button
         onClick={() => handle(true)}
         disabled={status === "saving"}
