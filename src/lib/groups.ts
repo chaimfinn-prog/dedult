@@ -71,29 +71,35 @@ export function computeGroupStandings(matches: GroupMatch[]): Record<string, str
   return out;
 }
 
-/** ניקוד מיקומי בית: רק 2 העולות. מקום מדויק = 5, עלתה אך במקום השני = 2. */
+/** ניקוד מיקומי בית: מקום מדויק = 5, עלתה אך במקום השני = 2, שלישית שעלתה = 2. */
 export const GROUP_EXACT_POINTS = 5;
 export const GROUP_QUALIFIED_POINTS = 2;
+export const GROUP_THIRD_ADVANCED_POINTS = 2;
 
 export interface GroupPickResult {
   points: number;
-  exactHits: number; // נוחש המקום המדויק (1/2)
-  qualifiedHits: number; // הקבוצה עלתה אך ניחשת אותה במקום העולה השני
+  exactHits: number;
+  qualifiedHits: number;
+  thirdHits: number;
 }
 
 /**
- * ניקוד ניחוש בית — רק 2 הקבוצות העולות (מקומות 1–2):
- *   • מקום מדויק (הקבוצה הנכונה במקום הנכון) = 5
+ * ניקוד ניחוש בית:
+ *   • מקום מדויק בטופ 2 = 5
  *   • הקבוצה עלתה (בטופ 2 בפועל וגם בטופ 2 שלך) אך במקום השני = 2
- *   • מקומות 3–4 לא מזכים בנקודות.
+ *   • מקום 3 מדויק + הקבוצה עלתה כשלישית טובה (best third) = 2
+ *   • מקום 4 / שלישית שהודחה = 0
+ *   מקסימום 12 לבית (5+5+2).
  */
 export function scoreGroupPick(
   predicted: string[] | undefined,
   actual: string[],
+  advancedThirds?: Set<string>,
 ): GroupPickResult {
   let points = 0;
   let exactHits = 0;
   let qualifiedHits = 0;
+  let thirdHits = 0;
   if (predicted) {
     const predTop2 = [predicted[0], predicted[1]];
     for (let i = 0; i < 2; i++) {
@@ -107,6 +113,10 @@ export function scoreGroupPick(
         qualifiedHits++;
       }
     }
+    if (actual[2] && predicted[2] === actual[2] && advancedThirds?.has(actual[2])) {
+      points += GROUP_THIRD_ADVANCED_POINTS;
+      thirdHits++;
+    }
   }
-  return { points, exactHits, qualifiedHits };
+  return { points, exactHits, qualifiedHits, thirdHits };
 }

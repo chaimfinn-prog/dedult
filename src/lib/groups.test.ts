@@ -55,3 +55,30 @@ describe("ניקוד מיקומי בית (רק 2 עולות: 5 מדויק / 2 ע
     expect(scoreGroupPick(undefined, actual).points).toBe(0);
   });
 });
+
+describe("ניקוד מקום 3 — שלישית שעלתה", () => {
+  const actual = ["SUI", "CAN", "BIH", "QAT"];
+  const advanced = new Set(["BIH", "SUI", "CAN"]); // BIH עלתה כשלישית
+  const notAdvanced = new Set(["SUI", "CAN"]); // BIH לא עלתה
+
+  it("מקום 3 מדויק + עלתה = +2", () => {
+    const r = scoreGroupPick(["QAT", "QAT", "BIH", "SUI"], actual, advanced);
+    expect(r.thirdHits).toBe(1);
+    expect(r.points).toBe(2);
+  });
+  it("מקום 3 מדויק אך לא עלתה = 0", () => {
+    const r = scoreGroupPick(["QAT", "QAT", "BIH", "SUI"], actual, notAdvanced);
+    expect(r.thirdHits).toBe(0);
+    expect(r.points).toBe(0);
+  });
+  it("מקום 3 לא מדויק = 0", () => {
+    const r = scoreGroupPick(["QAT", "QAT", "QAT", "BIH"], actual, advanced);
+    expect(r.thirdHits).toBe(0);
+  });
+  it("מקסימום בית: 5+5+2 = 12", () => {
+    const r = scoreGroupPick(["SUI", "CAN", "BIH", "QAT"], actual, advanced);
+    expect(r.points).toBe(12);
+    expect(r.exactHits).toBe(2);
+    expect(r.thirdHits).toBe(1);
+  });
+});

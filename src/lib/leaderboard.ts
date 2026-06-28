@@ -132,6 +132,10 @@ export function computeLeaderboard(input: ScoreInput): LeaderRow[] {
     }
   }
 
+  const advancedThirds = new Set(
+    matches.filter((m) => m.stage === "r32").flatMap((m) => [m.home_team, m.away_team].filter(Boolean) as string[]),
+  );
+
   const rows: LeaderRow[] = profiles.map((p) => {
     const breakdown: Breakdown[] = [];
     let total = 0;
@@ -175,12 +179,13 @@ export function computeLeaderboard(input: ScoreInput): LeaderRow[] {
       const bracket = gp.bracket ? normalizeBracket(gp.bracket) : null;
       if (bracket) {
         for (const [g, actual] of Object.entries(groupStandings)) {
-          const r = scoreGroupPick(bracket.groupRankings[g], actual);
+          const r = scoreGroupPick(bracket.groupRankings[g], actual, advancedThirds);
           if (r.points > 0) {
             stagesTotal += r.points;
             const parts: string[] = [];
             if (r.exactHits) parts.push(`${r.exactHits}× מדויק`);
             if (r.qualifiedHits) parts.push(`${r.qualifiedHits}× עלתה`);
+            if (r.thirdHits) parts.push(`${r.thirdHits}× שלישית עולה`);
             breakdown.push({
               label: `🏟️ בית ${g} — מיקומים`,
               points: r.points,

@@ -125,7 +125,8 @@ export default function Bracket() {
       </div>
 
       {tab === "groups" ? (
-        <GroupsStage pick={pick} setPick={setPick} locked={locked} standings={groupStandings} />
+        <GroupsStage pick={pick} setPick={setPick} locked={locked} standings={groupStandings}
+          advancedThirds={new Set(matches.filter((m) => m.stage === "r32").flatMap((m) => [m.home_team, m.away_team]))} />
       ) : (
         <KnockoutStage pick={pick} setPick={setPick} locked={locked} stageOf={stageOf} />
       )}
@@ -180,17 +181,22 @@ function GroupsStage({
   setPick,
   locked,
   standings,
+  advancedThirds,
 }: {
   pick: BracketPick;
   setPick: (p: BracketPick) => void;
   locked: boolean;
   standings: Record<string, string[]>;
+  advancedThirds: Set<string>;
 }) {
-  // סימון ✓/↑/✗ למיקום שניחשת מול הדירוג בפועל (אם הבית הוכרע)
   function mark(g: string, idx: number, code: string) {
     const actual = standings[g];
     if (!actual) return null;
-    if (actual[idx] === code) return { sym: "✓", cls: "text-grass-600" };
+    if (actual[idx] === code) {
+      if (idx < 2) return { sym: "✓", cls: "text-grass-600" };
+      if (idx === 2 && advancedThirds.has(code)) return { sym: "✓", cls: "text-grass-600" };
+      if (idx === 2) return { sym: "−", cls: "text-grass-400" };
+    }
     if (idx < 2 && actual.slice(0, 2).includes(code))
       return { sym: "↑", cls: "text-amber-600" };
     return { sym: "✗", cls: "text-red-500" };
