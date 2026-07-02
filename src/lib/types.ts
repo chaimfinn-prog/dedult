@@ -21,7 +21,7 @@ export const STAGE_ORDER: Stage[] = [
 ];
 
 export const STAGE_LABELS_HE: Record<Stage, string> = {
-  groups: "עברה את הבתים",
+  groups: "שלב הבתים",
   r32: "שמינית-של-32",
   r16: "שמינית גמר",
   qf: "רבע גמר",

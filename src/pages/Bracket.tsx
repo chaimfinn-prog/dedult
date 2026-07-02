@@ -10,6 +10,7 @@ import {
   emptyBracketPick,
   matchTeams,
   resolveSlot,
+  sanitizeBracket,
   type BracketPick,
 } from "../lib/bracketState";
 import { computeGroupStandings } from "../lib/groups";
@@ -206,7 +207,9 @@ function GroupsStage({
     const j = idx + dir;
     if (j < 0 || j >= arr.length) return;
     [arr[idx], arr[j]] = [arr[j], arr[idx]];
-    setPick({ ...pick, groupRankings: { ...pick.groupRankings, [group]: arr } });
+    // סניטציה מיידית: אם הסידור החדש מזיז קבוצה ממשבצת שכבר נבחרה כמנצחת
+    // בשלב הבא, מבטלים את הבחירה התקועה כדי שה-UI לא יישאר "ריק"/לא עקבי.
+    setPick(sanitizeBracket({ ...pick, groupRankings: { ...pick.groupRankings, [group]: arr } }));
   }
 
   return (
@@ -288,7 +291,7 @@ function KnockoutStage({
 
   function chooseWinner(match: number, code: string | null) {
     if (!code || locked) return;
-    setPick({ ...pick, winners: { ...pick.winners, [match]: code } });
+    setPick(sanitizeBracket({ ...pick, winners: { ...pick.winners, [match]: code } }));
   }
 
   return (

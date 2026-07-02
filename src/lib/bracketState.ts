@@ -46,18 +46,42 @@ export function emptyBracketPick(): BracketPick {
 }
 
 /**
+ * מנקה בחירות מנצח/ת "תקועות" — כשמדרגים בית מחדש או משנים מנצח/ת בשלב
+ * קודם, המשבצת בסבב הבא עשויה כבר לא להתאים לקבוצה שנבחרה שם קודם.
+ * עוברת על הסבבים לפי סדר התלות (R32→R16→QF→SF→Final) ובכל משחק שומרת
+ * את הבחירה רק אם היא עדיין שווה ל-home/away *המחושבים מהבחירות שכבר
+ * עברו ניקוי* — כך שביטול משתפשט קדימה בדיוק כמו שהתלות עצמה מתפשטת.
+ */
+export function sanitizeBracket(pick: BracketPick): BracketPick {
+  const sanitizedWinners: Record<number, string> = {};
+  const working: BracketPick = {
+    groupRankings: pick.groupRankings,
+    thirdSlots: pick.thirdSlots,
+    winners: sanitizedWinners,
+  };
+  for (const m of ALL_MATCHES) {
+    const { home, away } = matchTeams(m, working);
+    const w = pick.winners[m.match];
+    if (w && (w === home || w === away)) {
+      sanitizedWinners[m.match] = w;
+    }
+  }
+  return { groupRankings: pick.groupRankings, thirdSlots: pick.thirdSlots, winners: sanitizedWinners };
+}
+
+/**
  * מנרמל מצב לוח עץ שאולי חלקי/ריק (למשל {} מברירת המחדל של ה-DB),
- * כדי שכל הפונקציות יוכלו לקרוא ממנו בבטחה בלי לקרוס.
+ * כדי שכל הפונקציות יוכלו לקרוא ממנו בבטחה בלי לקרוס. גם מנקה בחירות
+ * מנצח/ת תקועות (ראו sanitizeBracket) כדי שניקוד וה-UI תמיד יהיו עקביים.
  */
 export function normalizeBracket(raw: unknown): BracketPick {
   const r = (raw ?? {}) as Partial<BracketPick>;
   const hasRankings =
     r.groupRankings && Object.keys(r.groupRankings).length > 0;
-  return {
-    groupRankings: hasRankings ? r.groupRankings! : defaultGroupRankings(),
-    thirdSlots: r.thirdSlots ?? {},
-    winners: r.winners ?? {},
-  };
+  const groupRankings = hasRankings ? r.groupRankings! : defaultGroupRankings();
+  const base: BracketPick = { groupRankings, thirdSlots: {}, winners: {} };
+  autoAssignThirds(base);
+  return sanitizeBracket({ groupRankings, thirdSlots: base.thirdSlots, winners: r.winners ?? {} });
 }
 
 /** מחזיר את קוד הנבחרת שיושבת ב-slot נתון, או null אם עדיין לא ידועה */

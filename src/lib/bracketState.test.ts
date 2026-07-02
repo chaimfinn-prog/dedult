@@ -6,7 +6,9 @@ import {
   emptyBracketPick,
   matchTeams,
   runnerUpFrom,
+  sanitizeBracket,
   stagesFromBracket,
+  type BracketPick,
 } from "./bracketState";
 import { FINAL, R32 } from "../data/bracket";
 
@@ -80,5 +82,40 @@ describe("מצב לוח העץ", () => {
 
     const stages = stagesFromBracket(pick);
     expect(stages[champ!]).toBe("winner");
+  });
+});
+
+describe("sanitizeBracket — מבטל בחירות מנצח/ת שהתייתמו משינוי סדר בית", () => {
+  it("החלפת סדר בית מבטלת בחירת מנצח/ת שכבר לא במשבצת, ומתפשטת לשלב הבא", () => {
+    const pick = emptyBracketPick();
+    // משחק 73 (R32): home = סגנית A, away = סגנית B
+    const groupA = pick.groupRankings["A"];
+    const oldRunnerA = groupA[1]; // מי שהיה במקום 2 (סגנית) לפני השינוי
+
+    // בוחרים בסגנית A (הנוכחית) כמנצחת משחק 73, וממשיכים איתה לשמינית (משחק 90: home = מנצח 73)
+    pick.winners[73] = oldRunnerA;
+    pick.winners[90] = oldRunnerA;
+
+    // כעת מדרגים מחדש את בית A כך שסגנית A כבר לא אותה קבוצה (oldRunnerA יורדת למקום 3)
+    const swapped = [...groupA];
+    [swapped[1], swapped[2]] = [swapped[2], swapped[1]];
+    const changed: BracketPick = { ...pick, groupRankings: { ...pick.groupRankings, A: swapped } };
+
+    const sanitized = sanitizeBracket(changed);
+    expect(sanitized.winners[73]).toBeUndefined();
+    expect(sanitized.winners[90]).toBeUndefined(); // הביטול מתפשט לשלב הבא
+
+    // אין זיכוי נקודות "רפאים" — oldRunnerA לא אמור לקבל r16 בניחוש הזה
+    const stages = stagesFromBracket(changed);
+    expect(stages[oldRunnerA]).not.toBe("r16");
+  });
+
+  it("בחירה שעדיין תואמת את המשבצת לא מתבטלת", () => {
+    const pick = emptyBracketPick();
+    const winnerA = pick.groupRankings["A"][0]; // משחק 73 לא כולל את מנצחת A בכלל — נבדוק משחק אחר
+    // משחק 79 (R32): home = מנצחת A
+    pick.winners[79] = winnerA;
+    const sanitized = sanitizeBracket(pick);
+    expect(sanitized.winners[79]).toBe(winnerA);
   });
 });
