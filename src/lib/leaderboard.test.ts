@@ -49,7 +49,7 @@ describe("חישוב טבלת מובילים", () => {
     const u1 = board.find((r) => r.userId === "u1")!;
     const u2 = board.find((r) => r.userId === "u2")!;
     expect(u1.breakdown.find((b) => b.label === "אלוף")?.points).toBe(300);
-    // BRA: ניחשת qf, הגיעה qf → 30 (סה"כ, לא מצטבר)
+    // BRA: ניחשת qf, הגיעה qf → 30 (10+20, מצטבר עד רבע)
     const ko = u1.breakdown.find((b) => b.label.includes("נוקאאוט"));
     expect(ko?.points).toBe(30);
     expect(u1.breakdown.some((b) => b.label.includes("משחקי"))).toBe(true);
