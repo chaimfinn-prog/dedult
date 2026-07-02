@@ -68,3 +68,26 @@ export function buildRankSeries(rows: SnapshotRow[]): RankRaceData {
   const series = [...byUser.values()].sort((a, b) => a.lastRank - b.lastRank);
   return { buckets, series, maxRank };
 }
+
+export interface RankJump {
+  userId: string;
+  atX: number; // אינדקס הדלי שבו קרתה הקפיצה
+  delta: number; // חיובי = טיפס (המקום השתפר), שלילי = ירד
+}
+
+/**
+ * מזהה קפיצות דירוג גדולות (≥ minDelta מקומות בין דלי לדלי הבא של אותו
+ * משתמש) — משמש להצגת סמן/טולטיפ "למה קפצת" על גרף המירוץ.
+ */
+export function detectRankJumps(series: RankSeries[], minDelta = 3): RankJump[] {
+  const jumps: RankJump[] = [];
+  for (const s of series) {
+    for (let i = 1; i < s.points.length; i++) {
+      const delta = s.points[i - 1].rank - s.points[i].rank;
+      if (Math.abs(delta) >= minDelta) {
+        jumps.push({ userId: s.userId, atX: s.points[i].x, delta });
+      }
+    }
+  }
+  return jumps;
+}

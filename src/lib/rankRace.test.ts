@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildRankSeries, type SnapshotRow } from "./rankRace";
+import { buildRankSeries, detectRankJumps, type RankSeries, type SnapshotRow } from "./rankRace";
 
 // Two hourly snapshots on the same day — daily aggregation should collapse them
 // into one point per user using the LAST (latest) hourly snapshot.
@@ -60,5 +60,53 @@ describe("buildRankSeries", () => {
     const d = buildRankSeries([]);
     expect(d.buckets).toHaveLength(0);
     expect(d.series).toHaveLength(0);
+  });
+});
+
+describe("detectRankJumps", () => {
+  it("מזהה קפיצה גדולה (מקום 5 → מקום 1 = טיפס 4)", () => {
+    const series: RankSeries[] = [
+      {
+        userId: "u1",
+        lastRank: 1,
+        lastTotal: 100,
+        points: [
+          { x: 0, rank: 5, total: 10 },
+          { x: 1, rank: 1, total: 90 },
+        ],
+      },
+    ];
+    const jumps = detectRankJumps(series, 3);
+    expect(jumps).toEqual([{ userId: "u1", atX: 1, delta: 4 }]);
+  });
+
+  it("מתעלם משינוי קטן מתחת לסף", () => {
+    const series: RankSeries[] = [
+      {
+        userId: "u1",
+        lastRank: 2,
+        lastTotal: 50,
+        points: [
+          { x: 0, rank: 3, total: 10 },
+          { x: 1, rank: 2, total: 20 },
+        ],
+      },
+    ];
+    expect(detectRankJumps(series, 3)).toEqual([]);
+  });
+
+  it("מזהה גם ירידה חדה (delta שלילי)", () => {
+    const series: RankSeries[] = [
+      {
+        userId: "u1",
+        lastRank: 6,
+        lastTotal: 5,
+        points: [
+          { x: 0, rank: 1, total: 100 },
+          { x: 1, rank: 6, total: 5 },
+        ],
+      },
+    ];
+    expect(detectRankJumps(series, 3)).toEqual([{ userId: "u1", atX: 1, delta: -5 }]);
   });
 });

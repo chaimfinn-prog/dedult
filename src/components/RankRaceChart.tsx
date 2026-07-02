@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from "react";
-import type { RankRaceData, RankSeries } from "../lib/rankRace";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { detectRankJumps, type RankRaceData, type RankSeries } from "../lib/rankRace";
 
 const PALETTE = [
   "#16a34a", "#dc2626", "#2563eb", "#d97706", "#7c3aed", "#0891b2",
@@ -35,7 +35,13 @@ export default function RankRaceChart({
   const last = Math.max(0, buckets.length - 1);
   const [prog, setProg] = useState(last); // מיקום הזמן (רציף) — ברירת מחדל: הסוף
   const [sel, setSel] = useState<string | null>(null);
+  const [speed, setSpeed] = useState<0.5 | 1>(1);
+  const [activeJump, setActiveJump] = useState<{ userId: string; atX: number; delta: number } | null>(null);
+  const [exporting, setExporting] = useState(false);
   const raf = useRef<number | null>(null);
+  const cardRef = useRef<HTMLDivElement>(null);
+
+  const jumps = useMemo(() => detectRankJumps(series, 3), [series]);
 
   useEffect(() => {
     setProg(last);
@@ -47,7 +53,10 @@ export default function RankRaceChart({
   function play() {
     if (buckets.length < 2) return;
     if (raf.current) cancelAnimationFrame(raf.current);
-    const duration = Math.min(9000, Math.max(2500, buckets.length * 650));
+    setActiveJump(null);
+    // איטי יותר כברירת מחדל, כדי שאפשר לעקוב אחרי חילופי המקומות; /speed מאט עוד יותר
+    const base = Math.min(16000, Math.max(4500, buckets.length * 1200));
+    const duration = base / speed;
     const t0 = performance.now();
     const step = (now: number) => {
       const k = Math.min(1, (now - t0) / duration);
@@ -56,6 +65,34 @@ export default function RankRaceChart({
       if (k < 1) raf.current = requestAnimationFrame(step);
     };
     raf.current = requestAnimationFrame(step);
+  }
+
+  async function shareImage() {
+    if (!cardRef.current) return;
+    setExporting(true);
+    try {
+      const { toPng } = await import("html-to-image");
+      const dataUrl = await toPng(cardRef.current, {
+        pixelRatio: 2,
+        cacheBust: true,
+        backgroundColor: "#ffffff",
+      });
+      const blob = await (await fetch(dataUrl)).blob();
+      const file = new File([blob], "מירוץ-מקומות.png", { type: "image/png" });
+      const navAny = navigator as any;
+      if (navAny.canShare && navAny.canShare({ files: [file] })) {
+        await navAny.share({ files: [file], title: "מירוץ המקומות" });
+      } else {
+        const a = document.createElement("a");
+        a.href = dataUrl;
+        a.download = file.name;
+        a.click();
+      }
+    } catch {
+      /* אם הלכידה נכשלה — מתעלמים בשקט */
+    } finally {
+      setExporting(false);
+    }
   }
 
   if (buckets.length < 2) {
@@ -84,13 +121,30 @@ export default function RankRaceChart({
     return { i, label: `${parseInt(dd)}/${parseInt(mm)}` };
   });
 
+  const selJumps = sel ? jumps.filter((j) => j.userId === sel) : [];
+
   return (
-    <div className="card p-3">
-      <div className="mb-2 flex items-center justify-between">
+    <div ref={cardRef} className="card p-3">
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
         <div className="text-sm font-extrabold text-grass-800">📈 מירוץ המקומות</div>
-        <button onClick={play} className="rounded-xl bg-grass-600 px-3 py-1.5 text-xs font-bold text-white">
-          ▶ הרץ אנימציה
-        </button>
+        <div className="flex items-center gap-1.5">
+          <button
+            onClick={() => setSpeed((s) => (s === 1 ? 0.5 : 1))}
+            className="rounded-xl bg-grass-50 px-2.5 py-1.5 text-xs font-bold text-grass-600 ring-1 ring-grass-200"
+          >
+            {speed === 1 ? "1×" : "0.5×"}
+          </button>
+          <button onClick={play} className="rounded-xl bg-grass-600 px-3 py-1.5 text-xs font-bold text-white">
+            ▶ הרץ אנימציה
+          </button>
+          <button
+            onClick={shareImage}
+            disabled={exporting}
+            className="rounded-xl bg-accent-500 px-3 py-1.5 text-xs font-bold text-white disabled:opacity-50"
+          >
+            {exporting ? "…" : "📤 שתף"}
+          </button>
+        </div>
       </div>
       <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ direction: "ltr" }}>
         {/* קווי תאריך */}
@@ -112,6 +166,30 @@ export default function RankRaceChart({
           return (
             <g key={s.userId} opacity={dim ? 0.12 : 1} onClick={() => setSel(sel === s.userId ? null : s.userId)} style={{ cursor: "pointer" }}>
               <path d={d} fill="none" stroke={color} strokeWidth={sel === s.userId ? 5 : 3} strokeLinejoin="round" strokeLinecap="round" />
+              {/* סמני "קפיצה גדולה" — רק לסדרה הנבחרת, כדי לא לעמוס ויזואלית */}
+              {sel === s.userId &&
+                selJumps
+                  .filter((j) => j.atX <= Math.floor(prog))
+                  .map((j, ji) => {
+                    const p = s.points.find((pt) => pt.x === j.atX);
+                    if (!p) return null;
+                    return (
+                      <text
+                        key={ji}
+                        x={x(j.atX)}
+                        y={y(p.rank) - 12}
+                        textAnchor="middle"
+                        fontSize={16}
+                        style={{ cursor: "pointer" }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setActiveJump(j);
+                        }}
+                      >
+                        ⭐
+                      </text>
+                    );
+                  })}
               <circle cx={hx} cy={hy} r={6} fill={color} />
               <text x={hx + 12} y={hy + 5} fontSize={16} fontWeight={700} fill={color}>
                 {nameOf(s.userId)}
@@ -120,8 +198,15 @@ export default function RankRaceChart({
           );
         })}
       </svg>
+      {activeJump && (
+        <p className="mt-1 rounded-xl bg-accent-400/15 px-3 py-1.5 text-center text-xs font-bold text-accent-600">
+          {activeJump.delta > 0
+            ? `🚀 ${nameOf(activeJump.userId)} טיפס ${activeJump.delta} מקומות!`
+            : `📉 ${nameOf(activeJump.userId)} ירד ${-activeJump.delta} מקומות`}
+        </p>
+      )}
       <p className="mt-1 px-1 text-center text-[11px] text-grass-400">
-        לחיצה על שם מדגישה את הקו שלו. ▲ למעלה = מקום טוב יותר.
+        לחיצה על שם מדגישה את הקו שלו ומראה ⭐ בקפיצות דירוג גדולות. ▲ למעלה = מקום טוב יותר.
       </p>
     </div>
   );

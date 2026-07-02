@@ -29,6 +29,7 @@ export default function Leaderboard() {
   const [loading, setLoading] = useState(true);
   const [openId, setOpenId] = useState<string | null>(null);
   const [showPrizes, setShowPrizes] = useState(false);
+  const [category, setCategory] = useState<"overall" | "generalMarkets" | "matchPicks">("overall");
   // מעקב אחר שינויי דירוג בין רענונים (חצים ▲▼)
   const prevRanks = useRef<Record<string, number>>({});
   const [rankDelta, setRankDelta] = useState<Record<string, number>>({});
@@ -154,6 +155,17 @@ export default function Leaderboard() {
   const pot = activeCount * ENTRY_FEE_ILS;
   const prizes = computePrizes(board, pot, { final: isFinal });
 
+  const categoryValue = (row: LeaderRow) =>
+    category === "generalMarkets"
+      ? row.subtotals.generalMarkets
+      : category === "matchPicks"
+        ? row.subtotals.groupStage + row.subtotals.knockout
+        : row.total;
+  const categoryLabel =
+    category === "generalMarkets" ? "נק' כללי" : category === "matchPicks" ? "נק' משחקים" : "נקודות";
+  const sortedBoard =
+    category === "overall" ? board : [...board].sort((a, b) => categoryValue(b) - categoryValue(a));
+
   return (
     <div className="space-y-3 animate-fade-up">
       <h1 className="px-1 text-xl font-extrabold text-grass-900">🏆 טבלת המובילים</h1>
@@ -207,7 +219,29 @@ export default function Leaderboard() {
         </p>
       )}
 
-      {board.map((row, i) => {
+      {board.length > 0 && (
+        <div className="flex gap-1 rounded-2xl bg-grass-50 p-1">
+          {(
+            [
+              { key: "overall", label: "🏆 כללי" },
+              { key: "generalMarkets", label: "🎯 ניחושים כלליים" },
+              { key: "matchPicks", label: "⚽ ניחושי משחקים" },
+            ] as const
+          ).map((t) => (
+            <button
+              key={t.key}
+              onClick={() => setCategory(t.key)}
+              className={`flex-1 rounded-xl py-2 text-xs font-bold transition ${
+                category === t.key ? "bg-grass-600 text-white shadow-lift" : "text-grass-600"
+              }`}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {sortedBoard.map((row, i) => {
         const isMe = row.userId === user?.id;
         const open = openId === row.userId;
         return (
@@ -243,9 +277,9 @@ export default function Leaderboard() {
               </div>
               <div className="text-left">
                 <div className="text-xl font-black text-grass-700">
-                  {row.total.toLocaleString("he-IL")}
+                  {categoryValue(row).toLocaleString("he-IL")}
                 </div>
-                <div className="text-[11px] font-bold text-grass-400">נקודות</div>
+                <div className="text-[11px] font-bold text-grass-400">{categoryLabel}</div>
               </div>
             </button>
             {open && (

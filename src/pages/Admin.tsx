@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { isSupabaseConfigured, supabase } from "../lib/supabase";
 import { buildNormalizedMarket, normalizeProbabilities, probFromDecimal } from "../lib/odds";
@@ -7,7 +7,11 @@ import Loading from "../components/Loading";
 import { TEAMS, TEAM_BY_CODE, GROUPS, GROUP_LETTERS } from "../data/teams";
 import { STAGE_LABELS_HE, STAGE_ORDER } from "../lib/types";
 import { championFrom } from "../lib/bracketState";
-import { analyzeAudit, type AuditInsight } from "../lib/audit";
+import { analyzeAudit } from "../lib/audit";
+import { closestMisses, hypotheticalWinnings, mostDraws } from "../lib/funStats";
+import { generalStats } from "../lib/stats";
+import { relevantGeneralForMatch } from "../lib/matchSocial";
+import FunStatCard, { type FunStatData } from "../components/FunStatCard";
 import {
   fetchRevealedGeneral,
   fetchRevealedMatchPicks,
@@ -49,9 +53,8 @@ export default function Admin() {
   return (
     <div className="space-y-6 animate-fade-up pb-4">
       <h1 className="px-1 text-xl font-extrabold text-grass-900">⚙️ ניהול</h1>
-      <PlayersAdmin />
+      <FunStatsAdmin />
       <MissingPicksAdmin />
-      <AuditAdmin />
       <ExportPicks />
       <OddsRefresh lastUpdated={lastUpdated} />
       <MatchesAdmin />
@@ -60,6 +63,7 @@ export default function Admin() {
       <KnockoutStagesAdmin />
       <ResultsAdmin />
       <ManualMarketEditor />
+      <PlayersAdmin />
     </div>
   );
 }
@@ -73,6 +77,7 @@ interface PlayerRow {
 function PlayersAdmin() {
   const [players, setPlayers] = useState<PlayerRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [open, setOpen] = useState(false);
 
   async function load() {
     const { data } = await supabase
@@ -94,47 +99,261 @@ function PlayersAdmin() {
 
   const activeCount = players.filter((p) => p.active !== false).length;
 
-  if (loading) return <Card title="👥 משתתפים"><Loading /></Card>;
+  if (loading) return null;
 
   return (
-    <Card title={`👥 משתתפים (${activeCount} פעילים)`}>
-      <p className="mb-3 text-sm text-grass-500">
-        הוצא מהמשחק מי שלא שילם — הוא לא ייספר בדירוג ובקופה. ההוצאה אינה מוחקת
-        את הניחושים; אפשר להחזיר בכל עת.
-      </p>
-      <div className="space-y-1.5">
-        {players.map((p) => (
-          <div
-            key={p.id}
-            className={`flex items-center gap-2 rounded-2xl border p-2 text-sm ${
-              p.active === false ? "border-red-200 bg-red-50/50" : "border-black/10"
-            }`}
-          >
-            <span className="flex-1 font-bold text-grass-900">
-              {p.full_name ?? "אנונימי"}
-              {p.active === false && (
-                <span className="ms-2 text-xs font-semibold text-red-500">(הוצא)</span>
-              )}
-            </span>
-            {p.active === false ? (
-              <button onClick={() => setActive(p.id, true)} className="btn-ghost text-xs">
-                החזר
-              </button>
-            ) : (
-              <button
-                onClick={() => setActive(p.id, false)}
-                className="rounded-xl px-3 py-1.5 text-xs font-bold text-red-600 transition hover:bg-red-50"
+    <section className="card overflow-hidden">
+      <button
+        onClick={() => setOpen((o) => !o)}
+        className="flex w-full items-center justify-between p-4 text-right"
+      >
+        <h2 className="text-base font-extrabold text-grass-900">
+          ⚙️ ניהול משתתפים ({activeCount} פעילים)
+        </h2>
+        <span className="text-sm text-grass-400">{open ? "▲" : "▸"}</span>
+      </button>
+      {open && (
+        <div className="border-t border-black/5 p-4 pt-3">
+          <p className="mb-3 text-sm text-grass-500">
+            הוצא מהמשחק מי שלא שילם — הוא לא ייספר בדירוג ובקופה. ההוצאה אינה מוחקת
+            את הניחושים; אפשר להחזיר בכל עת.
+          </p>
+          <div className="space-y-1.5">
+            {players.map((p) => (
+              <div
+                key={p.id}
+                className={`flex items-center gap-2 rounded-2xl border p-2 text-sm ${
+                  p.active === false ? "border-red-200 bg-red-50/50" : "border-black/10"
+                }`}
               >
-                הוצא מהמשחק
-              </button>
+                <span className="flex-1 font-bold text-grass-900">
+                  {p.full_name ?? "אנונימי"}
+                  {p.active === false && (
+                    <span className="ms-2 text-xs font-semibold text-red-500">(הוצא)</span>
+                  )}
+                </span>
+                {p.active === false ? (
+                  <button onClick={() => setActive(p.id, true)} className="btn-ghost text-xs">
+                    החזר
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => setActive(p.id, false)}
+                    className="rounded-xl px-3 py-1.5 text-xs font-bold text-red-600 transition hover:bg-red-50"
+                  >
+                    הוצא מהמשחק
+                  </button>
+                )}
+              </div>
+            ))}
+            {players.length === 0 && (
+              <p className="text-sm text-grass-500">אין משתתפים עדיין.</p>
             )}
           </div>
-        ))}
-        {players.length === 0 && (
-          <p className="text-sm text-grass-500">אין משתתפים עדיין.</p>
-        )}
+        </div>
+      )}
+    </section>
+  );
+}
+
+// כרטיס סטטיסטיקה אחד — תצוגה רגילה באדמין + כפתור שיתוף שלוכד את
+// FunStatCard (מוסתר, 620px קבוע) כתמונה ע"י html-to-image ומשתף/מוריד.
+function ShareableFunCard({ data, filename }: { data: FunStatData; filename: string }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+  const empty = !data.rows?.length && !data.lines?.length;
+
+  async function share() {
+    if (!ref.current) return;
+    setBusy(true);
+    setMsg(null);
+    try {
+      const { toPng } = await import("html-to-image");
+      const dataUrl = await toPng(ref.current, {
+        pixelRatio: 2,
+        cacheBust: true,
+        backgroundColor: "#ffffff",
+      });
+      const blob = await (await fetch(dataUrl)).blob();
+      const file = new File([blob], filename, { type: "image/png" });
+      const navAny = navigator as any;
+      if (navAny.canShare && navAny.canShare({ files: [file] })) {
+        await navAny.share({ files: [file], title: data.title });
+      } else {
+        const a = document.createElement("a");
+        a.href = dataUrl;
+        a.download = filename;
+        a.click();
+      }
+    } catch {
+      setMsg("השיתוף נכשל, נסה שוב.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="card overflow-hidden">
+      <div className="flex items-center gap-2 border-b border-black/5 bg-grass-50/50 px-4 py-2.5">
+        <span className="text-lg">{data.emoji}</span>
+        <span className="flex-1 text-sm font-extrabold text-grass-900">{data.title}</span>
+        <button
+          onClick={share}
+          disabled={busy || empty}
+          className="rounded-xl bg-grass-600 px-3 py-1.5 text-xs font-bold text-white disabled:opacity-40"
+        >
+          {busy ? "…" : "📤 שתף"}
+        </button>
       </div>
-    </Card>
+      {data.subtitle && <p className="px-4 pt-2 text-xs text-grass-500">{data.subtitle}</p>}
+      <div className="p-4 pt-2">
+        {data.rows && data.rows.length > 0 && (
+          <div className="space-y-1">
+            {data.rows.slice(0, 10).map((r, i) => (
+              <div key={i} className="flex items-center gap-2 text-sm">
+                <span className="w-6 shrink-0 text-center font-bold text-grass-400">
+                  {["🥇", "🥈", "🥉"][i] ?? i + 1}
+                </span>
+                <span className="flex-1 truncate font-semibold text-grass-800">{r.label}</span>
+                <span className="shrink-0 font-bold text-grass-700">{r.value}</span>
+              </div>
+            ))}
+          </div>
+        )}
+        {data.lines && data.lines.length > 0 && (
+          <div className="space-y-1">
+            {data.lines.slice(0, 12).map((l, i) => (
+              <p key={i} className="text-sm text-grass-700">{l}</p>
+            ))}
+          </div>
+        )}
+        {empty && <p className="text-sm text-grass-400">אין עדיין מספיק נתונים לכרטיס הזה.</p>}
+      </div>
+      {msg && <p className="px-4 pb-2 text-xs font-semibold text-red-500">{msg}</p>}
+      <div
+        aria-hidden
+        style={{ position: "fixed", width: 0, height: 0, overflow: "hidden", top: 0, insetInlineStart: 0 }}
+      >
+        <FunStatCard ref={ref} data={data} />
+      </div>
+    </div>
+  );
+}
+
+// סטטיסטיקות משעשעות/מעניינות מוכנות לשיתוף בוואטסאפ — כל כרטיס מחושב
+// מפונקציות טהורות קיימות (funStats.ts / stats.ts / matchSocial.ts / audit.ts).
+function FunStatsAdmin() {
+  const [cards, setCards] = useState<FunStatData[] | null>(null);
+
+  async function load() {
+    const [gen, mp, matchesRes, profsRes, oddsRes, auditRes] = await Promise.all([
+      fetchRevealedGeneral(),
+      fetchRevealedMatchPicks(),
+      supabase
+        .from("matches")
+        .select("id, ext_id, stage, home_team, away_team, kickoff, home_score, away_score, finished")
+        .order("kickoff"),
+      supabase.from("profiles").select("id, full_name"),
+      supabase.from("odds").select("market, option_id, decimal"),
+      supabase.from("match_picks_audit").select("*").order("changed_at", { ascending: false }).limit(300),
+    ]);
+    const matches = matchesRes.data ?? [];
+    const nameMap = new Map<string, string>();
+    (profsRes.data ?? []).forEach((p: any) => nameMap.set(p.id, p.full_name ?? "אנונימי"));
+    const nameOf = (id: string) => nameMap.get(id) ?? "אנונימי";
+
+    const oddsMap = new Map<string, number>();
+    (oddsRes.data ?? []).forEach((r: any) => {
+      if (r.decimal) oddsMap.set(`${r.market}|${r.option_id}`, r.decimal);
+    });
+    const decimalOf = (market: string, dir: string) => oddsMap.get(`${market}|${dir}`);
+
+    const winnings = hypotheticalWinnings(mp as any, matches as any, decimalOf, 10);
+    const draws = mostDraws(mp as any);
+    const misses = closestMisses(mp as any, matches as any);
+    const stats = generalStats(gen);
+
+    const insights = auditRes.error
+      ? []
+      : analyzeAudit(
+          (auditRes.data ?? []) as any,
+          matches as any,
+          nameOf,
+          (c) => TEAM_BY_CODE[c]?.nameHe ?? c,
+        ).filter((i) => i.kind === "dropped_winner" || i.kind === "switched_to_winner");
+
+    const now = Date.now();
+    const upcoming = (matches as any[])
+      .filter((m) => !m.finished && new Date(m.kickoff).getTime() > now)
+      .sort((a, b) => new Date(a.kickoff).getTime() - new Date(b.kickoff).getTime())[0];
+    let relevantCard: FunStatData | null = null;
+    if (upcoming) {
+      const rel = relevantGeneralForMatch(gen, nameOf, upcoming.home_team, upcoming.away_team);
+      relevantCard = {
+        emoji: "🔮",
+        title: "מי קשור למשחק הבא",
+        subtitle: `${TEAM_BY_CODE[upcoming.home_team]?.nameHe ?? upcoming.home_team} נגד ${TEAM_BY_CODE[upcoming.away_team]?.nameHe ?? upcoming.away_team}`,
+        lines: rel.map((r) => `${r.emoji} ${r.who} — ${r.category}: ${r.what}`),
+      };
+    }
+
+    const list: FunStatData[] = [
+      {
+        emoji: "💰",
+        title: "אם הימרת ₪10 על כל משחק",
+        subtitle: "רווח/הפסד וירטואלי מצטבר, לפי היחסים האמיתיים",
+        rows: winnings.map((w) => ({
+          label: nameOf(w.userId),
+          value: `${w.value >= 0 ? "+" : ""}${Math.round(w.value)}₪`,
+          sub: `${w.extra ?? 0} הימורים`,
+        })),
+      },
+      {
+        emoji: "👟",
+        title: "מובילי מלך השערים",
+        subtitle: "מי הכי הרבה חברים ניחשו",
+        rows: stats.topScorer.slice(0, 10).map((it) => ({
+          label: it.key,
+          value: `${it.count} (${Math.round(it.pct * 100)}%)`,
+        })),
+      },
+      {
+        emoji: "🤝",
+        title: "מלכי התיקו",
+        subtitle: "מי ניחש הכי הרבה תוצאות תיקו",
+        rows: draws.map((d) => ({ label: nameOf(d.userId), value: `${d.value} תיקו` })),
+      },
+      {
+        emoji: "🎯",
+        title: "הכי קרוב בלי לפגוע",
+        subtitle: "כמה פעמים הוחמצה תוצאה מדויקת בשער אחד בדיוק",
+        rows: misses.map((m) => ({ label: nameOf(m.userId), value: `${m.value} פעמים` })),
+      },
+      {
+        emoji: "😅",
+        title: "רגעים דרמטיים",
+        subtitle: "מי ביטל ניחוש מנצח, ומי החליף ברגע האחרון ופגע",
+        lines: insights.slice(0, 12).map((i) => i.note),
+      },
+      ...(relevantCard ? [relevantCard] : []),
+    ];
+    setCards(list);
+  }
+  useEffect(() => {
+    if (isSupabaseConfigured) load();
+    else setCards([]);
+  }, []);
+
+  if (cards === null) return <Card title="🎉 סטטיסטיקות לשיתוף"><Loading /></Card>;
+
+  return (
+    <div className="space-y-3">
+      <h2 className="px-1 text-base font-extrabold text-grass-900">🎉 סטטיסטיקות לשיתוף</h2>
+      {cards.map((c, i) => (
+        <ShareableFunCard key={i} data={c} filename={`mondial-stat-${i}.png`} />
+      ))}
+    </div>
   );
 }
 
@@ -202,75 +421,6 @@ function MissingPicksAdmin() {
         ))}
         {rows.length === 0 && <p className="text-sm text-grass-500">אין משתתפים.</p>}
       </div>
-    </Card>
-  );
-}
-
-// שינויי ניחושים מעניינים — מתוך לוג הביקורת (match_picks_audit)
-function AuditAdmin() {
-  const [insights, setInsights] = useState<AuditInsight[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [err, setErr] = useState<string | null>(null);
-
-  async function load() {
-    const [audit, { data: matches }, { data: profs }] = await Promise.all([
-      supabase.from("match_picks_audit").select("*").order("changed_at", { ascending: false }).limit(300),
-      supabase.from("matches").select("id, home_team, away_team, kickoff, home_score, away_score, finished"),
-      supabase.from("profiles").select("id, full_name"),
-    ]);
-    if (audit.error) {
-      setErr("טבלת הביקורת עדיין לא קיימת — הרץ את security-hardening.sql.");
-      setLoading(false);
-      return;
-    }
-    const nameMap = new Map<string, string>();
-    (profs ?? []).forEach((p: any) => nameMap.set(p.id, p.full_name ?? "אנונימי"));
-    setInsights(
-      analyzeAudit(
-        (audit.data ?? []) as any,
-        (matches ?? []) as any,
-        (id) => nameMap.get(id) ?? "אנונימי",
-        (c) => TEAM_BY_CODE[c]?.nameHe ?? c,
-      ),
-    );
-    setLoading(false);
-  }
-  useEffect(() => {
-    if (isSupabaseConfigured) load();
-    else setLoading(false);
-  }, []);
-
-  if (loading) return <Card title="🕵️ שינויים מעניינים"><Loading /></Card>;
-
-  return (
-    <Card title="🕵️ שינויי ניחושים מעניינים">
-      <p className="mb-2 text-xs text-grass-500">
-        מי ביטל ניחוש מנצח, מי החליף ברגע האחרון ופגע, ושינויים סמוך לנעילה.
-      </p>
-      {err ? (
-        <p className="text-sm text-amber-600">{err}</p>
-      ) : insights.length === 0 ? (
-        <p className="text-sm text-grass-500">
-          עדיין אין שינויים מתועדים. הלוג מתחיל לתעד מרגע הרצת security-hardening.sql.
-        </p>
-      ) : (
-        <ul className="space-y-1.5">
-          {insights.slice(0, 40).map((it, i) => (
-            <li
-              key={i}
-              className={`rounded-2xl border p-2 text-sm ${
-                it.kind === "dropped_winner"
-                  ? "border-red-200 bg-red-50/40"
-                  : it.kind === "switched_to_winner"
-                    ? "border-grass-200 bg-grass-50/40"
-                    : "border-black/10"
-              }`}
-            >
-              {it.note}
-            </li>
-          ))}
-        </ul>
-      )}
     </Card>
   );
 }
@@ -405,8 +555,9 @@ function MatchesAdmin() {
   const [home, setHome] = useState("ARG");
   const [away, setAway] = useState("FRA");
   const [kickoff, setKickoff] = useState("");
-  const [stage, setStage] = useState("r32");
+  const [stage, setStage] = useState("r16");
   const [msg, setMsg] = useState<string | null>(null);
+  const [showGroups, setShowGroups] = useState(false);
 
   async function load() {
     const { data } = await supabase.from("matches").select("*").order("kickoff");
@@ -480,10 +631,24 @@ function MatchesAdmin() {
 
       {msg && <p className="mb-2 text-sm font-semibold text-grass-700">{msg}</p>}
 
+      {(() => {
+        const finishedGroups = matches.filter((m) => m.stage === "groups" && m.finished).length;
+        return finishedGroups > 0 ? (
+          <button
+            onClick={() => setShowGroups((s) => !s)}
+            className="mb-2 text-xs font-bold text-grass-500 underline"
+          >
+            {showGroups ? "הסתר" : `הצג גם`} משחקי שלב הבתים שהסתיימו ({finishedGroups})
+          </button>
+        ) : null;
+      })()}
+
       <div className="space-y-2">
-        {matches.map((m) => (
-          <ResultRow key={m.id} match={m} onSave={saveResult} />
-        ))}
+        {matches
+          .filter((m) => showGroups || m.stage !== "groups" || !m.finished)
+          .map((m) => (
+            <ResultRow key={m.id} match={m} onSave={saveResult} />
+          ))}
         {matches.length === 0 && (
           <p className="text-sm text-grass-500">אין משחקים עדיין.</p>
         )}
@@ -799,8 +964,6 @@ function KnockoutStagesAdmin() {
 
 function ResultsAdmin() {
   const [results, setResults] = useState<Record<string, string>>({});
-  const [stageTeam, setStageTeam] = useState("ARG");
-  const [stageVal, setStageVal] = useState("winner");
 
   async function load() {
     const { data } = await supabase.from("results").select("*");
@@ -856,17 +1019,9 @@ function ResultsAdmin() {
         {teamSelect("mostGoalsTeam")}
         {teamSelect("bestDefenseTeam")}
       </div>
-
-      <h3 className="mt-4 mb-2 text-sm font-extrabold text-grass-800">שלב סופי של נבחרת</h3>
-      <div className="flex items-center gap-2">
-        <select value={stageTeam} onChange={(e) => setStageTeam(e.target.value)} className="input flex-1">
-          {TEAMS.map((t) => <option key={t.code} value={t.code}>{t.flag} {t.nameHe}</option>)}
-        </select>
-        <select value={stageVal} onChange={(e) => setStageVal(e.target.value)} className="input flex-1">
-          {STAGE_ORDER.map((s) => <option key={s} value={s}>{STAGE_LABELS_HE[s]}</option>)}
-        </select>
-        <button onClick={() => setResult(`stage:${stageTeam}`, stageVal)} className="btn-ghost text-xs">שמור</button>
-      </div>
+      <p className="mt-3 text-xs text-grass-400">
+        לעדכון "לאיזה שלב הגיעה כל נבחרת" — ראו את הכרטיס "🏆 שלבי נוקאאוט" למעלה.
+      </p>
     </Card>
   );
 }
