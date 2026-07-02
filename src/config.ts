@@ -3,7 +3,7 @@
 //  כל המשקלים והקבועים נמצאים כאן, נוח לעריכה במקום אחד.
 // ============================================================
 
-import type { GeneralCategory } from "./lib/types";
+import type { GeneralCategory, Stage } from "./lib/types";
 
 /**
  * משקלי הקטגוריות בניחושים הכלליים (שלב 1).
@@ -104,16 +104,25 @@ export const PRIZE_LABELS: Record<PrizeCategory, string> = {
 };
 
 /**
- * מכפיל ניקוד למשחקי נוקאאוט — כיוון + בינגו מוכפלים ×1.25 בשלבים מעבר לבתים.
+ * מכפיל ניקוד למשחקי נוקאאוט — כיוון + בינגו מוכפלים לפי שלב (ככל שמתקדמים
+ * בטורניר המשחק חשוב יותר, המכפיל עולה). שלב הבתים = ×1 (בלי מכפיל).
  */
-export const KNOCKOUT_MATCH_MULTIPLIER = 1.25;
+export const KNOCKOUT_MULTIPLIER_BY_STAGE: Record<Stage, number> = {
+  groups: 1,
+  r32: 1.25,
+  r16: 1.35,
+  qf: 1.4,
+  sf: 1.45,
+  final: 1.5,
+  winner: 1.5,
+};
 
 /** כל כמה זמן מותר לרענן יחסים אוטומטית (שעות) */
 export const ODDS_STALE_HOURS = 12;
 
 /**
  * דדליין לניחושי משחק: כמה דקות לפני שריקת הפתיחה הניחוש נסגר.
- * ברירת מחדל: 15 דקות לפני המשחק.
+ * 0 = פתוח עד ממש שריקת הפתיחה של המשחק.
  */
-export const MATCH_LOCK_MINUTES_BEFORE = 15;
+export const MATCH_LOCK_MINUTES_BEFORE = 0;
 

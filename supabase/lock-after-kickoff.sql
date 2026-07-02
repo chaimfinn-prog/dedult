@@ -9,9 +9,9 @@
 create or replace function public.tournament_kickoff() returns timestamptz
 language sql immutable as $$ select '2026-06-11T19:00:00Z'::timestamptz $$;
 
--- כמה דקות לפני משחק הניחוש נסגר
+-- כמה דקות לפני משחק הניחוש נסגר (0 = פתוח עד ממש שריקת הפתיחה)
 create or replace function public.match_lock_minutes() returns int
-language sql immutable as $$ select 15 $$;
+language sql immutable as $$ select 0 $$;
 
 -- ---- ניחושים כלליים: חסומים אחרי שריקת הפתיחה ----
 create or replace function public.enforce_general_lock() returns trigger
@@ -40,7 +40,7 @@ begin
     raise exception 'משחק לא קיים';
   end if;
   if now() >= ko - make_interval(mins => public.match_lock_minutes()) then
-    raise exception 'הניחוש למשחק זה ננעל (פחות מ-% דקות לשריקה)', public.match_lock_minutes();
+    raise exception 'הניחוש למשחק זה ננעל (שריקת הפתיחה כבר הייתה או קרובה מדי)';
   end if;
   return new;
 end;

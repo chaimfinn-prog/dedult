@@ -1,21 +1,24 @@
 // ============================================================
 //  knockout.ts — ניקוד התקדמות בנוקאאוט מהלוח־עץ.
-//  10 נק' לכל שלב נוקאאוט (1/8, רבע, חצי, גמר) שקבוצה הגיעה אליו —
-//  ובלבד שניחשת שתגיע לפחות לשם (קרדיט חלקי). הזכייה עצמה (אלוף) מנוקדת
-//  בנפרד בבונוס האלוף, ולכן אינה נכללת כאן.
-//  פונקציה טהורה (נבדקת).
+//  סכום כולל (לא מצטבר) לפי עומק ההתקדמות: הגעה ל-R16 (ניצחון ב-R32) = 20,
+//  הגעה לרבע גמר = 30 — ובלבד שניחשת שתגיע לפחות לשם (קרדיט חלקי/תקרה
+//  לפי הניחוש). חצי גמר/גמר לא מנוקדים כאן — כבר מכוסים ע"י בונוס
+//  האלוף/סגנית. פונקציה טהורה (נבדקת).
 // ============================================================
 
 import { STAGE_ORDER, type Stage } from "./types";
 
-export const KNOCKOUT_STAGE_POINTS = 10;
-/** השלבים שמזכים בנקודות — מ-R16 (ניצחון ב-R32) ומעלה.
- *  'winner' לא נכלל (זה בונוס האלוף). */
-export const KNOCKOUT_STAGES: Stage[] = ["r16", "qf", "sf", "final"];
+/** ערך (סה"כ, לא תוספת) לכל שלב שמזכה בנקודות. שלבים שאינם במפה = 0. */
+export const KNOCKOUT_STAGE_VALUE: Partial<Record<Stage, number>> = {
+  r16: 20,
+  qf: 30,
+};
+/** סדר השלבים המנוקדים, מהעמוק לרדוד — לבדיקת "עד כמה הגיעה" */
+const SCORED_STAGES: Stage[] = ["qf", "r16"];
 
 export interface KnockoutResult {
   points: number;
-  stagesHit: Stage[];
+  stagesHit: Stage[]; // השלב היחיד שהזכה בנקודות (ריק אם לא הגיעה מספיק רחוק)
 }
 
 /**
@@ -31,6 +34,8 @@ export function scoreKnockoutAdvancement(
   if (predIdx < 0 || actualIdx < 0) return { points: 0, stagesHit: [] };
 
   const reached = Math.min(predIdx, actualIdx); // נותנים קרדיט עד למינימום
-  const stagesHit = KNOCKOUT_STAGES.filter((s) => STAGE_ORDER.indexOf(s) <= reached);
-  return { points: stagesHit.length * KNOCKOUT_STAGE_POINTS, stagesHit };
+  // השלב העמוק ביותר שהושג ושמזכה בנקודות — לא סכום מצטבר של כל השלבים.
+  const stage = SCORED_STAGES.find((s) => STAGE_ORDER.indexOf(s) <= reached);
+  if (!stage) return { points: 0, stagesHit: [] };
+  return { points: KNOCKOUT_STAGE_VALUE[stage]!, stagesHit: [stage] };
 }

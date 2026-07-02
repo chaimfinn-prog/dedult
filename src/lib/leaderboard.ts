@@ -3,7 +3,7 @@
 //  מקבל את כל הנתונים ומחזיר דירוג עם פירוט מקור הנקודות.
 // ============================================================
 
-import { CHAMPION_DOUBLE_BONUS, KNOCKOUT_MATCH_MULTIPLIER } from "../config";
+import { CHAMPION_DOUBLE_BONUS, KNOCKOUT_MULTIPLIER_BY_STAGE } from "../config";
 import {
   directionOf,
   potentialGeneralPoints,
@@ -176,22 +176,29 @@ export function computeLeaderboard(input: ScoreInput): LeaderRow[] {
 
       // ===== שלבים (לוח־עץ) — נספר בכללי בלבד, לא בקטגוריית "אלוף כללי" =====
       // מיקומי בתים: 5 על מקום מדויק, 2 על קבוצה שעלתה במקום השני (מקומות 1–2).
+      // מוצג כשורה מסוכמת אחת (לא פירוט לכל בית) — שלב הבתים כבר הסתיים.
       const bracket = gp.bracket ? normalizeBracket(gp.bracket) : null;
       if (bracket) {
+        let groupsPoints = 0;
+        let exactHits = 0, qualifiedHits = 0, thirdHits = 0;
         for (const [g, actual] of Object.entries(groupStandings)) {
           const r = scoreGroupPick(bracket.groupRankings[g], actual, advancedThirds);
-          if (r.points > 0) {
-            stagesTotal += r.points;
-            const parts: string[] = [];
-            if (r.exactHits) parts.push(`${r.exactHits}× מדויק`);
-            if (r.qualifiedHits) parts.push(`${r.qualifiedHits}× עלתה`);
-            if (r.thirdHits) parts.push(`${r.thirdHits}× שלישית עולה`);
-            breakdown.push({
-              label: `🏟️ בית ${g} — מיקומים`,
-              points: r.points,
-              detail: parts.join(" · "),
-            });
-          }
+          groupsPoints += r.points;
+          exactHits += r.exactHits;
+          qualifiedHits += r.qualifiedHits;
+          thirdHits += r.thirdHits;
+        }
+        if (groupsPoints > 0) {
+          stagesTotal += groupsPoints;
+          const parts: string[] = [];
+          if (exactHits) parts.push(`${exactHits}× מדויק`);
+          if (qualifiedHits) parts.push(`${qualifiedHits}× עלתה`);
+          if (thirdHits) parts.push(`${thirdHits}× שלישית עולה`);
+          breakdown.push({
+            label: "🏟️ שלב הבתים (סה\"כ)",
+            points: groupsPoints,
+            detail: parts.join(" · "),
+          });
         }
       }
 
@@ -252,15 +259,17 @@ export function computeLeaderboard(input: ScoreInput): LeaderRow[] {
       );
       if (res.exactCorrect) bingo++;
       if (res.directionCorrect) directionHits++;
-      const isKnockout = (m.stage ?? "groups") !== "groups";
-      const matchPoints = isKnockout ? Math.round(res.total * KNOCKOUT_MATCH_MULTIPLIER) : res.total;
+      const stage = (m.stage ?? "groups") as Stage;
+      const isKnockout = stage !== "groups";
+      const multiplier = KNOCKOUT_MULTIPLIER_BY_STAGE[stage] ?? 1;
+      const matchPoints = isKnockout ? Math.round(res.total * multiplier) : res.total;
       if (isKnockout) knockoutTotal += matchPoints;
       else groupStageTotal += matchPoints;
 
       // פירוט: אוספים רק בינגו (תוצאה מדויקת) להצגה כרונולוגית בהמשך
       if (res.exactCorrect) {
         const label = `${teamName(m.home_team)} ${m.home_score}-${m.away_score} ${teamName(m.away_team)}`;
-        const detail = `🎯 בינגו! ניחשת ${mp.pred_home}-${mp.pred_away} (כיוון ${res.directionPoints} + בונוס ${res.exactBonus}${isKnockout ? " ×1.25" : ""})`;
+        const detail = `🎯 בינגו! ניחשת ${mp.pred_home}-${mp.pred_away} (כיוון ${res.directionPoints} + בונוס ${res.exactBonus}${isKnockout ? ` ×${multiplier}` : ""})`;
         matchDetails.push({ label, points: matchPoints, detail, kickoff: m.kickoff, bingo: true });
       }
     }
