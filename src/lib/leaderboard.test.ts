@@ -65,6 +65,52 @@ describe("חישוב טבלת מובילים", () => {
   });
 });
 
+describe("בונוס אלוף+סגנית הפוך", () => {
+  function input(swap: boolean): ScoreInput {
+    return {
+      profiles: [{ id: "u1", full_name: "משה", avatar_url: null }],
+      generalPicks: [
+        {
+          user_id: "u1",
+          champion: "ARG",
+          runner_up: "ESP",
+          top_scorer: null,
+          second_scorer: null,
+          top_assists: null,
+          stages: {},
+        },
+      ],
+      matches: [],
+      matchPicks: [],
+      results: swap
+        ? { champion: "ESP", runnerUp: "ARG" } // הפוך: מי שסימנת כאלוף (ARG) הפסידה, מי שסימנת כסגנית (ESP) ניצחה
+        : { champion: "ARG", runnerUp: "ESP" }, // סדר נכון
+      probOf: (_market, opt) => (opt === "ARG" ? 0.1 : opt === "ESP" ? 0.2 : 0.5),
+    };
+  }
+
+  it("סדר הפוך: קרדיט חלקי ברמת סגנית לשתיהן, בלי בונוס כפול", () => {
+    const board = computeLeaderboard(input(true));
+    const u1 = board.find((r) => r.userId === "u1")!;
+    expect(u1.breakdown.some((b) => b.label === "אלוף")).toBe(false);
+    expect(u1.breakdown.some((b) => b.label === "סגנית")).toBe(false);
+    expect(u1.breakdown.some((b) => b.label.includes("בונוס"))).toBe(false);
+    const swap = u1.breakdown.find((b) => b.label.includes("הפוך"));
+    expect(swap).toBeTruthy();
+    // runnerUp(ARG at 0.1)=round(15/0.1)=150 + runnerUp(ESP at 0.2)=round(15/0.2)=75 → 225
+    expect(swap!.points).toBe(225);
+  });
+
+  it("סדר נכון: עדיין מקבל אלוף+סגנית+בונוס רגיל, בלי שורת 'הפוך'", () => {
+    const board = computeLeaderboard(input(false));
+    const u1 = board.find((r) => r.userId === "u1")!;
+    expect(u1.breakdown.find((b) => b.label === "אלוף")?.points).toBe(300);
+    expect(u1.breakdown.find((b) => b.label === "סגנית")?.points).toBe(75);
+    expect(u1.breakdown.find((b) => b.label.includes("בונוס"))?.points).toBe(250);
+    expect(u1.breakdown.some((b) => b.label.includes("הפוך"))).toBe(false);
+  });
+});
+
 // אבטחה: שדה direction השמור לא משפיע על הניקוד — הכיוון נגזר מהתוצאה.
 // מונע את הניצול: לכתוב ב-API ישיר תוצאה של פייבוריט עם direction של אנדרדוג
 // כדי לקבל את תעריף ההפתעה. שני המנחשים ניחשו 2-1 (ניצחון בית) → אותו ניקוד,

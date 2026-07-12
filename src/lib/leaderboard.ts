@@ -159,6 +159,15 @@ export function computeLeaderboard(input: ScoreInput): LeaderRow[] {
       const runner = gp.bracket ? runnerUpFrom(gp.bracket) : gp.runner_up;
       const champCorrect = !!champ && results["champion"] === champ;
       const runnerCorrect = !!runner && results["runnerUp"] === runner;
+      // היפוך: שתי הקבוצות שסימנת הגיעו לגמר וזוהו נכון, אבל בסדר הפוך
+      // (מי שסימנת כאלוף בעצם הפסידה, מי שסימנת כסגנית בעצם ניצחה).
+      const swapped =
+        !champCorrect &&
+        !runnerCorrect &&
+        !!champ &&
+        !!runner &&
+        results["champion"] === runner &&
+        results["runnerUp"] === champ;
       if (champCorrect) {
         const pts = potentialGeneralPoints("champion", probOf("champion", champ!));
         marketsTotal += pts;
@@ -172,6 +181,14 @@ export function computeLeaderboard(input: ScoreInput): LeaderRow[] {
       if (champCorrect && runnerCorrect) {
         marketsTotal += CHAMPION_DOUBLE_BONUS;
         breakdown.push({ label: "🎯 בונוס אלוף+סגנית", points: CHAMPION_DOUBLE_BONUS });
+      } else if (swapped) {
+        // שתי הקבוצות זוהו נכון כגמריסטיות, אך לא בתפקיד המדויק —
+        // קרדיט חלקי ברמת סגנית (משקל נמוך) לשתיהן, בלי בונוס הכפול.
+        const pts =
+          potentialGeneralPoints("runnerUp", probOf("champion", champ!)) +
+          potentialGeneralPoints("runnerUp", probOf("runnerUp", runner!));
+        marketsTotal += pts;
+        breakdown.push({ label: "🔄 אלוף+סגנית הפוך", points: pts });
       }
 
       // ===== שלבים (לוח־עץ) — נספר בכללי בלבד, לא בקטגוריית "אלוף כללי" =====
