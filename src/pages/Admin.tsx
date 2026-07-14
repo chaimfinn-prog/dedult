@@ -645,7 +645,13 @@ function MatchesAdmin() {
 
       <div className="space-y-2">
         {matches
-          .filter((m) => showGroups || m.stage !== "groups" || !m.finished)
+          .filter((m) => {
+            if (!m.finished) return true;
+            if (showGroups) return true;
+            if (m.stage !== "groups") return true;
+            // הצג גם משחקי-קבוצות שהסתיימו לאחרונה (14 יום) — מנע הסתרה בגלל שגיאת שלב
+            return Date.now() - new Date(m.kickoff).getTime() < 14 * 24 * 60 * 60 * 1000;
+          })
           .map((m) => (
             <ResultRow key={m.id} match={m} onSave={saveResult} />
           ))}
