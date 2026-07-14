@@ -8,6 +8,7 @@ function row(id: string, total: number, sub: Partial<LeaderRow["subtotals"]> = {
     name: id,
     avatar: null,
     total,
+    livePts: 0,
     breakdown: [],
     subtotals: { generalMarkets: 0, bracketStages: 0, groupStage: 0, knockout: 0, ...sub },
     bingo: 0,

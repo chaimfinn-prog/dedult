@@ -731,6 +731,16 @@ function ResultRow({
           <option value={match.away_team}>{TEAM_BY_CODE[match.away_team]?.nameHe ?? match.away_team}</option>
         </select>
       )}
+      {match.finished && (
+        <button
+          onClick={() => handle(false)}
+          disabled={status === "saving"}
+          className="rounded-lg border border-red-300 px-2 py-1 text-xs text-red-600 disabled:opacity-50"
+          title="החזר למצב לייב"
+        >
+          🔴 חי
+        </button>
+      )}
       <button
         onClick={() => handle(true)}
         disabled={status === "saving"}

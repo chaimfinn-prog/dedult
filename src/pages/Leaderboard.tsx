@@ -278,6 +278,11 @@ export default function Leaderboard() {
               <div className="text-left">
                 <div className="text-xl font-black text-grass-700">
                   {categoryValue(row).toLocaleString("he-IL")}
+                  {(row.livePts ?? 0) > 0 && (
+                    <span className="ms-1 text-sm font-bold text-amber-500">
+                      +{row.livePts}🔴
+                    </span>
+                  )}
                 </div>
                 <div className="text-[11px] font-bold text-grass-400">{categoryLabel}</div>
               </div>

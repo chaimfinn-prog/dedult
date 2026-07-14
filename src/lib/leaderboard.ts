@@ -57,6 +57,7 @@ export interface MatchRow {
   home_score: number | null;
   away_score: number | null;
   finished: boolean;
+  live?: boolean; // משחק בשידור חי — ניקוד טנטטיב
 }
 export interface MatchPickRow {
   user_id: string;
@@ -87,6 +88,8 @@ export interface LeaderRow {
   name: string;
   avatar: string | null;
   total: number;
+  /** נקודות טנטטיביות ממשחק חי שעוד לא הסתיים (כלולות ב-total) */
+  livePts: number;
   breakdown: Breakdown[];
   /** סכומי-משנה לפי קטגוריית פרס */
   subtotals: {
@@ -247,13 +250,16 @@ export function computeLeaderboard(input: ScoreInput): LeaderRow[] {
     // ניחושי משחקים — מפוצלים לשלב בתים מול נוקאאוט
     let groupStageTotal = 0;
     let knockoutTotal = 0;
+    let liveMatchTotal = 0; // טנטטיב — משחק שרץ עכשיו
     let bingo = 0; // תוצאות מדויקות
     let directionHits = 0; // כיוונים נכונים
     // פירוט המשחקים — אוספים הכל, ובסוף מציגים רק בינגו לפי סדר כרונולוגי
-    const matchDetails: (Breakdown & { kickoff?: string | null; bingo: boolean })[] = [];
+    const matchDetails: (Breakdown & { kickoff?: string | null; bingo: boolean; tentative?: boolean })[] = [];
     for (const mp of matchPicks.filter((x) => x.user_id === p.id)) {
       const m = matchById.get(mp.match_id);
-      if (!m || !m.finished || m.home_score == null || m.away_score == null) continue;
+      const isLive = !m?.finished && !!m?.live && m.home_score != null && m.away_score != null;
+      if (!m || m.home_score == null || m.away_score == null) continue;
+      if (!m.finished && !isLive) continue;
       // היחסים נשמרים לפי ext_id (מזהה The Odds API); נפילה ל-id פנימי
       const mkt = `match:${m.ext_id ?? mp.match_id}`;
       // אבטחה: הכיוון נגזר מהתוצאה שהוזנה, לא משדה direction השמור (שניתן
@@ -274,37 +280,45 @@ export function computeLeaderboard(input: ScoreInput): LeaderRow[] {
         { home: m.home_score, away: m.away_score },
         exactBonus,
       );
-      if (res.exactCorrect) bingo++;
-      if (res.directionCorrect) directionHits++;
+      if (res.exactCorrect && m.finished) bingo++;
+      if (res.directionCorrect && m.finished) directionHits++;
       const stage = (m.stage ?? "groups") as Stage;
       const isKnockout = stage !== "groups";
       const multiplier = KNOCKOUT_MULTIPLIER_BY_STAGE[stage] ?? 1;
       const matchPoints = isKnockout ? Math.round(res.total * multiplier) : res.total;
-      if (isKnockout) knockoutTotal += matchPoints;
-      else groupStageTotal += matchPoints;
+      if (isLive) {
+        liveMatchTotal += matchPoints;
+      } else if (isKnockout) {
+        knockoutTotal += matchPoints;
+      } else {
+        groupStageTotal += matchPoints;
+      }
 
       // פירוט: אוספים רק בינגו (תוצאה מדויקת) להצגה כרונולוגית בהמשך
       if (res.exactCorrect) {
         const label = `${teamName(m.home_team)} ${m.home_score}-${m.away_score} ${teamName(m.away_team)}`;
-        const detail = `🎯 בינגו! ניחשת ${mp.pred_home}-${mp.pred_away} (כיוון ${res.directionPoints} + בונוס ${res.exactBonus}${isKnockout ? ` ×${multiplier}` : ""})`;
-        matchDetails.push({ label, points: matchPoints, detail, kickoff: m.kickoff, bingo: true });
+        const tentativeTag = isLive ? " 🔴" : "";
+        const detail = `🎯 בינגו! ניחשת ${mp.pred_home}-${mp.pred_away} (כיוון ${res.directionPoints} + בונוס ${res.exactBonus}${isKnockout ? ` ×${multiplier}` : ""})${tentativeTag}`;
+        matchDetails.push({ label, points: matchPoints, detail, kickoff: m.kickoff, bingo: true, tentative: isLive });
       }
     }
     if (groupStageTotal > 0) breakdown.push({ label: "משחקי שלב הבתים (סה\"כ)", points: groupStageTotal });
     if (knockoutTotal > 0) breakdown.push({ label: "משחקי נוקאאוט (סה\"כ)", points: knockoutTotal });
+    if (liveMatchTotal > 0) breakdown.push({ label: "🔴 לייב (טנטטיב)", points: liveMatchTotal });
     // רק בינגו, ממוין כרונולוגית לפי שריקת הפתיחה
     const bingoLines = matchDetails
       .slice()
       .sort((x, y) => (x.kickoff ?? "").localeCompare(y.kickoff ?? ""))
       .map(({ label, points, detail }) => ({ label, points, detail }));
     breakdown.push(...bingoLines);
-    total += groupStageTotal + knockoutTotal;
+    total += groupStageTotal + knockoutTotal + liveMatchTotal;
 
     return {
       userId: p.id,
       name: p.full_name ?? "אנונימי",
       avatar: p.avatar_url,
       total,
+      livePts: liveMatchTotal, // נקודות טנטטיביות ממשחק חי
       breakdown,
       subtotals: {
         generalMarkets: marketsTotal,
