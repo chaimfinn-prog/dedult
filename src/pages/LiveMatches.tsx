@@ -68,6 +68,7 @@ export default function LiveMatches() {
   const [showArchive, setShowArchive] = useState(false);
   const todayRef = useRef<HTMLDivElement | null>(null);
   const scrolledRef = useRef(false);
+  const refreshRef = useRef<() => Promise<void>>(() => Promise.resolve());
 
   useEffect(() => {
     let alive = true;
@@ -110,6 +111,7 @@ export default function LiveMatches() {
       setLastSync(new Date());
       setLoading(false);
     }
+    refreshRef.current = refresh;
     refresh();
     // רענון אוטומטי כל 30 שניות — תוצאות חיות מתעדכנות מאליהן
     const t = setInterval(refresh, 30_000);
@@ -117,6 +119,20 @@ export default function LiveMatches() {
       alive = false;
       clearInterval(t);
     };
+  }, [user]);
+
+  // שלב נוקאאוט: מושך תוצאות חיות מ-API כל 5 דקות + מרענן UI מיד אחרי
+  useEffect(() => {
+    if (!isSupabaseConfigured || !user) return;
+    const t = setInterval(async () => {
+      try {
+        await supabase.functions.invoke("fetch-scores", { method: "POST" });
+        await refreshRef.current();
+      } catch {
+        // הקרון ממשיך לרוץ כגיבוי — שגיאה כאן לא קריטית
+      }
+    }, 5 * 60 * 1000);
+    return () => clearInterval(t);
   }, [user]);
 
   const revealedByMatch = useMemo(() => {

@@ -30,10 +30,10 @@ end $$;
 -- פונקציית עזר: שולחת POST ל-Edge Function (מקצרת חזרתיות)
 -- (נשארת inline בכל job כי cron.schedule דורש מחרוזת SQL)
 
--- ---- תוצאות: ימים א'–ה' בערב (20:00–23:59 IL = 17:00–20:59 UTC), כל 20 דק' ----
+-- ---- תוצאות: ימים א'–ה' בערב (20:00–23:59 IL = 17:00–20:59 UTC), כל 5 דק' בשלב נוקאאוט ----
 select cron.schedule(
   'fetch-scores-sun-thu',
-  '*/30 17-22 * * 0-4',   -- כל 30 דק' 17:00–22:59 UTC (=20:00–01:59 IL) — שעות המשחקים
+  '*/5 17-22 * * 0-4',    -- כל 5 דק' 17:00–22:59 UTC (=20:00–01:59 IL) — שעות המשחקים
   $$
   select net.http_post(
     url     := 'https://<PROJECT_REF>.supabase.co/functions/v1/fetch-scores',
@@ -43,10 +43,10 @@ select cron.schedule(
   $$
 );
 
--- ---- יום ו' (לפני כניסת שבת): רק עד 15:59 UTC (=18:59 IL), כל 20 דק' ----
+-- ---- יום ו' (לפני כניסת שבת): רק עד 15:59 UTC (=18:59 IL), כל 5 דק' ----
 select cron.schedule(
   'fetch-scores-friday',
-  '*/30 11-15 * * 5',
+  '*/5 11-15 * * 5',
   $$
   select net.http_post(
     url     := 'https://<PROJECT_REF>.supabase.co/functions/v1/fetch-scores',
@@ -69,10 +69,10 @@ select cron.schedule(
   $$
 );
 
--- ---- מוצ"ש בלילה: משחקי שבת בערב (21:00–23:59 IL = 18:00–20:59 UTC), כל 20 דק' ----
+-- ---- מוצ"ש בלילה: משחקי שבת בערב (21:00–23:59 IL = 18:00–20:59 UTC), כל 5 דק' ----
 select cron.schedule(
   'fetch-scores-motzash-night',
-  '*/30 18-22 * * 6',
+  '*/5 18-22 * * 6',
   $$
   select net.http_post(
     url     := 'https://<PROJECT_REF>.supabase.co/functions/v1/fetch-scores',
