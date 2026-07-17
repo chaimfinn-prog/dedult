@@ -56,6 +56,7 @@ export default function Admin() {
       <FunStatsAdmin />
       <MissingPicksAdmin />
       <ExportPicks />
+      <AddFinalMatchesAdmin />
       <OddsRefresh lastUpdated={lastUpdated} />
       <MatchesAdmin />
       <MatchOddsEditor />
@@ -496,6 +497,63 @@ function Card({ title, children }: { title: string; children: React.ReactNode })
   );
 }
 
+function AddFinalMatchesAdmin() {
+  const [status, setStatus] = useState<"idle" | "busy" | "done" | "err">("idle");
+  const [msg, setMsg] = useState<string | null>(null);
+
+  async function addAndFetch() {
+    setStatus("busy");
+    setMsg(null);
+    try {
+      const toAdd = [
+        { home_team: "FRA", away_team: "ENG", kickoff: "2026-07-18T20:00:00Z", stage: "third" },
+        { home_team: "ESP", away_team: "ARG", kickoff: "2026-07-19T20:00:00Z", stage: "final" },
+      ];
+      for (const m of toAdd) {
+        const { data: existing } = await supabase
+          .from("matches")
+          .select("id")
+          .eq("home_team", m.home_team)
+          .eq("away_team", m.away_team)
+          .limit(1);
+        if (!existing?.length) {
+          const { error } = await supabase.from("matches").insert(m);
+          if (error) throw error;
+        }
+      }
+      const { error: oddsErr } = await supabase.functions.invoke("fetch-odds", { method: "POST" });
+      if (oddsErr) throw oddsErr;
+      setStatus("done");
+      setMsg("✓ משחקי הגמר נוספו ויחסים נמשכו מה-API");
+    } catch (e: any) {
+      setStatus("err");
+      setMsg("שגיאה: " + (e?.message || String(e)));
+    }
+  }
+
+  return (
+    <Card title="🏆 הוסף משחקי הגמר">
+      <p className="mb-3 text-sm text-grass-500">
+        מקום 3: 🇫🇷 צרפת — 🏴󠁧󠁢󠁥󠁮󠁧󠁿 אנגליה &nbsp;|&nbsp; גמר: 🇪🇸 ספרד — 🇦🇷 ארגנטינה
+        <br />
+        אם קיימים כבר לא ייווצרו שניים. אחרי הכפתור ימשכו יחסים אוטומטית.
+      </p>
+      <button
+        onClick={addAndFetch}
+        disabled={status === "busy"}
+        className="btn-primary w-full"
+      >
+        {status === "busy" ? "מוסיף ומושך יחסים…" : "הוסף מקום 3 + גמר ומשוך יחסים"}
+      </button>
+      {msg && (
+        <p className={`mt-2 text-sm font-semibold ${status === "err" ? "text-red-600" : "text-grass-700"}`}>
+          {msg}
+        </p>
+      )}
+    </Card>
+  );
+}
+
 function OddsRefresh({ lastUpdated }: { lastUpdated: string | null }) {
   const [busy, setBusy] = useState<null | "odds" | "scores">(null);
   const [msg, setMsg] = useState<string | null>(null);
@@ -720,7 +778,7 @@ function ResultRow({
       <input type="number" min={0} value={hs} onChange={(e) => setHs(+e.target.value)} className="h-9 w-12 rounded-lg border border-black/10 text-center" />
       <span>:</span>
       <input type="number" min={0} value={as} onChange={(e) => setAs(+e.target.value)} className="h-9 w-12 rounded-lg border border-black/10 text-center" />
-      {match.stage !== "groups" && (
+      {match.stage !== "groups" && match.stage !== "third" && (
         <select
           value={advancer}
           onChange={(e) => setAdvancer(e.target.value)}

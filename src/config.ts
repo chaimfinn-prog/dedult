@@ -113,6 +113,7 @@ export const KNOCKOUT_MULTIPLIER_BY_STAGE: Record<Stage, number> = {
   r16: 1.35,
   qf: 1.4,
   sf: 1.45,
+  third: 1.45, // משחק מקום שלישי — אותו מכפיל כמו חצי גמר
   final: 1.5,
   winner: 1.5,
 };

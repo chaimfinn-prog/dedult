@@ -7,9 +7,11 @@ export type Stage =
   | "r16" // עלתה לשמינית הגמר (16)
   | "qf" // רבע גמר
   | "sf" // חצי גמר
+  | "third" // משחק מקום שלישי (לא חלק מסולם ההתקדמות)
   | "final" // הגיעה לגמר
   | "winner"; // זכתה
 
+// "third" לא נכלל כאן — זה משחק ייעודי ולא שלב התקדמות
 export const STAGE_ORDER: Stage[] = [
   "groups",
   "r32",
@@ -26,6 +28,7 @@ export const STAGE_LABELS_HE: Record<Stage, string> = {
   r16: "שמינית גמר",
   qf: "רבע גמר",
   sf: "חצי גמר",
+  third: "מקום שלישי",
   final: "גמר",
   winner: "אלופה",
 };

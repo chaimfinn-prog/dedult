@@ -149,6 +149,23 @@ Deno.serve(async (req) => {
 
     // upsert של המשחקים (לא דורס תוצאות קיימות — רק פרטי המשחק)
     if (matchRows.length) {
+      // מיזוג משחקים שנוספו ידנית (ללא ext_id) עם הנתונים מה-API — מונע שכפולים
+      for (const mr of matchRows) {
+        const { data: manual } = await db
+          .from("matches")
+          .select("id, stage")
+          .eq("home_team", mr.home_team)
+          .eq("away_team", mr.away_team)
+          .is("ext_id", null)
+          .limit(1);
+        if (manual?.length) {
+          // שמירת stage="third" שנקבע ידנית — לא מדרסים אותו ב-API
+          const keepStage = manual[0].stage === "third";
+          await db.from("matches")
+            .update({ ext_id: mr.ext_id, kickoff: mr.kickoff, stage: keepStage ? manual[0].stage : mr.stage })
+            .eq("id", manual[0].id);
+        }
+      }
       await db.from("matches").upsert(matchRows, { onConflict: "ext_id" });
     }
 
