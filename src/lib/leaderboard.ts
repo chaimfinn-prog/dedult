@@ -151,7 +151,9 @@ export function computeLeaderboard(input: ScoreInput): LeaderRow[] {
       // ===== ניחושים כלליים (שווקים + אלוף/סגנית) — קטגוריית "אלוף כללי" =====
       for (const { field, cat, market, label } of GENERAL_FIELDS) {
         const pick = gp[field] as string | null;
-        if (pick && results[market] && results[market] === pick) {
+        // תמיכה בתוצאת שוויון: ניתן לשמור מספר ערכים מופרדים בפסיק (למשל "ENG,FRA")
+        const resultVals = results[market]?.split(",").map((s) => s.trim()) ?? [];
+        if (pick && resultVals.length && resultVals.includes(pick)) {
           const pts = potentialGeneralPoints(cat, probOf(market, pick));
           marketsTotal += pts;
           breakdown.push({ label, points: pts });
